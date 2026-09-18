@@ -1,5 +1,5 @@
 {
-  "version": "53c0cc0",
-  "message": "Refine spot configs from full chat export review: Erwin West sector, Porteau timing/tide notes, White Rock SE caution, Jericho tide principle, Nexen note",
-  "deployed_at": "2026-08-16T01:10:12Z"
+  "version": "d8fbf4b",
+  "message": "Staging repo config: point at wind-guru-staging repo/worker, disable auto schedule",
+  "deployed_at": "2026-09-18T15:14:17Z"
 }
