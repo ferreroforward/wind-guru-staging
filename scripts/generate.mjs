@@ -110,21 +110,25 @@ function parseEcObservedWind(html) {
   const latest = rows[0]; // rows are most-recent-first
   const time = latest[0];
   const windRaw = latest[3];
-  let speedKmh, directionLabel, directionAbbr = null;
+  let speedKmh, directionLabel, directionAbbr = null, gustKmh = null;
   if (/^calm$/i.test(windRaw)) {
     speedKmh = 0;
     directionLabel = "calm";
   } else {
-    const m = windRaw.match(/^([A-Z]+)\s*\(([^)]+)\)\s*([\d.]+)/);
+    // Land stations report just "DIR (Label) SPEED"; buoy stations add a
+    // trailing "gusts N" on the same line (e.g. "W (West) 14 gusts 17") —
+    // capture it when present rather than assuming it's never there.
+    const m = windRaw.match(/^([A-Z]+)\s*\(([^)]+)\)\s*([\d.]+)(?:\s*gusts?\s*([\d.]+))?/);
     if (!m) return null;
     directionAbbr = m[1];
     directionLabel = m[2];
     speedKmh = parseFloat(m[3]);
+    gustKmh = m[4] != null ? parseFloat(m[4]) : null;
   }
   return {
     time, // "HH:MM" Pacific, no date attached
     speedKt: Math.round(speedKmh * 0.539957 * 10) / 10,
-    gustKt: null, // this table doesn't report gust
+    gustKt: gustKmh != null ? Math.round(gustKmh * 0.539957 * 10) / 10 : null,
     directionAbbr,
     directionLabel,
   };
@@ -137,6 +141,21 @@ async function fetchEcObservation(station) {
   const html = await res.text();
   return parseEcObservedWind(html);
 }
+
+// Environment Canada marine buoys — genuine open-water wind, distinct from
+// the coastal/land stations wtfbc.ca's board already covers (see
+// SWOB_BOARD_URL below) and from the marine bulletin *text* (MARINE_ZONES
+// above). A buoy's numeric NDBC-style id (e.g. Halibut Bank's "46146") is
+// also its EC "station" code on the same past_conditions page used for land
+// stations above, so this reuses fetchEcObservation/getLiveObservation as-is
+// — no new fetcher or parser needed. Halibut Bank sits mid-Strait of
+// Georgia, the one clearly-relevant open-water buoy for this app's coverage
+// area (Howe Sound + the Strait of Georgia south-of-Nanaimo zone); add more
+// here if useful later (e.g. Sentry Shoal, technically the zone north of
+// Nanaimo).
+const BUOY_STATIONS = [
+  { name: "Halibut Bank Buoy", code: "46146" },
+];
 
 // Squamish Windsports Society's own wind meter at the Spit
 // (squamishwindsports.com/conditions/wind) — the JSON endpoint behind that
@@ -692,6 +711,25 @@ async function main() {
       });
     } catch (err) {
       console.log(`[surface-board] ${spot.liveStation.name} failed: ${err.message}`);
+    }
+  }
+  for (const buoy of BUOY_STATIONS) {
+    try {
+      const obs = await getLiveObservation(buoy); // no `type` — same EC path as fetchEcObservation above
+      if (!obs) continue;
+      ownStations.push({
+        name: buoy.name,
+        source_url: `https://weather.gc.ca/past_conditions/index_e.html?station=${buoy.code}`,
+        observed_local_time: obs.time,
+        observed_age_min: obs.ageMin != null ? Math.round(obs.ageMin) : null,
+        temp_c: null,
+        direction_label: obs.directionLabel,
+        speed_kt: obs.speedKt,
+        gust_kt: obs.gustKt ?? null,
+        source: "wind-guru",
+      });
+    } catch (err) {
+      console.log(`[surface-board] ${buoy.name} failed: ${err.message}`);
     }
   }
   const extraStations = swobBoardStations
