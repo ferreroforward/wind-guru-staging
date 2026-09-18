@@ -468,8 +468,7 @@ function renderWindiestCard() {
   card.style.display = "block";
   const gustText = w.hour.gust_kt != null ? `, gusting ${Math.round(w.hour.gust_kt)}` : "";
   const gustyTag = w.hour.gusty ? ` <span class="gusty-tag" title="Strong upper-level wind riding over solid surface wind — expect a choppier, more gust-prone day than the average speed alone suggests.">💨 GUSTY</span>` : "";
-  body.innerHTML = `<b>${w.spot.name}</b> · ${Math.round(w.hour.speed_kt)}kt${gustText} ${w.hour.direction_label ?? ""} at ${w.hour.time.slice(11,16)}${gustyTag}
-    <span class="sub">Windiest favorable-direction hour across every spot ${whenEl.textContent} — shown regardless of which quick pick is selected above (${w.confidence}% confidence in this read).</span>`;
+  body.innerHTML = `<b>${w.spot.name}</b> · ${Math.round(w.hour.speed_kt)}kt${gustText} ${w.hour.direction_label ?? ""} at ${w.hour.time.slice(11,16)}${gustyTag}`;
 }
 
 function renderBestBetsHeading() {
