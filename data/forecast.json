@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-18T16:18:46.609Z",
-  "generated_at_label": "Fri, Sep 18, 9:18 AM PDT",
+  "generated_at": "2026-09-18T16:52:25.091Z",
+  "generated_at_label": "Fri, Sep 18, 9:52 AM PDT",
   "models_used": [
     "GFS (NOAA)",
     "ECMWF IFS",
@@ -189,27 +189,28 @@
       }
     }
   },
+  "daily_takes": {},
   "live_verification_count": 15,
   "surface_observations": {
-    "updated_at": "2026-09-18T16:18:46.609Z",
+    "updated_at": "2026-09-18T16:52:25.091Z",
     "board_source_url": "https://wtfbc.ca/swob.php",
     "stations": [
       {
         "name": "Pam Rocks (Howe Sound entrance)",
         "source_url": null,
-        "observed_local_time": "08:00",
-        "observed_age_min": 79,
+        "observed_local_time": "09:00",
+        "observed_age_min": 52,
         "temp_c": null,
-        "direction_label": "NNW",
-        "speed_kt": 4.1,
+        "direction_label": "N",
+        "speed_kt": 5.1,
         "gust_kt": null,
         "source": "wind-guru"
       },
       {
         "name": "Sand Heads",
         "source_url": null,
-        "observed_local_time": "08:00",
-        "observed_age_min": 79,
+        "observed_local_time": "09:00",
+        "observed_age_min": 53,
         "temp_c": null,
         "direction_label": "NNW",
         "speed_kt": 6,
@@ -219,22 +220,22 @@
       {
         "name": "White Rock, BC",
         "source_url": null,
-        "observed_local_time": "08:00",
-        "observed_age_min": 79,
+        "observed_local_time": "09:00",
+        "observed_age_min": 53,
         "temp_c": null,
-        "direction_label": "N",
-        "speed_kt": 0,
+        "direction_label": "SSE",
+        "speed_kt": 1,
         "gust_kt": null,
         "source": "wind-guru"
       },
       {
         "name": "Point Atkinson",
         "source_url": null,
-        "observed_local_time": "08:00",
-        "observed_age_min": 79,
+        "observed_local_time": "09:00",
+        "observed_age_min": 53,
         "temp_c": null,
         "direction_label": "E",
-        "speed_kt": 1.9,
+        "speed_kt": 4.1,
         "gust_kt": null,
         "source": "wind-guru"
       },
@@ -242,7 +243,7 @@
         "name": "Halibut Bank Buoy",
         "source_url": "https://weather.gc.ca/past_conditions/index_e.html?station=46146",
         "observed_local_time": "09:00",
-        "observed_age_min": 18,
+        "observed_age_min": 52,
         "temp_c": null,
         "direction_label": "WNW",
         "speed_kt": 8.1,
@@ -252,7 +253,7 @@
       {
         "name": "Tsawwassen Ferry Auto",
         "source_url": "https://dd.weather.gc.ca/today/observations/swob-ml/latest/CVTF-AUTO-minute-swob.xml",
-        "observed_local_time": "9:18 am",
+        "observed_local_time": "9:51 am",
         "temp_c": null,
         "direction_label": "N",
         "speed_kt": 0,
@@ -262,19 +263,9 @@
       {
         "name": "White Rock East Beach",
         "source_url": "/viewtopic.php?f=36&t=884&start=10#p9695",
-        "observed_local_time": "9:15 am",
-        "temp_c": 15,
+        "observed_local_time": "9:50 am",
+        "temp_c": 16,
         "direction_label": "S",
-        "speed_kt": 3,
-        "gust_kt": 4,
-        "source": "wtfbc"
-      },
-      {
-        "name": "Sandheads Cs",
-        "source_url": "https://dd.weather.gc.ca/today/observations/swob-ml/latest/CWVF-AUTO-swob.xml",
-        "observed_local_time": "9:00 am",
-        "temp_c": 14,
-        "direction_label": "NNW",
         "speed_kt": 5,
         "gust_kt": 6,
         "source": "wtfbc"
@@ -290,23 +281,23 @@
         "source": "wtfbc"
       },
       {
-        "name": "Point Atkinson",
-        "source_url": "https://dd.weather.gc.ca/today/observations/swob-ml/latest/CWSB-AUTO-minute-swob.xml",
-        "observed_local_time": "9:18 am",
-        "temp_c": 14,
-        "direction_label": "E",
-        "speed_kt": 3,
-        "gust_kt": null,
+        "name": "Jericho Sailing Centre",
+        "source_url": "http://jsca.bc.ca/aboutus/weather/",
+        "observed_local_time": "9:30 am",
+        "temp_c": 15,
+        "direction_label": "ENE",
+        "speed_kt": 2,
+        "gust_kt": 3,
         "source": "wtfbc"
       },
       {
         "name": "Squamish Airport",
         "source_url": "https://dd.weather.gc.ca/today/observations/swob-ml/latest/CWSK-AUTO-minute-swob.xml",
-        "observed_local_time": "9:18 am",
-        "temp_c": 13,
-        "direction_label": "NNW",
-        "speed_kt": 4,
-        "gust_kt": 5,
+        "observed_local_time": "9:51 am",
+        "temp_c": 15,
+        "direction_label": "N",
+        "speed_kt": 0,
+        "gust_kt": 1,
         "source": "wtfbc"
       },
       {
@@ -322,11 +313,11 @@
       {
         "name": "Merritt",
         "source_url": "https://dd.weather.gc.ca/today/observations/swob-ml/latest/CVME-AUTO-minute-swob.xml",
-        "observed_local_time": "9:18 am",
-        "temp_c": 10,
-        "direction_label": "E",
-        "speed_kt": 0,
-        "gust_kt": 1,
+        "observed_local_time": "9:51 am",
+        "temp_c": 11,
+        "direction_label": "ENE",
+        "speed_kt": 2,
+        "gust_kt": null,
         "source": "wtfbc"
       },
       {
