@@ -790,12 +790,15 @@ async function main() {
   // use "Vancouver Harbour") plus every
   // additional station wtfbc.ca's board offers that we don't already have.
   // Riders like seeing the wider regional picture, not just the handful of
-  // spots we actively forecast for. The one genuine overlap between the two
-  // sources is Pam Rocks (our own Porteau Cove liveStation *is* wtfbc.ca's
-  // "Howe Sound - Pam Rocks" entry) — skip wtfbc's copy there so the same
-  // physical station doesn't show two slightly different numbers side by
-  // side, which would look like a bug rather than just two snapshots taken
-  // moments apart.
+  // spots we actively forecast for. A few of wtfbc.ca's stations are the
+  // exact same physical station as one we already fetch ourselves, just
+  // under a slightly different name (see DUPLICATE_OF_OWN_STATION below) —
+  // skip wtfbc's copy of those so the same station doesn't show two
+  // slightly different readings side by side, which reads as a bug rather
+  // than "two snapshots taken moments apart." Our own EC/igetwind fetch is
+  // the source of truth here (more directly sourced, and already proven
+  // out by the wind-column-index fix above), so it's always wtfbc's copy
+  // that gets dropped, never ours.
   console.log("Building live surface conditions board...");
   const ownStations = [];
   const seenStationKeys = new Set();
@@ -841,8 +844,17 @@ async function main() {
       console.log(`[surface-board] ${buoy.name} failed: ${err.message}`);
     }
   }
+  // Name patterns for wtfbc.ca board entries that duplicate a station we
+  // already have from our own fetch above — add to this list rather than
+  // the loops above if another overlap turns up (it's a much smaller,
+  // easier-to-scan diff than threading a dedupe key through both sources).
+  const DUPLICATE_OF_OWN_STATION = [
+    /pam rocks/i,       // ours: "Pam Rocks (Howe Sound entrance)" — wtfbc: "Howe Sound - Pam Rocks"
+    /sand\s*heads/i,   // ours: "Sand Heads" — wtfbc: "Sandheads Cs"
+    /point atkinson/i,  // ours: "Point Atkinson" — wtfbc: "Point Atkinson"
+  ];
   const extraStations = swobBoardStations
-    .filter((s) => !/pam rocks/i.test(s.name))
+    .filter((s) => !DUPLICATE_OF_OWN_STATION.some((re) => re.test(s.name)))
     .map((s) => ({ ...s, source: "wtfbc" }));
   const surfaceObservations = {
     updated_at: startedAt.toISOString(),
