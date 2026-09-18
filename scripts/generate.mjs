@@ -537,7 +537,6 @@ async function getGradientStations() {
 // take is just closing its issue).
 const DAILY_TAKE_OWNER = "ferreroforward";
 const DAILY_TAKE_REPO = "wind-guru-staging"; // STAGING VALUE -- swap to "wind-guru" on the production branch, same as apply-feedback.mjs's REPO
-const DAILY_TAKE_LABEL = "daily-take";
 const AUTHOR_USERNAME = "ferreroforward"; // Guillermo's own GitHub login -- NOT swapped between staging/production, it's the same account either way
 
 function extractIssueField(body, exactLabel) {
@@ -555,7 +554,18 @@ function extractIssueField(body, exactLabel) {
 async function fetchDailyTakes() {
   const headers = { "User-Agent": "wind-guru-agent/1.0", "Accept": "application/vnd.github+json" };
   if (process.env.GITHUB_TOKEN) headers["Authorization"] = `Bearer ${process.env.GITHUB_TOKEN}`;
-  const url = `https://api.github.com/repos/${DAILY_TAKE_OWNER}/${DAILY_TAKE_REPO}/issues?labels=${DAILY_TAKE_LABEL}&state=open&per_page=30`;
+  // Filtered by creator, not by the daily-take label -- an issue-form
+  // submission is supposed to auto-apply that label, but it doesn't always
+  // land (the first real take posted through this form came through with
+  // no label at all, title hand-edited too), and there's no reason a
+  // labeling hiccup should silently swallow a real post. AUTHOR_USERNAME is
+  // what actually keeps this safe on a public repo, so filtering on it
+  // server-side (rather than fetching everything and checking client-side)
+  // is no less secure and also cuts the response down to just his issues.
+  // The shape check below (both Date and Take present) is what tells a
+  // daily-take issue apart from anything else he might file, like a
+  // wind-report.
+  const url = `https://api.github.com/repos/${DAILY_TAKE_OWNER}/${DAILY_TAKE_REPO}/issues?creator=${AUTHOR_USERNAME}&state=open&per_page=30`;
   let issues;
   try {
     const res = await fetch(url, { headers });
@@ -577,6 +587,9 @@ async function fetchDailyTakes() {
 
   const takes = {};
   for (const issue of issues) {
+    // Belt-and-suspenders -- the ?creator= filter above should already
+    // guarantee this, but an issue opened by anyone else is never trusted
+    // regardless of what the API returns.
     if (issue.user?.login !== AUTHOR_USERNAME) {
       console.log(`[daily-take] skipping issue #${issue.number} -- opened by ${issue.user?.login ?? "unknown"}, not ${AUTHOR_USERNAME}.`);
       continue;
@@ -584,10 +597,10 @@ async function fetchDailyTakes() {
     const body = issue.body || "";
     const date = extractIssueField(body, "Date");
     const text = extractIssueField(body, "Take");
-    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !text) {
-      console.log(`[daily-take] skipping issue #${issue.number} -- couldn't parse a date/take from it.`);
-      continue;
-    }
+    // Not every issue he opens is a daily take (wind-report issues are his
+    // too) -- only one shaped like this template (both fields present)
+    // counts, silently skipped otherwise rather than logged as an error.
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !text) continue;
     if (takes[date]) continue; // already have the newest-updated take for this date
     takes[date] = { date, text, posted_at: issue.created_at, updated_at: issue.updated_at, issue_number: issue.number };
   }
