@@ -7,11 +7,13 @@ name: Stamp app version
 # loop, and it only re-stamps when the app itself (index.html, assets/,
 # scripts/, etc.) actually changes.
 
+# STAGING: the push trigger is disabled on purpose. It fires on every push
+# to this branch, commits data/version.json right back to main, and that
+# extra commit is what makes your NEXT push get rejected ("fetch first")
+# until it's merged in locally. Trigger it manually from the Actions tab
+# if you want a version stamp while testing. Re-enable by copying the
+# `push:` block back from the production repo's workflow file.
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - "data/**"
   workflow_dispatch: {}
 
 permissions:
