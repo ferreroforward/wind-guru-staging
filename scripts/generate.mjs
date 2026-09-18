@@ -84,9 +84,19 @@ async function loadLiveLog() {
 }
 
 // Environment Canada's "Past 24 Hour Conditions" page — genuinely observed
-// (not forecast) hourly station data: weather.gc.ca/past_conditions. Table
-// columns are Date/Time, Conditions, Temperature, Wind, Humidex, Relative
-// humidity, Dew point, Pressure, Visibility. We parse actual <tr>/<td> cells
+// (not forecast) hourly station data: weather.gc.ca/past_conditions. EC's
+// current table lists BOTH metric and imperial units side by side (Temp
+// °C, Temp °F, Wind km/h, Wind mph, ...) — 13 columns, not the simpler
+// single-unit layout this comment used to describe. That's a real, silent
+// trap: a hardcoded "wind is column 3" assumption used to work (and still
+// matches the OLD 8-column layout an older EC template had) but currently
+// grabs the Temp(°F) column instead, on every station this function is
+// used for — confirmed against both the Halibut Bank buoy and the
+// "Vancouver Harbour" land station, which had silently never worked either.
+// So: find the Wind(km/h) column by its header text instead of a fixed
+// index, with the old index 3 as a fallback if a table ever lacks a
+// parseable header (keeps this from breaking silently again if EC changes
+// the column count/order a third time). We parse actual <tr>/<td> cells
 // rather than scraping flattened text, since date-separator rows only have
 // one populated cell and would otherwise be easy to misread as data.
 function parseEcObservedWind(html, debugLabel = null) {
@@ -95,12 +105,17 @@ function parseEcObservedWind(html, debugLabel = null) {
   const stripTags = (s) => s.replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/\s+/g, " ").trim();
 
   const rows = [];
+  let headerCells = null;
   let rm;
   while ((rm = rowRe.exec(html))) {
     const cells = [];
     let cm;
     cellRe.lastIndex = 0;
     while ((cm = cellRe.exec(rm[1]))) cells.push(stripTags(cm[1]));
+    // The header row is the one whose cells include something like
+    // "Wind(km/h)" — data rows never contain that literal text, so this
+    // can't collide with a real observation.
+    if (headerCells === null && cells.some((c) => /^wind\s*\(\s*km\/h\s*\)/i.test(c))) headerCells = cells;
     // Data rows start with an "HH:MM" cell; date-separator rows ("13 August
     // 2026") and the header row don't match this and are skipped.
     if (cells.length >= 4 && /^\d{2}:\d{2}$/.test(cells[0])) rows.push(cells);
@@ -110,9 +125,15 @@ function parseEcObservedWind(html, debugLabel = null) {
     return null;
   }
 
+  let windColIdx = 3; // fallback: the old assumption, only used if we can't find a header
+  if (headerCells) {
+    const idx = headerCells.findIndex((c) => /^wind\s*\(\s*km\/h\s*\)/i.test(c));
+    if (idx !== -1) windColIdx = idx;
+  }
+
   const latest = rows[0]; // rows are most-recent-first
   const time = latest[0];
-  const windRaw = latest[3];
+  const windRaw = latest[windColIdx];
   let speedKmh, directionLabel, directionAbbr = null, gustKmh = null;
   if (/^calm$/i.test(windRaw)) {
     speedKmh = 0;
