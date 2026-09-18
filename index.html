@@ -25,6 +25,9 @@
   .meta-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px;font-size:0.92rem;color:var(--muted);}
   .meta-row button{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.92rem;}
   .meta-row button:hover{border-color:var(--accent);}
+  #refreshBtn{padding:11px 22px;font-size:1.02rem;font-weight:600;background:var(--accent);color:#fff;border:1px solid var(--accent);}
+  #refreshBtn:hover{background:#2568bd;border-color:#2568bd;}
+  #refreshBtn:disabled{opacity:0.7;cursor:default;}
   .update-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:0.9rem;border:1px solid var(--border);background:var(--panel);}
   .update-badge .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;}
   .update-badge.fresh{color:var(--green);border-color:rgba(24,152,99,0.3);} .update-badge.fresh .dot{background:var(--green);}
@@ -168,8 +171,6 @@
     <span id="genLabel">Loading forecast…</span>
     <span id="accuracyBadge"></span>
     <button id="refreshBtn">Refresh live</button>
-    <a href="https://squamishwindsports.com/conditions/wind/" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">Live Squamish wind meter ↗</a>
-    <a href="https://wx.ikitesurf.com/spot/1436" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">iKitesurf (subscription) ↗</a>
   </div>
 </header>
 
