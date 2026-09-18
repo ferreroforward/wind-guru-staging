@@ -523,6 +523,79 @@ async function getGradientStations() {
   return gradientStations;
 }
 
+
+// "Guillermo's take" -- a short daily commentary posted as a GitHub issue
+// (see .github/ISSUE_TEMPLATE/daily-take.yml), one issue per forecast date,
+// displayed on the site under a card of its own. The repo is public, so
+// anyone could technically open an issue shaped like this one -- the
+// AUTHOR_USERNAME check below is what keeps a spoofed "take" from ever
+// reaching the site: only an issue opened by that exact GitHub account is
+// trusted, everything else is silently skipped. Kept separate from
+// apply-feedback.mjs's OWNER/REPO (same values today, but that file's job
+// is calibration, not display) and reuses the "closing removes it" idea
+// from wind-report handling for symmetry (state=open only, so retracting a
+// take is just closing its issue).
+const DAILY_TAKE_OWNER = "ferreroforward";
+const DAILY_TAKE_REPO = "wind-guru-staging"; // STAGING VALUE -- swap to "wind-guru" on the production branch, same as apply-feedback.mjs's REPO
+const DAILY_TAKE_LABEL = "daily-take";
+const AUTHOR_USERNAME = "ferreroforward"; // Guillermo's own GitHub login -- NOT swapped between staging/production, it's the same account either way
+
+function extractIssueField(body, exactLabel) {
+  // Same "### Label\n\nvalue\n\n" issue-form parsing apply-feedback.mjs
+  // uses for wind-report issues -- duplicated rather than shared/imported,
+  // matching this project's existing pattern of self-contained scripts.
+  const escaped = exactLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`###\\s*${escaped}\\s*\\n+([\\s\\S]*?)(?=\\n###|$)`, "i");
+  const m = body.match(re);
+  if (!m) return null;
+  const val = m[1].trim();
+  return (!val || /^_no response_$/i.test(val)) ? null : val;
+}
+
+async function fetchDailyTakes() {
+  const headers = { "User-Agent": "wind-guru-agent/1.0", "Accept": "application/vnd.github+json" };
+  if (process.env.GITHUB_TOKEN) headers["Authorization"] = `Bearer ${process.env.GITHUB_TOKEN}`;
+  const url = `https://api.github.com/repos/${DAILY_TAKE_OWNER}/${DAILY_TAKE_REPO}/issues?labels=${DAILY_TAKE_LABEL}&state=open&per_page=30`;
+  let issues;
+  try {
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      console.log(`[daily-take] GitHub API fetch failed: ${res.status} ${res.statusText}`);
+      return {};
+    }
+    issues = (await res.json()).filter((i) => !i.pull_request);
+  } catch (err) {
+    console.log(`[daily-take] fetch failed: ${err.message}`);
+    return {};
+  }
+
+  // Newest-edited first, so if there's ever more than one open issue for
+  // the same date (shouldn't normally happen -- the issue template tells
+  // Guillermo to edit rather than re-post) the most recently updated one
+  // wins rather than whichever the API happened to list first.
+  issues.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+
+  const takes = {};
+  for (const issue of issues) {
+    if (issue.user?.login !== AUTHOR_USERNAME) {
+      console.log(`[daily-take] skipping issue #${issue.number} -- opened by ${issue.user?.login ?? "unknown"}, not ${AUTHOR_USERNAME}.`);
+      continue;
+    }
+    const body = issue.body || "";
+    const date = extractIssueField(body, "Date");
+    const text = extractIssueField(body, "Take");
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !text) {
+      console.log(`[daily-take] skipping issue #${issue.number} -- couldn't parse a date/take from it.`);
+      continue;
+    }
+    if (takes[date]) continue; // already have the newest-updated take for this date
+    takes[date] = { date, text, posted_at: issue.created_at, updated_at: issue.updated_at, issue_number: issue.number };
+  }
+  const count = Object.keys(takes).length;
+  if (count) console.log(`[daily-take] found ${count} take(s): ${Object.keys(takes).join(", ")}`);
+  return takes;
+}
+
 async function main() {
   const startedAt = new Date();
   const spotsOut = [];
@@ -546,6 +619,9 @@ async function main() {
       console.log(`[live:Pam Rocks] fetch failed: ${err.message}`);
     }
   }
+
+  console.log("Fetching daily take...");
+  const dailyTakes = await fetchDailyTakes();
 
   console.log("Fetching Environment Canada marine bulletins...");
   const bulletins = {};
@@ -820,6 +896,7 @@ async function main() {
     models_used: ["GFS (NOAA)", "ECMWF IFS", "ICON (DWD)", "GEM / HRDPS (ECCC)"],
     marine_bulletins: bulletins,
     calibration_overrides: overrides,
+    daily_takes: dailyTakes,
     live_verification_count: cappedEntries.length,
     surface_observations: surfaceObservations,
     spots: spotsOut,

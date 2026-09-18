@@ -55,6 +55,9 @@
   .windiest-eyebrow{font-size:0.78rem;font-weight:700;letter-spacing:0.05em;color:var(--accent);text-transform:uppercase;margin-bottom:6px;}
   .windiest-body{font-size:1.2rem;font-weight:600;color:var(--text);}
   .windiest-body .sub{display:block;font-size:0.88rem;font-weight:400;color:var(--muted);margin-top:5px;line-height:1.4;}
+  .daily-take-card{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--accent);box-shadow:var(--shadow);border-radius:14px;padding:16px 20px;margin:16px 0;}
+  .daily-take-eyebrow{font-size:0.78rem;font-weight:700;letter-spacing:0.05em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;}
+  .daily-take-body{font-size:1rem;color:var(--text);line-height:1.55;white-space:pre-wrap;}
 
   .best-bets{display:flex;flex-direction:column;gap:10px;}
   .bet-card{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--border);box-shadow:var(--shadow);border-radius:12px;padding:14px 18px;}
@@ -200,6 +203,11 @@
     <a class="support-btn" href="https://paypal.me/ferreroforward" target="_blank" rel="noopener">☕ Buy me a coffee</a>
   </div>
 
+  <div class="daily-take-card" id="dailyTakeCard" style="display:none;">
+    <div class="daily-take-eyebrow" id="dailyTakeEyebrow">🎯 Guillermo's take</div>
+    <div class="daily-take-body" id="dailyTakeBody"></div>
+  </div>
+
   <div id="map"></div>
   <div class="legend">
     <span><span class="dot" style="background:#1fb570"></span>Good odds (≥65%)</span>
@@ -245,6 +253,8 @@
     <b>Tuned by local knowledge.</b> Some spots have quirky local wind patterns that generic forecasts miss — we adjust for that using real reports from local riders and nearby live wind stations, so the numbers get more accurate over time. Tap any hour on a spot’s forecast and use "Report actual conditions" to help tune it further.
     <br><br>
     <b>Only the good options are listed below.</b> The card at the top always calls out the single windiest good-conditions hour across every spot, no matter which quick pick is selected; the lists below only include spots with a decent shot at your chosen range, to keep the page short — every spot is still shown on the map above regardless of odds.
+    <br><br>
+    <b>Guillermo's take.</b> When it shows up, that's my own read on a specific day — not part of the model, just what I think based on my own research. It only appears for days I've actually commented on.
     <br><br>
     This is a forecasting aid, not a safety guarantee — always check current conditions, tides and marine warnings before heading out.
   </div>
@@ -472,6 +482,27 @@ function renderWindiestCard() {
   const gustText = w.hour.gust_kt != null ? `, gusting ${Math.round(w.hour.gust_kt)}` : "";
   const gustyTag = w.hour.gusty ? ` <span class="gusty-tag" title="Strong upper-level wind riding over solid surface wind — expect a choppier, more gust-prone day than the average speed alone suggests.">💨 GUSTY</span>` : "";
   body.innerHTML = `<b>${w.spot.name}</b> · ${Math.round(w.hour.speed_kt)}kt${gustText} ${w.hour.direction_label ?? ""} at ${w.hour.time.slice(11,16)}${gustyTag}`;
+}
+
+// "Guillermo's take" -- shown only when there's a comment for the day
+// currently selected (see dayBuckets()/selectedDayIndex), never a generic
+// "today" -- matches the windiest-card's own conditional-display pattern.
+// Uses textContent (not innerHTML): this is free-text pulled from a GitHub
+// issue body, and even though only Guillermo's own account can post one
+// (see fetchDailyTakes() in generate.mjs), there's no reason to ever parse
+// it as HTML.
+function renderDailyTake() {
+  const card = document.getElementById("dailyTakeCard");
+  const body = document.getElementById("dailyTakeBody");
+  const eyebrow = document.getElementById("dailyTakeEyebrow");
+  const dates = dayBuckets();
+  const dateStr = dates[selectedDayIndex];
+  const take = dateStr && forecast?.daily_takes ? forecast.daily_takes[dateStr] : null;
+  if (!take) { card.style.display = "none"; return; }
+  card.style.display = "block";
+  const dayLbl = labelForDate(dateStr, selectedDayIndex);
+  eyebrow.textContent = dayLbl === "Today" ? "🎯 Guillermo's take on today's forecast" : `🎯 Guillermo's take on ${dayLbl}'s forecast`;
+  body.textContent = take.text;
 }
 
 function renderBestBetsHeading() {
@@ -876,6 +907,7 @@ function renderAll() {
   renderBulletin();
   renderDayTabs();
   renderWindiestCard();
+  renderDailyTake();
   renderBestBets();
   renderSpotCards();
   renderSurfaceObservations();

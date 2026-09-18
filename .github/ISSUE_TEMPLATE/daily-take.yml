@@ -1,0 +1,34 @@
+name: Daily take (Guillermo only)
+description: Your own read on what the wind will do, based on your research -- shown on the site as "Guillermo's take."
+title: "Daily take: "
+labels: ["daily-take"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is how your commentary gets onto the site -- it still files as
+        a public GitHub issue (same as the wind-report form), but the site
+        only ever displays a take that was opened by your own GitHub
+        account. Anyone else filing one has no effect, so this form doesn't
+        need to be hidden or password-protected.
+
+        One issue per day. If you already posted a take for a date and want
+        to change it, edit this issue's description instead of opening a
+        new one -- the site always reflects the latest edit. Closing the
+        issue removes the take from the site.
+  - type: input
+    id: take_date
+    attributes:
+      label: Date
+      description: The forecast day this take is about
+      placeholder: "2026-09-18"
+    validations:
+      required: true
+  - type: textarea
+    id: take_text
+    attributes:
+      label: Take
+      description: What do you think the wind will actually do, and why? Shows on the site as-is.
+      placeholder: "e.g. Models are underselling the gradient today -- I think Squamish goes earlier and harder than the forecast shows..."
+    validations:
+      required: true
