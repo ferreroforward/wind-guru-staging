@@ -312,12 +312,16 @@ const refreshBtn = document.getElementById("refreshBtn");
 let map, markerLayer;
 
 function initMap() {
-  map = L.map("map", { scrollWheelZoom: false }).setView([49.55, -123.35], 9);
+  map = L.map("map", { scrollWheelZoom: false });
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "&copy; OpenStreetMap contributors",
     maxZoom: 19,
   }).addTo(map);
   markerLayer = L.layerGroup().addTo(map);
+  // Fit to every monitored spot rather than a fixed center/zoom, so the
+  // whole set stays visible as spots are added, removed, or moved.
+  const bounds = L.latLngBounds(SPOTS.map(sp => [sp.lat, sp.lon]));
+  map.fitBounds(bounds.pad(0.25));
 }
 
 function dayBuckets() {
