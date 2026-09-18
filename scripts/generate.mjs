@@ -89,7 +89,7 @@ async function loadLiveLog() {
 // humidity, Dew point, Pressure, Visibility. We parse actual <tr>/<td> cells
 // rather than scraping flattened text, since date-separator rows only have
 // one populated cell and would otherwise be easy to misread as data.
-function parseEcObservedWind(html) {
+function parseEcObservedWind(html, debugLabel = null) {
   const rowRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
   const cellRe = /<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi;
   const stripTags = (s) => s.replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/\s+/g, " ").trim();
@@ -105,7 +105,10 @@ function parseEcObservedWind(html) {
     // 2026") and the header row don't match this and are skipped.
     if (cells.length >= 4 && /^\d{2}:\d{2}$/.test(cells[0])) rows.push(cells);
   }
-  if (!rows.length) return null;
+  if (!rows.length) {
+    if (debugLabel) console.log(`[live:${debugLabel}] parseEcObservedWind: found no data rows (page fetched OK, ${html.length} bytes — table layout may not match what this parser expects).`);
+    return null;
+  }
 
   const latest = rows[0]; // rows are most-recent-first
   const time = latest[0];
@@ -125,7 +128,10 @@ function parseEcObservedWind(html) {
     // abbreviation as the label when there's no parenthetical, matching how
     // wtfbc.ca's board already shows bare abbreviations like "NNW".
     const m = windRaw.match(/^([A-Z]+)\s*(?:\(([^)]+)\))?\s*([\d.]+)(?:\s*gusts?\s*([\d.]+))?/);
-    if (!m) return null;
+    if (!m) {
+      if (debugLabel) console.log(`[live:${debugLabel}] parseEcObservedWind: found a data row but couldn't parse its wind cell: ${JSON.stringify(windRaw)}`);
+      return null;
+    }
     directionAbbr = m[1];
     directionLabel = m[2] || m[1];
     speedKmh = parseFloat(m[3]);
@@ -145,7 +151,7 @@ async function fetchEcObservation(station) {
   const res = await fetch(url, { headers: { "User-Agent": "wind-guru-agent/1.0" } });
   if (!res.ok) { console.log(`[live:${station.name}] fetch failed: ${res.status}`); return null; }
   const html = await res.text();
-  return parseEcObservedWind(html);
+  return parseEcObservedWind(html, station.name);
 }
 
 // Environment Canada marine buoys — genuine open-water wind, distinct from
