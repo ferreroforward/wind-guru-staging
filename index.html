@@ -317,9 +317,9 @@ let map, markerLayer;
 
 function initMap() {
   map = L.map("map", { scrollWheelZoom: false }).setView([49.55, -123.35], 9);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-    attribution: "&copy; OpenStreetMap &copy; CARTO",
-    maxZoom: 13,
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "&copy; OpenStreetMap contributors",
+    maxZoom: 19,
   }).addTo(map);
   markerLayer = L.layerGroup().addTo(map);
 }
