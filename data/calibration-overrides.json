@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-26T14:27:12.072Z",
+  "generated_at": "2026-09-18T15:28:51.590Z",
   "min_samples": 2,
   "spots": {
     "boundary-bay": {
@@ -50,5 +50,6 @@
         "note": "Based on 9 thermal data points (0 rider reports, 9 live-station checks): actual wind averaged 67% of what was forecasted (rider reports weighted 3x a station check)."
       }
     }
-  }
+  },
+  "accuracy": null
 }
