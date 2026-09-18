@@ -71,8 +71,6 @@
   .live-check{font-size:0.85rem;padding:5px 10px;border-radius:8px;margin-bottom:10px;display:inline-block;}
   .live-check.match{background:var(--green-bg);color:var(--green);}
   .live-check.mismatch{background:var(--red-bg);color:var(--red);}
-  .report-link{display:inline-block;margin-bottom:12px;font-size:0.9rem;color:var(--accent);text-decoration:none;font-weight:600;padding:6px 0;}
-  .report-link:hover{text-decoration:underline;}
   .hour-strip{display:flex;gap:4px;overflow-x:auto;padding-bottom:4px;}
   .hour-cell{flex:0 0 auto;width:72px;border-radius:8px;padding:7px 5px;text-align:center;font-size:0.8rem;cursor:pointer;position:relative;}
   .hour-cell .t{color:rgba(27,36,56,0.75);font-size:0.76rem;}
@@ -243,7 +241,7 @@
   <div class="about">
     <b>How this works.</b> We check the wind forecast for every spot and show your odds of getting your chosen wind speed, hour by hour. Green means good odds, yellow means maybe, red means unlikely.
     <br><br>
-    <b>Tuned by local knowledge.</b> Some spots have quirky local wind patterns that generic forecasts miss — we adjust for that using real reports from local riders and nearby live wind stations, so the numbers get more accurate over time. Tap "Report actual conditions" on any spot to help tune it further.
+    <b>Tuned by local knowledge.</b> Some spots have quirky local wind patterns that generic forecasts miss — we adjust for that using real reports from local riders and nearby live wind stations, so the numbers get more accurate over time. Tap any hour on a spot’s forecast and use "Report actual conditions" to help tune it further.
     <br><br>
     <b>Only the good options are listed below.</b> The card at the top always calls out the single windiest good-conditions hour across every spot, no matter which quick pick is selected; the lists below only include spots with a decent shot at your chosen range, to keep the page short — every spot is still shown on the map above regardless of odds.
     <br><br>
@@ -524,9 +522,8 @@ const GITHUB_REPO = "ferreroforward/wind-guru-staging";
 // link below, which still works on its own.
 const WORKER_URL = "https://wind-guru-reports-staging.YOUR-SUBDOMAIN.workers.dev";
 
-// h is optional — the header-level "Report actual conditions" trigger on
-// each spot card has no specific hour in mind, so it falls back to today's
-// date and lets the rider fill in the time themselves.
+// h is optional — falls back to today's date and an empty time if no
+// specific hour is available.
 function reportContext(spotId, h) {
   const date = h ? h.time.slice(0, 10) : new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
   const time = h ? h.time.slice(11, 16) : "";
@@ -710,12 +707,6 @@ function renderSpotCards() {
            ${lc.mismatch ? ` — forecast said ${lc.forecasted_kt}kt` : ` · matches forecast`}
          </div>`
       : "";
-    // Always-visible report trigger, not hidden behind a hover/tap-to-pin
-    // tooltip — on mobile there's no hover at all, so this was previously
-    // undiscoverable. Defaults to today's best window for this spot; the
-    // rider can still change the time in the popup itself.
-    const best = bestWindowForSpot(spot);
-    const ctx = reportContext(sp.id, best ? best.hour : null);
     const card = document.createElement("div");
     card.className = "spot-card";
     card.innerHTML = `
@@ -724,7 +715,6 @@ function renderSpotCards() {
         <div class="sports">${sp.sports.join(" · ")}</div>
       </div>
       ${liveBadge}
-      <button type="button" class="report-link report-trigger" data-spot="${ctx.spot}" data-name="${sp.name}" data-date="${ctx.date}" data-time="${ctx.time}" data-forecast="${ctx.forecast_speed}">📝 Report actual conditions</button>
       <div class="hour-strip"></div>
     `;
     const stripEl = card.querySelector(".hour-strip");
