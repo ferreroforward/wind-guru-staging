@@ -115,13 +115,19 @@ function parseEcObservedWind(html) {
     speedKmh = 0;
     directionLabel = "calm";
   } else {
-    // Land stations report just "DIR (Label) SPEED"; buoy stations add a
-    // trailing "gusts N" on the same line (e.g. "W (West) 14 gusts 17") —
-    // capture it when present rather than assuming it's never there.
-    const m = windRaw.match(/^([A-Z]+)\s*\(([^)]+)\)\s*([\d.]+)(?:\s*gusts?\s*([\d.]+))?/);
+    // Land stations report "DIR (Label) SPEED"; buoy stations skip the
+    // parenthetical full-name label entirely and add a trailing "gusts N"
+    // instead — e.g. a land station reads "NE (Northeast) 20" but a buoy
+    // reads "W 14 gusts 17" (confirmed against the live Halibut Bank page's
+    // actual DOM, not just its rendered text — the "(West)"-style label
+    // some tools describe for buoy rows doesn't actually exist there).
+    // Label group is optional so both shapes match; falls back to the
+    // abbreviation as the label when there's no parenthetical, matching how
+    // wtfbc.ca's board already shows bare abbreviations like "NNW".
+    const m = windRaw.match(/^([A-Z]+)\s*(?:\(([^)]+)\))?\s*([\d.]+)(?:\s*gusts?\s*([\d.]+))?/);
     if (!m) return null;
     directionAbbr = m[1];
-    directionLabel = m[2];
+    directionLabel = m[2] || m[1];
     speedKmh = parseFloat(m[3]);
     gustKmh = m[4] != null ? parseFloat(m[4]) : null;
   }
