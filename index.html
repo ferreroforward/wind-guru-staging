@@ -22,8 +22,6 @@
   header{padding:24px 20px 10px;max-width:1200px;margin:0 auto;}
   header h1{margin:0 0 4px;font-size:1.7rem;font-weight:700;letter-spacing:-0.02em;}
   header p.sub{margin:0;color:var(--muted);font-size:1rem;}
-  .hero-summary{font-size:1.4rem;font-weight:600;color:var(--text);line-height:1.5;margin-top:14px;}
-  .hero-summary b{color:var(--accent);}
   .meta-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px;font-size:0.92rem;color:var(--muted);}
   .meta-row button{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.92rem;}
   .meta-row button:hover{border-color:var(--accent);}
@@ -147,7 +145,7 @@
   @media (max-width:600px){
     header{padding:18px 14px 6px;}
     header h1{font-size:1.45rem;}
-    .hero-summary{font-size:1.2rem;margin-top:12px;}
+    .windiest-card{margin-top:12px;}
     main{padding:0 14px 48px;}
     .controls{padding:14px 16px;gap:16px;}
     #map{height:260px;}
@@ -164,7 +162,10 @@
 <header>
   <h1>🌬️ Wind Guru</h1>
   <p class="sub">Where to go windsurf, wingfoil, kite or parawing — Howe Sound, Metro Vancouver &amp; the Strait of Georgia</p>
-  <div class="hero-summary" id="heroSummary">Loading…</div>
+  <div class="windiest-card" id="windiestCard" style="display:none;">
+    <div class="windiest-eyebrow">💨 Windiest good bet, <span id="windiestWhen"></span> — any spot, any speed</div>
+    <div class="windiest-body" id="windiestBody"></div>
+  </div>
   <div class="meta-row">
     <span id="genLabel">Loading forecast…</span>
     <span id="accuracyBadge"></span>
@@ -208,11 +209,6 @@
     <span><span class="dot" style="background:#4a5776"></span>No data / calm</span>
   </div>
 
-  <div class="windiest-card" id="windiestCard" style="display:none;">
-    <div class="windiest-eyebrow">💨 Windiest good bet, <span id="windiestWhen"></span> — any spot, any speed</div>
-    <div class="windiest-body" id="windiestBody"></div>
-  </div>
-
   <h2 class="section" id="bestBetsHeading">Best bets for your range, today's window</h2>
   <div class="best-bets" id="bestBets"><div class="empty">Loading…</div></div>
 
@@ -249,7 +245,7 @@
     <br><br>
     <b>Tuned by local knowledge.</b> Some spots have quirky local wind patterns that generic forecasts miss — we adjust for that using real reports from local riders and nearby live wind stations, so the numbers get more accurate over time. Tap "Report actual conditions" on any spot to help tune it further.
     <br><br>
-    <b>Only the good options are listed below.</b> The headline at the top always calls out your single best option for the day; the lists below only include spots with a decent shot at your chosen range, to keep the page short — every spot is still shown on the map above regardless of odds.
+    <b>Only the good options are listed below.</b> The card at the top always calls out the single windiest good-conditions hour across every spot, no matter which quick pick is selected; the lists below only include spots with a decent shot at your chosen range, to keep the page short — every spot is still shown on the map above regardless of odds.
     <br><br>
     This is a forecasting aid, not a safety guarantee — always check current conditions, tides and marine warnings before heading out.
   </div>
@@ -433,56 +429,6 @@ function hourLabel(hourNum) {
   const period = h >= 12 ? "pm" : "am";
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}${period}`;
-}
-
-function renderHeroSummary() {
-  const el = document.getElementById("heroSummary");
-  if (!el) return;
-  const ranked = rankedSpotsForDay();
-  const dates = dayBuckets();
-  const dateStr = dates[selectedDayIndex];
-  const dayLbl = dateStr ? (labelForDate(dateStr, selectedDayIndex) === "Today" ? "today" : labelForDate(dateStr, selectedDayIndex)) : "today";
-
-  if (!ranked.length || ranked[0].probability < MIN_LIST_PROBABILITY) {
-    const closest = ranked[0];
-    el.textContent = closest
-      ? `Nothing great for ${rangeLabel()} ${dayLbl} — closest is ${closest.spot.name} around ${closest.hour.time.slice(11,16)} (${closest.probability}%).`
-      : `No forecast data for ${dayLbl} yet.`;
-    return;
-  }
-
-  const top = ranked[0];
-  const hours = hoursForSelectedDay(top.spotData);
-  const withProb = hours.map(h => ({ h, ...probabilityInRange(h, minKt) }));
-  let peakIdx = 0;
-  withProb.forEach((w, i) => {
-    const wScore = scoreHour(w.probability, w.confidence, w.h.speed_kt);
-    const peakScore = scoreHour(withProb[peakIdx].probability, withProb[peakIdx].confidence, withProb[peakIdx].h.speed_kt);
-    if (wScore > peakScore) peakIdx = i;
-  });
-
-  // Expand outward from the peak hour while it's still a workable window.
-  let lo = peakIdx, hi = peakIdx;
-  while (lo > 0 && withProb[lo - 1].probability >= MIN_LIST_PROBABILITY) lo--;
-  while (hi < withProb.length - 1 && withProb[hi + 1].probability >= MIN_LIST_PROBABILITY) hi++;
-  const windowHours = withProb.slice(lo, hi + 1);
-
-  const speeds = windowHours.map(w => w.h.speed_kt).filter(v => v != null);
-  const gusts = windowHours.map(w => w.h.gust_kt).filter(v => v != null);
-  const startHourNum = Number(windowHours[0].h.time.slice(11, 13));
-  const endHourNum = Number(windowHours[windowHours.length - 1].h.time.slice(11, 13)) + 1;
-  const peakHourNum = Number(withProb[peakIdx].h.time.slice(11, 13));
-
-  let html = `Your best option for ${dayLbl} is <b>${top.spot.name}</b> from ${hourLabel(startHourNum)} to ${hourLabel(endHourNum)}`;
-  if (speeds.length) {
-    html += ` with winds from ${Math.round(Math.min(...speeds))}${gusts.length ? ` gusting to ${Math.round(Math.max(...gusts))}` : ""}kt`;
-  }
-  if (windowHours.length > 1) {
-    html += ` — your strongest window is ${hourLabel(peakHourNum)} to ${hourLabel(peakHourNum + 1)} (${withProb[peakIdx].probability}%).`;
-  } else {
-    html += ` (${withProb[peakIdx].probability}%).`;
-  }
-  el.innerHTML = html;
 }
 
 // The single windiest, favorable-direction hour across every spot for the
@@ -935,7 +881,6 @@ function renderAll() {
   if (!freshnessTimer) freshnessTimer = setInterval(renderFreshnessBadge, 60000); // keep "Xm ago" live while the tab is open
   renderBulletin();
   renderDayTabs();
-  renderHeroSummary();
   renderWindiestCard();
   renderBestBets();
   renderSpotCards();
