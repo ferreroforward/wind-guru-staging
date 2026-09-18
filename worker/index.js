@@ -10,7 +10,7 @@
 // issue form. See README.md next to this file for how to deploy it.
 
 const OWNER = "ferreroforward";
-const REPO = "wind-guru";
+const REPO = "wind-guru-staging";
 
 // Keep this in sync with the `spot` dropdown in
 // .github/ISSUE_TEMPLATE/wind-report.yml and the spot ids in

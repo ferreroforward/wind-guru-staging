@@ -21,7 +21,7 @@ const LIVE_LOG_PATH = path.join(__dirname, "..", "data", "live-verification-log.
 
 // Edit these if the repo ever moves.
 const OWNER = "ferreroforward";
-const REPO = "wind-guru";
+const REPO = "wind-guru-staging";
 
 const MIN_SAMPLES = 2; // don't adjust a spot on a single report
 const MAX_REPORTS_PER_SPOT = 20; // weight toward recent reports

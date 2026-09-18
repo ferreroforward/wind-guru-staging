@@ -1,4 +1,4 @@
-name = "wind-guru-reports"
+name = "wind-guru-reports-staging"
 main = "index.js"
 compatibility_date = "2026-09-01"
 
