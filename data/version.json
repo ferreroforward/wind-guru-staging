@@ -1,5 +1,5 @@
 {
-  "version": "d8fbf4b",
-  "message": "Staging repo config: point at wind-guru-staging repo/worker, disable auto schedule",
-  "deployed_at": "2026-09-18T15:14:17Z"
+  "version": "2dbb434",
+  "message": "Merge staging-origin/main (version stamp) into staging-deploy",
+  "deployed_at": "2026-09-18T15:23:39Z"
 }
