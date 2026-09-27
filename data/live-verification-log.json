@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-27T23:12:42.120Z",
+  "updated_at": "2026-09-27T23:15:46.953Z",
   "entries": [
     {
       "spot": "boundary-bay",
@@ -108,7 +108,7 @@
       "regime": "calm",
       "mismatch": true,
       "reasoning": "Forecast showed calm/mixed but live wind is running well above that — likely an unmodeled local effect or a synoptic push none of the current signals caught.",
-      "checked_at": "2026-09-27T23:12:42.120Z"
+      "checked_at": "2026-09-27T23:15:46.953Z"
     },
     {
       "spot": "erwin-park",
@@ -1001,7 +1001,7 @@
       "regime": "synoptic",
       "mismatch": false,
       "reasoning": null,
-      "checked_at": "2026-09-27T23:12:42.120Z"
+      "checked_at": "2026-09-27T23:15:46.953Z"
     },
     {
       "spot": "garry-point",
@@ -1371,14 +1371,14 @@
       "spot": "tsawwassen-south",
       "time": "2026-09-27T16:00",
       "forecasted": 10.5,
-      "actual": 7.6,
-      "ratio": 0.7238095238095238,
+      "actual": 5.4,
+      "ratio": 0.5142857142857143,
       "source": "live-station",
       "station": "Tsawwassen Ferry Terminal",
       "regime": "synoptic",
       "mismatch": true,
       "reasoning": "Synoptic regime, but the magnitude missed — model agreement was 57%, so spread between models likely explains some of the gap.",
-      "checked_at": "2026-09-27T23:12:42.120Z"
+      "checked_at": "2026-09-27T23:15:46.953Z"
     },
     {
       "spot": "tsawwassen-south",
@@ -1820,7 +1820,7 @@
       "regime": "thermal",
       "mismatch": false,
       "reasoning": null,
-      "checked_at": "2026-09-27T23:12:42.120Z"
+      "checked_at": "2026-09-27T23:15:46.953Z"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-27T23:12:42.120Z",
-  "generated_at_label": "Sun, Sep 27, 4:12 PM PDT",
+  "generated_at": "2026-09-27T23:15:46.953Z",
+  "generated_at_label": "Sun, Sep 27, 4:15 PM PDT",
   "models_used": [
     "HRRR 3km (NOAA), then GFS",
     "ECMWF 25km",
@@ -164,16 +164,219 @@
     }
   },
   "live_verification_count": 141,
-  "mos_score": null,
+  "mos_score": {
+    "updated_at": "2026-09-27T23:14:46.391Z",
+    "window_days": 30,
+    "threshold_kt": 12,
+    "trained": "2026-09-27",
+    "points": {
+      "garry": {
+        "station": "Sand Heads",
+        "learned": {
+          "n": 721,
+          "mae_kt": 2.59,
+          "bias_kt": 0.8,
+          "windy_hours": 178,
+          "caught": 0.76,
+          "false_alarms": 0.2,
+          "brier": 0.087,
+          "brier_climatology": 0.186,
+          "reliability": [
+            {
+              "range": "0-20%",
+              "n": 372,
+              "said": 0.07,
+              "happened": 0.03
+            },
+            {
+              "range": "20-40%",
+              "n": 139,
+              "said": 0.29,
+              "happened": 0.16
+            },
+            {
+              "range": "40-60%",
+              "n": 67,
+              "said": 0.49,
+              "happened": 0.27
+            },
+            {
+              "range": "60-80%",
+              "n": 49,
+              "said": 0.7,
+              "happened": 0.73
+            },
+            {
+              "range": "80-100%",
+              "n": 94,
+              "said": 0.93,
+              "happened": 0.96
+            }
+          ]
+        },
+        "plain_average": {
+          "mae_kt": 2.85,
+          "caught": 0.59
+        }
+      },
+      "erwin": {
+        "station": "Point Atkinson",
+        "learned": {
+          "n": 721,
+          "mae_kt": 2.68,
+          "bias_kt": -0.58,
+          "windy_hours": 136,
+          "caught": 0.35,
+          "false_alarms": 0.19,
+          "brier": 0.087,
+          "brier_climatology": 0.153,
+          "reliability": [
+            {
+              "range": "0-20%",
+              "n": 564,
+              "said": 0.03,
+              "happened": 0.05
+            },
+            {
+              "range": "20-40%",
+              "n": 77,
+              "said": 0.28,
+              "happened": 0.53
+            },
+            {
+              "range": "40-60%",
+              "n": 44,
+              "said": 0.5,
+              "happened": 0.89
+            },
+            {
+              "range": "60-80%",
+              "n": 17,
+              "said": 0.66,
+              "happened": 0.71
+            },
+            {
+              "range": "80-100%",
+              "n": 19,
+              "said": 0.85,
+              "happened": 0.89
+            }
+          ]
+        },
+        "plain_average": {
+          "mae_kt": 3.82,
+          "caught": 0
+        }
+      },
+      "tsaw": {
+        "station": "Tsawwassen Ferry Terminal",
+        "learned": {
+          "n": 721,
+          "mae_kt": 2.74,
+          "bias_kt": 1.15,
+          "windy_hours": 89,
+          "caught": 0.53,
+          "false_alarms": 0.37,
+          "brier": 0.072,
+          "brier_climatology": 0.108,
+          "reliability": [
+            {
+              "range": "0-20%",
+              "n": 522,
+              "said": 0.04,
+              "happened": 0.02
+            },
+            {
+              "range": "20-40%",
+              "n": 107,
+              "said": 0.28,
+              "happened": 0.24
+            },
+            {
+              "range": "40-60%",
+              "n": 39,
+              "said": 0.51,
+              "happened": 0.49
+            },
+            {
+              "range": "60-80%",
+              "n": 26,
+              "said": 0.71,
+              "happened": 0.46
+            },
+            {
+              "range": "80-100%",
+              "n": 27,
+              "said": 0.92,
+              "happened": 0.78
+            }
+          ]
+        },
+        "plain_average": {
+          "mae_kt": 2.94,
+          "caught": 0.12
+        }
+      },
+      "pamrocks": {
+        "station": "Pam Rocks",
+        "learned": {
+          "n": 721,
+          "mae_kt": 3.3,
+          "bias_kt": -0.35,
+          "windy_hours": 97,
+          "caught": 0.25,
+          "false_alarms": 0.27,
+          "brier": 0.096,
+          "brier_climatology": 0.116,
+          "reliability": [
+            {
+              "range": "0-20%",
+              "n": 593,
+              "said": 0.06,
+              "happened": 0.08
+            },
+            {
+              "range": "20-40%",
+              "n": 84,
+              "said": 0.28,
+              "happened": 0.24
+            },
+            {
+              "range": "40-60%",
+              "n": 15,
+              "said": 0.46,
+              "happened": 0.53
+            },
+            {
+              "range": "60-80%",
+              "n": 28,
+              "said": 0.69,
+              "happened": 0.75
+            },
+            {
+              "range": "80-100%",
+              "n": 1,
+              "said": 0.8,
+              "happened": 0
+            }
+          ]
+        },
+        "plain_average": {
+          "mae_kt": 4.13,
+          "caught": 0
+        }
+      }
+    }
+  },
   "surface_observations": {
-    "updated_at": "2026-09-27T23:12:42.120Z",
+    "updated_at": "2026-09-27T23:15:46.953Z",
     "board_source_url": "https://wtfbc.ca/swob.php",
     "stations": [
       {
         "name": "Pam Rocks (Howe Sound entrance)",
         "source_url": null,
         "observed_local_time": "15:00",
-        "observed_age_min": 73,
+        "observed_age_min": 76,
         "temp_c": null,
         "direction_label": "SSE",
         "speed_kt": 7,
@@ -184,7 +387,7 @@
         "name": "English Bay buoy",
         "source_url": null,
         "observed_local_time": "16:00",
-        "observed_age_min": 12,
+        "observed_age_min": 15,
         "temp_c": null,
         "direction_label": "W",
         "speed_kt": 9.7,
@@ -195,7 +398,7 @@
         "name": "Sand Heads",
         "source_url": null,
         "observed_local_time": "15:00",
-        "observed_age_min": 73,
+        "observed_age_min": 76,
         "temp_c": null,
         "direction_label": "NW",
         "speed_kt": 11.1,
@@ -206,7 +409,7 @@
         "name": "White Rock East Beach",
         "source_url": null,
         "observed_local_time": "16:10",
-        "observed_age_min": 2,
+        "observed_age_min": 5,
         "temp_c": null,
         "direction_label": "WNW",
         "speed_kt": 7.9,
@@ -216,11 +419,11 @@
       {
         "name": "Tsawwassen Ferry Terminal",
         "source_url": null,
-        "observed_local_time": "15:00",
-        "observed_age_min": 72,
+        "observed_local_time": "16:00",
+        "observed_age_min": 15,
         "temp_c": null,
         "direction_label": "NNW",
-        "speed_kt": 7.6,
+        "speed_kt": 5.4,
         "gust_kt": null,
         "source": "wind-guru"
       },
@@ -228,7 +431,7 @@
         "name": "Point Atkinson",
         "source_url": null,
         "observed_local_time": "15:00",
-        "observed_age_min": 73,
+        "observed_age_min": 76,
         "temp_c": null,
         "direction_label": "W",
         "speed_kt": 12.1,
@@ -239,7 +442,7 @@
         "name": "Halibut Bank Buoy",
         "source_url": "https://weather.gc.ca/past_conditions/index_e.html?station=46146",
         "observed_local_time": "15:00",
-        "observed_age_min": 72,
+        "observed_age_min": 76,
         "temp_c": null,
         "direction_label": "W",
         "speed_kt": 9.2,
@@ -269,11 +472,11 @@
       {
         "name": "Squamish Airport",
         "source_url": "https://dd.weather.gc.ca/today/observations/swob-ml/latest/CWSK-AUTO-minute-swob.xml",
-        "observed_local_time": "4:11 pm",
-        "temp_c": 18,
+        "observed_local_time": "4:15 pm",
+        "temp_c": 17,
         "direction_label": "S",
-        "speed_kt": 6,
-        "gust_kt": 8,
+        "speed_kt": 7,
+        "gust_kt": 10,
         "source": "wtfbc"
       },
       {
@@ -29524,7 +29727,7 @@
         "checked_hour": "2026-09-27T16:00",
         "station": "English Bay buoy",
         "observed_local_time": "16:00",
-        "observed_age_min": 12,
+        "observed_age_min": 15,
         "forecasted_kt": 9.5,
         "live_kt": 9.7,
         "live_gust_kt": 10.8,
@@ -39627,7 +39830,7 @@
         "checked_hour": "2026-09-27T16:00",
         "station": "Sand Heads",
         "observed_local_time": "15:00",
-        "observed_age_min": 73,
+        "observed_age_min": 76,
         "forecasted_kt": 13.1,
         "live_kt": 11.1,
         "live_gust_kt": null,
@@ -78976,13 +79179,13 @@
       "live_check": {
         "checked_hour": "2026-09-27T16:00",
         "station": "Tsawwassen Ferry Terminal",
-        "observed_local_time": "15:00",
-        "observed_age_min": 72,
+        "observed_local_time": "16:00",
+        "observed_age_min": 15,
         "forecasted_kt": 10.5,
-        "live_kt": 7.6,
+        "live_kt": 5.4,
         "live_gust_kt": null,
         "live_direction": "NNW",
-        "error_pct": -28,
+        "error_pct": -49,
         "mismatch": true,
         "regime": "synoptic",
         "reasoning": "Synoptic regime, but the magnitude missed — model agreement was 57%, so spread between models likely explains some of the gap."
@@ -89015,7 +89218,7 @@
         "checked_hour": "2026-09-27T16:00",
         "station": "Point Atkinson",
         "observed_local_time": "15:00",
-        "observed_age_min": 73,
+        "observed_age_min": 76,
         "forecasted_kt": 3.7,
         "live_kt": 12.1,
         "live_gust_kt": null,
