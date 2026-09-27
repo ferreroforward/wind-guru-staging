@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-27T16:45:01.288Z",
+  "updated_at": "2026-09-27T23:12:42.120Z",
   "entries": [
     {
       "spot": "boundary-bay",
@@ -96,6 +96,19 @@
       "station": "White Rock, BC",
       "reasoning": "Forecast showed calm/mixed and live wind came in lighter still — models were on the right track, just a bit high.",
       "checked_at": "2026-08-15T03:05:00.396Z"
+    },
+    {
+      "spot": "erwin-park",
+      "time": "2026-09-27T16:00",
+      "forecasted": 3.7,
+      "actual": 12.1,
+      "ratio": 2.42,
+      "source": "live-station",
+      "station": "Point Atkinson",
+      "regime": "calm",
+      "mismatch": true,
+      "reasoning": "Forecast showed calm/mixed but live wind is running well above that — likely an unmodeled local effect or a synoptic push none of the current signals caught.",
+      "checked_at": "2026-09-27T23:12:42.120Z"
     },
     {
       "spot": "erwin-park",
@@ -979,6 +992,19 @@
     },
     {
       "spot": "garry-point",
+      "time": "2026-09-27T16:00",
+      "forecasted": 13.1,
+      "actual": 11.1,
+      "ratio": 0.8473282442748091,
+      "source": "live-station",
+      "station": "Sand Heads",
+      "regime": "synoptic",
+      "mismatch": false,
+      "reasoning": null,
+      "checked_at": "2026-09-27T23:12:42.120Z"
+    },
+    {
+      "spot": "garry-point",
       "time": "2026-09-25T15:00",
       "forecasted": 9.9,
       "actual": 21,
@@ -1340,6 +1366,19 @@
       "mismatch": true,
       "reasoning": "Synoptic regime, but the magnitude missed — model agreement was 0%, so spread between models likely explains some of the gap.",
       "checked_at": "2026-08-29T12:07:32.837Z"
+    },
+    {
+      "spot": "tsawwassen-south",
+      "time": "2026-09-27T16:00",
+      "forecasted": 10.5,
+      "actual": 7.6,
+      "ratio": 0.7238095238095238,
+      "source": "live-station",
+      "station": "Tsawwassen Ferry Terminal",
+      "regime": "synoptic",
+      "mismatch": true,
+      "reasoning": "Synoptic regime, but the magnitude missed — model agreement was 57%, so spread between models likely explains some of the gap.",
+      "checked_at": "2026-09-27T23:12:42.120Z"
     },
     {
       "spot": "tsawwassen-south",
@@ -1769,6 +1808,19 @@
       "mismatch": true,
       "reasoning": "Forecast showed calm/mixed and live wind came in lighter still — models were on the right track, just a bit high.",
       "checked_at": "2026-08-29T20:09:05.755Z"
+    },
+    {
+      "spot": "jericho-spanish-banks",
+      "time": "2026-09-27T16:00",
+      "forecasted": 9.5,
+      "actual": 9.7,
+      "ratio": 1.0210526315789472,
+      "source": "live-station",
+      "station": "English Bay buoy",
+      "regime": "thermal",
+      "mismatch": false,
+      "reasoning": null,
+      "checked_at": "2026-09-27T23:12:42.120Z"
     }
   ]
 }
