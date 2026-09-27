@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-27T23:15:46.953Z",
+  "updated_at": "2026-09-27T23:17:52.209Z",
   "entries": [
     {
       "spot": "boundary-bay",
@@ -108,7 +108,7 @@
       "regime": "calm",
       "mismatch": true,
       "reasoning": "Forecast showed calm/mixed but live wind is running well above that — likely an unmodeled local effect or a synoptic push none of the current signals caught.",
-      "checked_at": "2026-09-27T23:15:46.953Z"
+      "checked_at": "2026-09-27T23:17:52.209Z"
     },
     {
       "spot": "erwin-park",
@@ -888,6 +888,19 @@
     },
     {
       "spot": "white-rock-east",
+      "time": "2026-09-27T16:00",
+      "forecasted": 5,
+      "actual": 8.5,
+      "ratio": 1.7,
+      "source": "live-station",
+      "station": "White Rock East Beach",
+      "regime": "mixed",
+      "mismatch": true,
+      "reasoning": "Forecast showed calm/mixed but live wind is running well above that — likely an unmodeled local effect or a synoptic push none of the current signals caught.",
+      "checked_at": "2026-09-27T23:17:52.209Z"
+    },
+    {
+      "spot": "white-rock-east",
       "time": "2026-09-24T19:00",
       "forecasted": 11.3,
       "actual": 0,
@@ -1001,7 +1014,7 @@
       "regime": "synoptic",
       "mismatch": false,
       "reasoning": null,
-      "checked_at": "2026-09-27T23:15:46.953Z"
+      "checked_at": "2026-09-27T23:17:52.209Z"
     },
     {
       "spot": "garry-point",
@@ -1378,7 +1391,7 @@
       "regime": "synoptic",
       "mismatch": true,
       "reasoning": "Synoptic regime, but the magnitude missed — model agreement was 57%, so spread between models likely explains some of the gap.",
-      "checked_at": "2026-09-27T23:15:46.953Z"
+      "checked_at": "2026-09-27T23:17:52.209Z"
     },
     {
       "spot": "tsawwassen-south",
@@ -1720,6 +1733,19 @@
     },
     {
       "spot": "crescent-beach",
+      "time": "2026-09-27T16:00",
+      "forecasted": 6.1,
+      "actual": 8.5,
+      "ratio": 1.3934426229508197,
+      "source": "live-station",
+      "station": "White Rock East Beach",
+      "regime": "mixed",
+      "mismatch": true,
+      "reasoning": "Forecast showed calm/mixed but live wind is running well above that — likely an unmodeled local effect or a synoptic push none of the current signals caught.",
+      "checked_at": "2026-09-27T23:17:52.209Z"
+    },
+    {
+      "spot": "crescent-beach",
       "time": "2026-09-25T15:00",
       "forecasted": 8.6,
       "actual": 2.9,
@@ -1820,7 +1846,7 @@
       "regime": "thermal",
       "mismatch": false,
       "reasoning": null,
-      "checked_at": "2026-09-27T23:15:46.953Z"
+      "checked_at": "2026-09-27T23:17:52.209Z"
     }
   ]
 }
