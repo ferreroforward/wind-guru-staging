@@ -1,12 +1,8 @@
 name: Score and retrain learned corrections
 
 on:
-  schedule:
-    # 3:40am Pacific Daylight Time, after EC has published the previous
-    # day's hourly climate data. Scores the learned blend on the last 30
-    # days every night, and refits it on the 1st of each month (see
-    # scripts/mos-train.mjs "auto").
-    - cron: "40 10 * * *"
+  # STAGING: no schedule. Run it from the Actions tab ("Run workflow",
+  # mode score or fit). Production runs it nightly at 3:40am Pacific.
   workflow_dispatch:
     inputs:
       mode:

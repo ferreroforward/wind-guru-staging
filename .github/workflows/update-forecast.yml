@@ -1,7 +1,7 @@
 name: Update wind forecast
 
 on:
-  schedule:
+  # schedule: (STAGING: disabled, see the note at the end of this block)
     # 5:00am, 1:00pm and 5:00pm Pacific Daylight Time (UTC-7). The midday run
     # was added because the original 5am/5pm-only schedule meant every
     # live-verification data point came from the two calmest hours of the
@@ -16,9 +16,11 @@ on:
     # freshly-posted take (or a wind report) onto the site quickly, rather
     # than waiting for the next scheduled slot — treat these cron times as
     # a safety net, not the primary mechanism.
-    - cron: "0 12 * * *"
-    - cron: "0 20 * * *"
-    - cron: "0 0 * * *"
+    #
+    # STAGING: the three cron lines are removed on purpose so this test site
+    # doesn't burn Action minutes and API calls all day. Run it from the
+    # Actions tab ("Run workflow"); a report or daily take issue still
+    # triggers it. Production keeps the schedule.
   workflow_dispatch: {}   # lets you trigger a run manually from the Actions tab
   issues:
     # Fires the moment Guillermo posts or edits a "Daily take" or wind-report

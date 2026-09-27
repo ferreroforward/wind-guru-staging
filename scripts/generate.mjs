@@ -733,7 +733,7 @@ async function getGradientStations() {
 // from wind-report handling for symmetry (state=open only, so retracting a
 // take is just closing its issue).
 const DAILY_TAKE_OWNER = "ferreroforward";
-const DAILY_TAKE_REPO = "wind-guru"; // kept in sync with apply-feedback.mjs's REPO
+const DAILY_TAKE_REPO = "wind-guru-staging"; // STAGING VALUE -- "wind-guru" on production, same as apply-feedback.mjs's REPO
 const AUTHOR_USERNAME = "ferreroforward"; // Guillermo's own GitHub login -- NOT swapped between staging/production, it's the same account either way
 
 function extractIssueField(body, exactLabel) {
