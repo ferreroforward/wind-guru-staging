@@ -23,6 +23,7 @@ import { MOS_MODEL_PARAMS, applyMos, normCdf } from "../assets/rules.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const COEF_PATH = path.join(__dirname, "..", "data", "mos-coefficients.json");
 const SCORE_PATH = path.join(__dirname, "..", "data", "mos-score.json");
+const RECENT_PATH = path.join(__dirname, "..", "data", "mos-recent.json");
 const UA = { "User-Agent": "wind-guru-agent/1.0" };
 const KMH_TO_KT = 0.539957;
 const LAMBDA = 0.01;
@@ -226,6 +227,39 @@ function joinRows(v, fc, obs) {
   return rows;
 }
 
+// Recent correction, recomputed every night from the scoring window (added
+// Sep 27 2026 after Sand Heads ran ~3kt high on a light NW day):
+// 1. Bias: the blend's average miss over the last 7 days, on hours where
+//    either the forecast or the reading was 6kt+ (calm nights don't count),
+//    shrunk toward zero when there are few hours (n / (n + 100)) and capped
+//    at ±2kt. Needs 60+ such hours. In a year of replays (each day corrected
+//    only from the days before it) this improved the probability score at
+//    every station, by 1 to 3% over the year and 7 to 8% at Sand Heads and
+//    Point Atkinson over the last month; a 14 day window gained less.
+// 2. Spread: if, after that, the last 30 days missed by more than the error
+//    model expects (mean |miss| / sigma above the normal 0.80), widen the
+//    band by that ratio, up to 1.5x (never narrower). Over the year this
+//    rarely triggered and was neutral; it is a guard for unusual spells.
+export function recentAdjustment(pred) {
+  if (!pred.length) return { bias_kt: null, offset_kt: 0, sigma_scale: 1, hours_bias: 0, hours_spread: 0 };
+  const end = Date.parse(pred[pred.length - 1].k + ":00Z") + 3600000;
+  const since = (days) => end - days * 86400000;
+  const t = (r) => Date.parse(r.k + ":00Z");
+  const rel = pred.filter((r) => t(r) >= since(7) && Math.max(r.p, r.o) >= 6);
+  let bias = null, offset = 0;
+  if (rel.length >= 60) {
+    bias = rel.reduce((a, r) => a + r.p - r.o, 0) / rel.length;
+    offset = Math.max(-2, Math.min(2, -bias * rel.length / (rel.length + 100)));
+  }
+  const z = pred.filter((r) => t(r) >= since(30))
+    .map((r) => ({ p: Math.max(0, r.p + offset), o: r.o, s: r.sigma }))
+    .filter((r) => Math.max(r.p, r.o) >= 6)
+    .map((r) => Math.abs(r.o - r.p) / r.s);
+  const scale = z.length >= 100 ? Math.max(1, Math.min(1.5, z.reduce((a, b) => a + b, 0) / z.length / 0.7979)) : 1;
+  const r2 = (v) => Math.round(v * 100) / 100;
+  return { bias_kt: bias == null ? null : r2(bias), offset_kt: r2(offset), sigma_scale: r2(scale), hours_bias: rel.length, hours_spread: z.length };
+}
+
 // ---------------------------------------------------------------- modes
 
 async function loadCoefficients() {
@@ -236,6 +270,7 @@ async function score(coef, days = 30) {
   const to = new Date(Date.now() - 86400000);
   const from = new Date(to.getTime() - days * 86400000);
   const out = { updated_at: new Date().toISOString(), window_days: days, threshold_kt: THRESHOLD_KT, trained: coef.trained, points: {} };
+  const recent = { updated_at: out.updated_at, note: "Applied on top of mos-coefficients.json by applyMos (rules.js); see recentAdjustment in scripts/mos-train.mjs.", points: {} };
   for (const [id, pt] of Object.entries(coef.points)) {
     console.log(`Scoring ${id} against ${pt.station}...`);
     const obs = await fetchObservations(pt.climate_id, from, to);
@@ -251,11 +286,14 @@ async function score(coef, days = 30) {
       const s = Object.values(fc[r.k].speeds);
       return { ...r, p: s.reduce((a, b) => a + b, 0) / s.length };
     });
-    out.points[id] = { station: pt.station, learned: scoreSet(pred), plain_average: { mae_kt: scoreSet(raw).mae_kt, caught: scoreSet(raw).caught } };
+    recent.points[id] = recentAdjustment(pred);
+    out.points[id] = { station: pt.station, learned: scoreSet(pred), plain_average: { mae_kt: scoreSet(raw).mae_kt, caught: scoreSet(raw).caught }, recent: recent.points[id] };
+    console.log(`  recent correction: ${JSON.stringify(recent.points[id])}`);
     console.log(`  ${pred.length}h, MAE ${out.points[id].learned.mae_kt}kt (plain average ${out.points[id].plain_average.mae_kt}kt), caught ${out.points[id].learned.caught}`);
   }
   await writeFile(SCORE_PATH, JSON.stringify(out, null, 2) + "\n");
-  console.log(`Wrote ${SCORE_PATH}`);
+  await writeFile(RECENT_PATH, JSON.stringify(recent, null, 2) + "\n");
+  console.log(`Wrote ${SCORE_PATH} and ${RECENT_PATH}`);
 }
 
 async function fit(coef) {

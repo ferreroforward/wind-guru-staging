@@ -37,6 +37,7 @@ const OUT_PATH = path.join(__dirname, "..", "data", "forecast.json");
 const OVERRIDES_PATH = path.join(__dirname, "..", "data", "calibration-overrides.json");
 const LIVE_LOG_PATH = path.join(__dirname, "..", "data", "live-verification-log.json");
 const MOS_PATH = path.join(__dirname, "..", "data", "mos-coefficients.json");
+const MOS_RECENT_PATH = path.join(__dirname, "..", "data", "mos-recent.json");
 const FORECAST_DAYS = 4; // "today" + 3 days ahead
 const LIVE_ERROR_THRESHOLD = 0.20; // 20% — flag as a "mismatch" in the UI/console at this gap or bigger
 const LIVE_LOG_MAX_PER_SPOT = 40; // cap so the log file doesn't grow forever
@@ -465,6 +466,15 @@ let mosCoefficients = null;
 async function loadMosCoefficients() {
   try {
     mosCoefficients = JSON.parse(await readFile(MOS_PATH, "utf8"));
+    // Nightly recent correction; ignored once it's over a week old (the
+    // nightly job has stopped), so a stale offset can't linger.
+    try {
+      const recent = JSON.parse(await readFile(MOS_RECENT_PATH, "utf8"));
+      if (Date.now() - Date.parse(recent.updated_at) < 7 * 86400000) {
+        for (const [id, r] of Object.entries(recent.points || {})) if (mosCoefficients.points?.[id]) mosCoefficients.points[id].recent = r;
+        console.log(`Recent corrections: ${Object.entries(recent.points || {}).map(([id, r]) => `${id} ${r.offset_kt >= 0 ? "+" : ""}${r.offset_kt}kt x${r.sigma_scale}`).join(", ")}`);
+      } else console.log("data/mos-recent.json is over a week old, not applied.");
+    } catch { /* optional */ }
     console.log(`Loaded learned corrections for: ${Object.keys(mosCoefficients.points || {}).join(", ")} (trained ${mosCoefficients.trained})`);
   } catch {
     mosCoefficients = null;

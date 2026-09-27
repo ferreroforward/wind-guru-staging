@@ -724,6 +724,19 @@ Not yet covered: Squamish (the Spit meter has history by date on
 squamishwindsports.com, a good next fit), Jericho (the English Bay buoy
 isn't in EC's climate archive), and the South Delta beaches.
 
+**Recent correction (added Sep 27 2026):** each night `mos-train.mjs score`
+also writes `data/mos-recent.json`: the blend's average miss over the last 7
+days (hours where the forecast or the reading was 6kt+, shrunk when there are
+few hours, capped at ±2kt), applied as an offset, and a spread factor (1 to
+1.5x) if the last 30 days missed by more than the error model expects. It's
+ignored if more than a week old. Replaying the year with each day corrected
+only from the days before it: probability score better at every station (1 to
+3% over the year, 7 to 8% at Sand Heads and Point Atkinson over the last
+month), typical miss unchanged. The spread factor rarely triggered and was
+neutral. At Sand Heads this September the middle odds ran generous (said
+about 50%, happened about 25%) even after the offset, which neither fix
+changes; worth watching in the nightly score.
+
 ## Live stations (Sep 2026)
 
 Per Guillermo: Tsawwassen South reads EC's Ferry Terminal station (`vtf`);

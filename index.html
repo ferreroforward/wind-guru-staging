@@ -768,7 +768,7 @@ function showTip(cellEl, h, spotId) {
   const m = h.mos;
   const mosText = h.mos_used && m ? `<div style="margin-top:4px;opacity:0.9;font-weight:400;">${m.flow !== undefined
       ? `Pam Rocks forecast ${Math.round(m.station_kt)}kt${m.flow ? ` (${m.flow}, Porteau needs ${m.flow === "inflow" ? "14kt+" : "25 to 30kt+"})` : ", not an inflow or outflow"}`
-      : `Learned from a year of ${m.station} readings`}, typically within ±${Math.round(m.sigma_kt * 0.8)}kt</div>` : "";
+      : `Learned from a year of ${m.station} readings`}, typically within ±${Math.round(m.sigma_kt * 0.8)}kt${m.recent_offset_kt ? ` (includes ${m.recent_offset_kt > 0 ? "+" : ""}${m.recent_offset_kt}kt from the last week's misses)` : ""}</div>` : "";
   const sw = h.swell;
   const swellText = sw && sw.label !== "flat" ? `<div style="margin-top:4px;opacity:0.9;font-weight:400;">🌊 ${swellLabel(sw.label)}: about ${sw.hs_ft}ft (${sw.hs_m.toFixed(1)}m)${sw.period_s ? `, ${sw.period_s}s` : ""} after ${sw.duration_h}h of wind${sw.vs_wind ? `, ${sw.vs_wind === "against" ? `wind against the ${sw.current}` : sw.vs_wind === "with" ? `${sw.current} running with the wind` : `${sw.current} across the wind`}` : ""}${sw.building ? " (4h+ against the tide: building)" : ""}</div>` : "";
   const epicText = h.epic ? `<div style="margin-top:4px;font-weight:700;color:#ffcf9e;">🔥 Matches this spot's epic day setup</div>` : "";
@@ -1087,6 +1087,12 @@ async function loadLive() {
     // Learned corrections, same as the server run (see applyMos).
     let mosCoef = null;
     try { const r = await fetch("data/mos-coefficients.json", { cache: "no-store" }); if (r.ok) mosCoef = await r.json(); } catch { /* optional */ }
+    try {
+      const r = await fetch("data/mos-recent.json", { cache: "no-store" });
+      const rec = r.ok ? await r.json() : null;
+      if (rec && mosCoef && Date.now() - Date.parse(rec.updated_at) < 7 * 86400000)
+        for (const [id, v] of Object.entries(rec.points || {})) if (mosCoef.points?.[id]) mosCoef.points[id].recent = v;
+    } catch { /* optional */ }
     const mosCache = {};
     const nowHourStr = currentPacificHourString();
     for (const spot of SPOTS) {

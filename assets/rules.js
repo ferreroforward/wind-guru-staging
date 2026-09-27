@@ -866,6 +866,7 @@ export function classifyHour(spot, row, localHour, month, refSpeedKt = null, pre
       station_kt: Math.round(mosNow.speed * 10) / 10,
       variant: mosNow.variant,
       sigma_kt: Math.round(mosSigma * 10) / 10,
+      recent_offset_kt: mosNow.offsetKt ? Math.round(mosNow.offsetKt * 10) / 10 : 0,
       ...(ruleInfo ? { flow: ruleInfo.flow, threshold_kt: ruleInfo.thresholdKt, works: ruleInfo.works } : {}),
     };
     if ((regime === "calm" || regime === "mixed") && est >= 10) {
@@ -1639,11 +1640,17 @@ export function applyMos(point, input) {
     // input plus 3kt (the 99th percentile in the back test was 1.2x to 1.9x),
     // and never above 45kt.
     const maxIn = Math.max(...v.models.map(m => input.speeds[m]));
-    const speed = Math.min(45, maxIn * 2.2 + 3, Math.max(0, x.reduce((a, xi, i) => a + xi * v.coef[i], 0)));
-    const sigma = Math.max(1, (v.err[0] + v.err[1] * speed) * SQRT_HALF_PI);
+    const rawSpeed = Math.max(0, x.reduce((a, xi, i) => a + xi * v.coef[i], 0));
+    // Nightly recent correction (data/mos-recent.json, see recentAdjustment
+    // in scripts/mos-train.mjs): last week's average miss, and a wider band
+    // when the last month missed by more than the error model expects.
+    const rec = point.recent || {};
+    const offset = rec.offset_kt ?? 0;
+    const speed = Math.min(45, maxIn * 2.2 + 3, Math.max(0, rawSpeed + offset));
+    const sigma = Math.max(1, (v.err[0] + v.err[1] * speed) * SQRT_HALF_PI) * (rec.sigma_scale ?? 1);
     // Direction the wind blows FROM, from the mean vector (u, w point where it goes).
     const directionDeg = (u === 0 && w === 0) ? null : (Math.atan2(-u, -w) * 180 / Math.PI + 360) % 360;
-    return { speed, sigma, variant: v.id, directionDeg, station: point.station };
+    return { speed, sigma, variant: v.id, directionDeg, station: point.station, offsetKt: offset };
   }
   return null;
 }
