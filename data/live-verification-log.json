@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-27T23:17:52.209Z",
+  "updated_at": "2026-09-27T23:33:54.618Z",
   "entries": [
     {
       "spot": "boundary-bay",
@@ -890,14 +890,14 @@
       "spot": "white-rock-east",
       "time": "2026-09-27T16:00",
       "forecasted": 5,
-      "actual": 8.5,
-      "ratio": 1.7,
+      "actual": 8,
+      "ratio": 1.6,
       "source": "live-station",
       "station": "White Rock East Beach",
       "regime": "mixed",
       "mismatch": true,
       "reasoning": "Forecast showed calm/mixed but live wind is running well above that — likely an unmodeled local effect or a synoptic push none of the current signals caught.",
-      "checked_at": "2026-09-27T23:17:52.209Z"
+      "checked_at": "2026-09-27T23:33:54.618Z"
     },
     {
       "spot": "white-rock-east",
@@ -1006,15 +1006,15 @@
     {
       "spot": "garry-point",
       "time": "2026-09-27T16:00",
-      "forecasted": 13.1,
-      "actual": 11.1,
-      "ratio": 0.8473282442748091,
+      "forecasted": 13.4,
+      "actual": 8,
+      "ratio": 0.5970149253731343,
       "source": "live-station",
       "station": "Sand Heads",
       "regime": "synoptic",
-      "mismatch": false,
-      "reasoning": null,
-      "checked_at": "2026-09-27T23:17:52.209Z"
+      "mismatch": true,
+      "reasoning": "Synoptic regime, but the magnitude missed — model agreement was 53%, so spread between models likely explains some of the gap.",
+      "checked_at": "2026-09-27T23:33:54.618Z"
     },
     {
       "spot": "garry-point",
@@ -1390,8 +1390,8 @@
       "station": "Tsawwassen Ferry Terminal",
       "regime": "synoptic",
       "mismatch": true,
-      "reasoning": "Synoptic regime, but the magnitude missed — model agreement was 57%, so spread between models likely explains some of the gap.",
-      "checked_at": "2026-09-27T23:17:52.209Z"
+      "reasoning": "Synoptic regime, but the magnitude missed — model agreement was 73%, so spread between models likely explains some of the gap.",
+      "checked_at": "2026-09-27T23:33:54.618Z"
     },
     {
       "spot": "tsawwassen-south",
@@ -1735,14 +1735,14 @@
       "spot": "crescent-beach",
       "time": "2026-09-27T16:00",
       "forecasted": 6.1,
-      "actual": 8.5,
-      "ratio": 1.3934426229508197,
+      "actual": 8,
+      "ratio": 1.3114754098360657,
       "source": "live-station",
       "station": "White Rock East Beach",
       "regime": "mixed",
       "mismatch": true,
       "reasoning": "Forecast showed calm/mixed but live wind is running well above that — likely an unmodeled local effect or a synoptic push none of the current signals caught.",
-      "checked_at": "2026-09-27T23:17:52.209Z"
+      "checked_at": "2026-09-27T23:33:54.618Z"
     },
     {
       "spot": "crescent-beach",
@@ -1846,7 +1846,7 @@
       "regime": "thermal",
       "mismatch": false,
       "reasoning": null,
-      "checked_at": "2026-09-27T23:17:52.209Z"
+      "checked_at": "2026-09-27T23:33:54.618Z"
     }
   ]
 }
