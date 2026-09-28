@@ -308,9 +308,15 @@ How it works:
 Each spot declares which zone it belongs to via `marineZone`
 (`howe_sound` or `strait_of_georgia_south`).
 
-Anchored hours are tagged `marine_anchored` and get a confidence floor of 72% —
-higher than model consensus on a gradient day, but below a live observation,
-since it's still a zone-wide forecast rather than a spot-specific one.
+**Changed Sep 28 2026: EC is now a note, not the number.** Anchored hours ran
+about 4kt high with 75% of their 12kt calls failing over six weeks, and on
+Sep 28 the floor put 16kt on White Rock East all afternoon while every model
+said 4 to 9kt. Now, when EC is 4kt+ stronger than the models for a
+direction the spot works on, the hour carries `marine_ec` (range, floor,
+gap), the card says "Environment Canada calls ... stronger than the models
+here", and the probability band widens toward EC (sigma at least gap / 1.5,
+which gives roughly the 25% hit rate the old floor actually had), but the
+number stays the models'. `marine_anchored` is always false now.
 
 ## Live reference-station trigger
 

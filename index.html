@@ -769,11 +769,13 @@ function showTip(cellEl, h, spotId) {
   const mosText = h.mos_used && m ? `<div style="margin-top:4px;opacity:0.9;font-weight:400;">${m.flow !== undefined
       ? `Pam Rocks forecast ${Math.round(m.station_kt)}kt${m.flow ? ` (${m.flow}, Porteau needs ${m.flow === "inflow" ? "14kt+" : "25 to 30kt+"})` : ", not an inflow or outflow"}`
       : `Learned from a year of ${m.station} readings`}, typically within ±${Math.round(m.sigma_kt * 0.8)}kt${m.recent_offset_kt ? ` (includes ${m.recent_offset_kt > 0 ? "+" : ""}${m.recent_offset_kt}kt from the last week's misses)` : ""}</div>` : "";
+  const ec = h.marine_ec && h.marine_ec.gap_kt >= 4 && !h.live_reference_triggered ? h.marine_ec : null;
+  const ecText = ec ? `<div style="margin-top:4px;opacity:0.9;font-weight:400;">📻 Environment Canada: ${ec.direction_label} ${ec.lo_kt}${ec.hi_kt !== ec.lo_kt ? ` to ${ec.hi_kt}` : ""}kt, stronger than the models here</div>` : "";
   const sw = h.swell;
   const swellText = sw && sw.label !== "flat" ? `<div style="margin-top:4px;opacity:0.9;font-weight:400;">🌊 ${swellLabel(sw.label)}: about ${sw.hs_ft}ft (${sw.hs_m.toFixed(1)}m)${sw.period_s ? `, ${sw.period_s}s` : ""} after ${sw.duration_h}h of wind${sw.vs_wind ? `, ${sw.vs_wind === "against" ? `wind against the ${sw.current}` : sw.vs_wind === "with" ? `${sw.current} running with the wind` : `${sw.current} across the wind`}` : ""}${sw.building ? " (4h+ against the tide: building)" : ""}</div>` : "";
   const epicText = h.epic ? `<div style="margin-top:4px;font-weight:700;color:#ffcf9e;">🔥 Matches this spot's epic day setup</div>` : "";
   const spotName = (SPOTS.find(s => s.id === spotId) || {}).name ?? spotId;
-  globalTip.innerHTML = `<b>${regimeLabel(h.regime)}</b>${speedText}${summaryText}${tideText}${swellText}${mosText}${agreeText}${epicText}
+  globalTip.innerHTML = `<b>${regimeLabel(h.regime)}</b>${speedText}${summaryText}${tideText}${swellText}${ecText}${mosText}${agreeText}${epicText}
     <button type="button" class="report-trigger" data-spot="${spotId}" data-name="${spotName}" data-date="${h.time.slice(0, 10)}" data-time="${h.time.slice(11, 16)}" data-forecast="${h.speed_kt != null ? h.speed_kt : ""}">📝 Report actual conditions →</button>`;
   const rect = cellEl.getBoundingClientRect();
   globalTip.style.display = "block";
@@ -826,6 +828,20 @@ function swellLineForDay(hours) {
   return `<div class="tide-line">🌊 <b>${swellLabel(peak.swell.label)}</b> ${span}, up to about ${peak.swell.hs_ft}ft${why}</div>`;
 }
 
+// When Environment Canada's marine forecast is clearly stronger than the
+// models for this spot (4kt+ apart, a direction the spot works on), say so
+// instead of using EC as the number (changed Sep 28 2026, see rules.js).
+function ecLineForDay(hours) {
+  const hit = hours.filter(h => h.marine_ec && h.marine_ec.gap_kt >= 4 && !h.live_reference_triggered);
+  if (!hit.length) return "";
+  const e = hit[0].marine_ec;
+  const models = Math.round(Math.min(...hit.map(h => h.speed_kt ?? 0)));
+  const modelsHi = Math.round(Math.max(...hit.map(h => h.speed_kt ?? 0)));
+  const from = hourLabel(Number(hit[0].time.slice(11, 13)));
+  const range = e.hi_kt !== e.lo_kt ? `${e.lo_kt} to ${e.hi_kt}` : `${e.lo_kt}`;
+  return `<div class="tide-line">📻 Environment Canada calls ${e.direction_label} ${range}kt from about ${from}, stronger than the models here (${models === modelsHi ? models : `${models} to ${modelsHi}`}kt). Check the live readings before you go.</div>`;
+}
+
 function renderSpotCards() {
   spotCardsEl.innerHTML = "";
   const goodIds = new Set(rankedSpotsForDay().filter(r => r.probability >= MIN_LIST_PROBABILITY).map(r => r.spot.id));
@@ -866,6 +882,7 @@ function renderSpotCards() {
       ${epicWindowsForDay(spot).map(w => `<div class="epic-line">🔥 Possible epic day: ${hourLabel(Number(w.start.slice(0, 2)))} to ${hourLabel(Number(w.end.slice(0, 2)))}, up to ${w.peak_kt}kt${tideRangeText(w)}</div>`).join("")}
       ${tideLineForDay(spot)}
       ${swellLineForDay(hours)}
+      ${ecLineForDay(hours)}
       ${liveBadge}
       <div class="hour-strip"></div>
     `;
