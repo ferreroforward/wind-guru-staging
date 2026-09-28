@@ -319,6 +319,37 @@ function swobObservation(station) {
   };
 }
 
+// Weather and tide APIs sometimes refuse or time out a request from
+// GitHub's shared runners (rate limits, brief outages), and one refused
+// request used to be enough to drop a spot; too many dropped spots and the
+// whole run aborts (Sep 27 and 28 2026, the site stayed on the previous
+// snapshot). So: up to 4 tries, waiting 3, 8 and 20 seconds (or what the
+// server's Retry-After asks, up to a minute), on 429, 5xx and network
+// errors. Other errors (400, 404) fail straight away.
+async function fetchRetry(url, options = {}, tries = 4) {
+  const waits = [3000, 8000, 20000];
+  let lastErr = null;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok || (res.status < 500 && res.status !== 429)) return res;
+      lastErr = new Error(`HTTP ${res.status} ${res.statusText}`);
+      if (i === tries - 1) return res;
+      const ra = Number(res.headers.get("retry-after"));
+      const wait = isFinite(ra) && ra > 0 ? Math.min(60000, ra * 1000) : waits[Math.min(i, waits.length - 1)];
+      console.log(`  [retry] ${String(url).slice(0, 70)}... ${lastErr.message}, waiting ${Math.round(wait / 1000)}s`);
+      await new Promise((r) => setTimeout(r, wait));
+    } catch (err) {
+      lastErr = err;
+      if (i === tries - 1) throw err;
+      const wait = waits[Math.min(i, waits.length - 1)];
+      console.log(`  [retry] ${String(url).slice(0, 70)}... ${err.message}, waiting ${Math.round(wait / 1000)}s`);
+      await new Promise((r) => setTimeout(r, wait));
+    }
+  }
+  throw lastErr;
+}
+
 const liveObsCache = {};
 // A station can name a `fallback` (spots.js), used when the first has
 // nothing fresh (Jericho: English Bay buoy, then the Sailing Centre sensor).
@@ -369,7 +400,7 @@ async function fetchSpot(spot) {
   // sits in a land grid cell. Falls back to the spot's own coordinates.
   const pt = spot.modelPoint || spot;
   const url = buildForecastUrl(pt.lat, pt.lon, FORECAST_DAYS);
-  const res = await fetch(url, { headers: { "User-Agent": "wind-guru-agent/1.0" } });
+  const res = await fetchRetry(url, { headers: { "User-Agent": "wind-guru-agent/1.0" } });
   if (!res.ok) {
     console.error(`[${spot.id}] fetch failed: ${res.status} ${res.statusText}`);
     return null;
@@ -402,7 +433,7 @@ async function fetchTideLevels(station, startedAt) {
     const to = new Date(startedAt.getTime() + (FORECAST_DAYS + 1) * 24 * 3600000);
     const iso = (d) => d.toISOString().slice(0, 19) + "Z";
     const url = `${base}/stations/${id}/data?time-series-code=wlp&from=${iso(from)}&to=${iso(to)}&resolution=SIXTY_MINUTES`;
-    const res = await fetch(url, { headers: { "User-Agent": "wind-guru-agent/1.0" } });
+    const res = await fetchRetry(url, { headers: { "User-Agent": "wind-guru-agent/1.0" } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const arr = await res.json();
     const levels = {};
@@ -430,7 +461,7 @@ async function fetchTideHilo(station, startedAt) {
     const to = new Date(startedAt.getTime() + (FORECAST_DAYS + 1) * 24 * 3600000);
     const iso = (d) => d.toISOString().slice(0, 19) + "Z";
     const url = `https://api-iwls.dfo-mpo.gc.ca/api/v1/stations/${station.id}/data?time-series-code=wlp-hilo&from=${iso(from)}&to=${iso(to)}`;
-    const res = await fetch(url, { headers: { "User-Agent": "wind-guru-agent/1.0" } });
+    const res = await fetchRetry(url, { headers: { "User-Agent": "wind-guru-agent/1.0" } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     tideHiloCache[station.code] = labelHilo(await res.json());
     console.log(`  [tide-hilo:${station.name}] ${tideHiloCache[station.code].length} highs/lows`);
@@ -488,7 +519,7 @@ async function fetchMosInputs(pointId) {
   if (pointId in mosInputCache) return mosInputCache[pointId];
   mosInputCache[pointId] = null;
   try {
-    const res = await fetch(buildMosUrl(point.lat, point.lon, FORECAST_DAYS), { headers: { "User-Agent": "wind-guru-agent/1.0" } });
+    const res = await fetchRetry(buildMosUrl(point.lat, point.lon, FORECAST_DAYS), { headers: { "User-Agent": "wind-guru-agent/1.0" } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     mosInputCache[pointId] = reshapeMos(await res.json());
   } catch (err) {
@@ -698,7 +729,7 @@ async function getStationRows(station) {
   if (stationRowsCache[key]) return stationRowsCache[key];
   process.stdout.write(`Fetching reference station ${station.name}... `);
   const url = buildForecastUrl(station.lat, station.lon, FORECAST_DAYS);
-  const res = await fetch(url, { headers: { "User-Agent": "wind-guru-agent/1.0" } });
+  const res = await fetchRetry(url, { headers: { "User-Agent": "wind-guru-agent/1.0" } });
   if (!res.ok) { console.log(`fetch failed: ${res.status}`); return null; }
   const json = await res.json();
   const rows = reshapeOpenMeteo(json);
@@ -1048,8 +1079,8 @@ async function main() {
       epic_windows: epicWindows,
     });
 
-    // Be polite to the free API.
-    await new Promise((r) => setTimeout(r, 300));
+    // Be polite to the free API (spaced out more since Sep 28 2026).
+    await new Promise((r) => setTimeout(r, 1000));
   }
 
   // "Live surface conditions" board: our own already-fetched live stations

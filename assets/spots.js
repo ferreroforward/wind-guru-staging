@@ -186,6 +186,11 @@ export const SPOTS = [
     currents: { flood: 90, ebb: 270 },
     swell: { fetchKm: [[[240, 330], 35]], defaultFetchKm: 8 },
     name: "Jericho - Spanish Banks",
+    // Water forecast point (Sep 28 2026): the beach cell is part land for
+    // several models (NBM read 0.56x, HRRR 0.64x; kept 2km off the beach, since Jericho runs lighter than open English Bay vs a point further out, last 14 days, 8kt+ hours),
+    // which reads the wind light. Same fix as Steveston.
+    modelPoint: { lat: 49.29, lon: -123.26 },
+
     region: "English Bay",
     lat: 49.281646, lon: -123.235223,
     marineZone: "strait_of_georgia_south",
@@ -209,7 +214,7 @@ export const SPOTS = [
     // Jericho Sailing Centre's own sensor (via wtfbc.ca's board) when the
     // buoy has nothing fresh. Per Guillermo, Sep 2026.
     liveStation: { code: "46304", name: "English Bay buoy", fallback: { type: "swob", boardName: "Jericho Sailing Centre", name: "Jericho Sailing Centre" } },
-    calibrationSince: "2026-09-28",
+    calibrationSince: "2026-09-29",
     thermal: {
       enabled: true,
       months: [4,5,6,7,8,9],
@@ -365,7 +370,7 @@ export const SPOTS = [
     // No live station: the White Rock METAR (CWWK) read a maximum of 6kt in
     // six weeks, so it can't verify anything. Per Guillermo (Sep 2026), this
     // spot is checked by rider reports only.
-    calibrationSince: "2026-09-28",
+    calibrationSince: "2026-09-29",
     thermal: { enabled: false },
     outflow: { enabled: false },
     synoptic_note: "Boundary Bay's biggest days are usually synoptic — a strong SE–S gradient wind ahead of an approaching frontal system funnels straight up the bay. Check the synoptic regime tag, not just the thermal one.",
@@ -387,6 +392,11 @@ export const SPOTS = [
     // except Steveston (Tsawwassen, see garry-point).
     tideStation: { code: "07577", id: "5cebf1de3d0f4a073c4bb933", name: "White Rock" },
     name: "White Rock - East Beach",
+    // Water forecast point (Sep 28 2026): the beach cell is part land for
+    // several models (HRDPS 2.5km read 0.59x, HRDPS West 0.69x vs a point further out, last 14 days, 8kt+ hours),
+    // which reads the wind light. Same fix as Steveston.
+    modelPoint: { lat: 48.995, lon: -122.81 },
+
     region: "South Delta",
     lat: 49.015658, lon: -122.790661,
     marineZone: "strait_of_georgia_south",
@@ -401,7 +411,7 @@ export const SPOTS = [
     // whiterockcity.ca's waterfront page), in knots. Replaces the White Rock
     // METAR (CWWK), which read a maximum of 6kt in six weeks. Per Guillermo.
     liveStation: { type: "whiterockcity", name: "White Rock East Beach" },
-    calibrationSince: "2026-09-28",
+    calibrationSince: "2026-09-29",
     thermal: {
       enabled: true,
       months: [4,5,6,7,8,9],
@@ -427,6 +437,11 @@ export const SPOTS = [
     // except Steveston (Tsawwassen, see garry-point).
     tideStation: { code: "07579", id: "5dd3064fe0fdc4b9b4be69d7", name: "Crescent Beach" },
     name: "Crescent Beach",
+    // Water forecast point (Sep 28 2026): the beach cell is part land for
+    // several models (HRRR read 0.49x, NBM 0.72x vs a point further out, last 14 days, 8kt+ hours),
+    // which reads the wind light. Same fix as Steveston.
+    modelPoint: { lat: 49.03, lon: -122.95 },
+
     region: "South Delta",
     lat: 49.057512, lon: -122.888188,
     marineZone: "strait_of_georgia_south",
@@ -442,7 +457,7 @@ export const SPOTS = [
     // METAR (CWWK), which read a maximum of 6kt in six weeks. Per Guillermo, also the
     // best nearby reading for Crescent Beach (~7km).
     liveStation: { type: "whiterockcity", name: "White Rock East Beach" },
-    calibrationSince: "2026-09-28",
+    calibrationSince: "2026-09-29",
     // No confirmed thermal timing/season pattern from local knowledge yet —
     // left disabled rather than assume it matches its South Delta
     // neighbors, same reasoning as Erwin Park's thermal field.
@@ -469,6 +484,11 @@ export const SPOTS = [
     // except Steveston (Tsawwassen, see garry-point).
     tideStation: { code: "07590", id: "5cebf1de3d0f4a073c4bb935", name: "Tsawwassen" },
     name: "Tsawwassen Ferry Terminal (South Causeway)",
+    // Water forecast point (Sep 28 2026): the beach cell is part land for
+    // several models (ECMWF read 0.42x, HRRR 0.57x, NBM 0.62x; the learned forecast already uses its own point, this is for the rest vs a point further out, last 14 days, 8kt+ hours),
+    // which reads the wind light. Same fix as Steveston.
+    modelPoint: { lat: 48.99, lon: -123.16 },
+
     region: "South Delta",
     lat: 49.015191, lon: -123.114600,
     marineZone: "strait_of_georgia_south",
@@ -480,7 +500,7 @@ export const SPOTS = [
     // EC's Tsawwassen Ferry Terminal station, right at the causeway, per
     // Guillermo (Sep 2026). Replaces the White Rock METAR, 19km away.
     liveStation: { code: "vtf", name: "Tsawwassen Ferry Terminal" },
-    calibrationSince: "2026-09-28",
+    calibrationSince: "2026-09-29",
     // Learned correction (rules.js applyMos, data/mos-coefficients.json):
     // fitted on a year of Ferry Terminal hourly readings vs the day before models.
     // The spot is next to the station, so no offset.

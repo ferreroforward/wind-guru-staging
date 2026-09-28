@@ -1095,28 +1095,39 @@ export function classifyHour(spot, row, localHour, month, refSpeedKt = null, pre
   // reading far *below* EC — is the signature we're trying to catch.
   // `marineAnchorFactor` lets a spot that consistently runs lighter than open
   // water scale the floor down (default 1.0 = take EC's low end as-is).
-  let marineAnchored = false, marineNote = null;
+  // Environment Canada marine bulletin: a note, not the forecast (changed
+  // Sep 28 2026). It used to set a floor at the middle of EC's range when
+  // the models read lower. Over six weeks those hours ran about 4kt high and
+  // 75% of their 12kt calls didn't happen, and on Sep 28 it put 16kt on
+  // White Rock East all afternoon while every model said 4 to 9kt and the
+  // real push came in the late evening. Now, when EC is clearly stronger
+  // than the models for a direction this spot works on, the hour says so
+  // (marine_ec, card line, popup) and the probability band widens toward
+  // EC (see probabilityInRange), but the number stays the models'.
+  let marineAnchored = false, marineNote = null, marineEc = null;
   if (marineAnchor && marineAnchor.loKt != null && spot.marineZone) {
     const anchorDirOk = marineAnchor.directionDeg != null &&
       (spot.favorable_deg || []).some(s => inSector(marineAnchor.directionDeg, s));
-    // Anchor on the MIDPOINT of EC's range, not its low end. EC publishes a
-    // sustained open-water range; the low end alone is so conservative that it
-    // barely moves a badly under-read model hour (which defeats the point of
-    // anchoring at all), while the midpoint is a fair reading of "what the
-    // forecaster actually expects." Verified against the Aug 26 2026 Erwin
-    // miss: EC "southeast 10 to 15", riders on 4m/5m — the low end alone would
-    // have left the spot below the display threshold.
     const ecMidKt = (marineAnchor.loKt + marineAnchor.hiKt) / 2;
     const floorKt = ecMidKt * (spot.marineAnchorFactor ?? 1);
-    if (anchorDirOk && floorKt >= 5 && !mosUsed && (displaySpeed == null || displaySpeed < floorKt)) {
-      marineAnchored = true;
-      displaySpeed = floorKt;
-      displayGust = Math.max(displayGust ?? 0, floorKt * 1.3);
-      if (regime === "calm" || regime === "mixed") regime = "synoptic";
-      reason += ` Environment Canada's marine forecast for this area calls for ${marineAnchor.directionLabel} ${marineAnchor.loKt}${marineAnchor.hiKt !== marineAnchor.loKt ? `-${marineAnchor.hiKt}` : ""}kt${marineAnchor.timing ? ` ${marineAnchor.timing}` : ""}${marineAnchor.regime ? ` (${marineAnchor.regime})` : ""}${marineAnchor.exceptionApplied ? ` (using EC's lighter "${marineAnchor.exceptionApplied}" wording for this spot)` : ""}, from a direction this spot works on. Raised toward the middle of EC's range, since the raw models are reading well under that and EC's forecasters catch gradient events the models flatten.`;
-    } else if (anchorDirOk) {
-      marineNote = `EC marine forecast for this area: ${marineAnchor.directionLabel} ${marineAnchor.loKt}-${marineAnchor.hiKt}kt${marineAnchor.timing ? ` ${marineAnchor.timing}` : ""}.`;
-      reason += ` ${marineNote}`;
+    if (anchorDirOk) {
+      const cur = displaySpeed ?? 0;
+      const range = `${marineAnchor.loKt}${marineAnchor.hiKt !== marineAnchor.loKt ? ` to ${marineAnchor.hiKt}` : ""}`;
+      marineEc = {
+        direction_label: marineAnchor.directionLabel,
+        direction_deg: marineAnchor.directionDeg,
+        lo_kt: marineAnchor.loKt,
+        hi_kt: marineAnchor.hiKt,
+        timing: marineAnchor.timing || null,
+        floor_kt: Math.round(floorKt * 10) / 10,
+        gap_kt: Math.round((floorKt - cur) * 10) / 10,
+      };
+      marineNote = `EC marine forecast for this area: ${marineAnchor.directionLabel} ${range}kt${marineAnchor.timing ? ` ${marineAnchor.timing}` : ""}.`;
+      if (floorKt >= 5 && floorKt - cur >= 4 && !liveRefTriggered) {
+        reason += ` Environment Canada calls for ${marineAnchor.directionLabel} ${range}kt${marineAnchor.timing ? ` ${marineAnchor.timing}` : ""}, stronger than the models here (~${Math.round(cur)}kt). Not used as the number (EC's zone forecast has run about 4kt high for single spots); check the live readings.`;
+      } else {
+        reason += ` ${marineNote}`;
+      }
     }
   }
 
@@ -1219,7 +1230,8 @@ export function classifyHour(spot, row, localHour, month, refSpeedKt = null, pre
     // Direction EC named for this hour, kept so pattern checks (epic day
     // signature) can still recognise the setup when the models' own
     // direction is muddled on a weak model hour.
-    marine_direction_deg: marineAnchored && marineAnchor ? marineAnchor.directionDeg : null,
+    marine_direction_deg: marineEc ? marineEc.direction_deg : null,
+    marine_ec: marineEc,
     pam_rocks_triggered: pamRocksTriggered,
     pressure_support: pressureSupport,
     upper_suppression: upperSuppression,
@@ -1319,6 +1331,12 @@ export function probabilityInRange(hourResult, lo) {
     sigma = Math.max(baseSigma, spreadSd, 1.5);
     // Models agree within +/-15%: trust the number more (narrower band).
     if (hourResult.models_agree && !triggered) sigma = Math.max(1.5, Math.min(sigma, 0.1 * center + 1));
+    // EC calling clearly stronger than the models: keep the models' number but
+    // widen the band toward EC, so the odds of the stronger wind rise without
+    // claiming it. With EC 10kt above the models this gives roughly a 25 to
+    // 30% chance at the EC number, about the hit rate the old EC floor had.
+    const ecGap = hourResult.marine_ec?.gap_kt;
+    if (ecGap != null && ecGap >= 4 && !hourResult.live_reference_triggered) sigma = Math.max(sigma, ecGap / 1.5);
   }
 
   // P(true value >= lo) = 1 - F(lo) under the logistic band (normal for the
