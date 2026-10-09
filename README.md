@@ -775,7 +775,7 @@ gives the biggest swell). `swellForHours()` in rules.js, per hour:
 
 Current directions from Guillermo (the direction the water flows toward):
 Squamish and Porteau flood north, ebb south; Jericho, Steveston, Erwin Park,
-Dundarave and Ambleside flood east, ebb west; Boundary Bay, White Rock East,
+Dundarave, Ambleside and Cates Park flood east, ebb west; Boundary Bay, White Rock East,
 Crescent Beach and Tsawwassen South flood north, ebb south.
 
 Labels: flat (under 0.25m), chop, waves (0.5m+), good swell (0.9m+). Hours
@@ -809,8 +809,22 @@ Tsawwassen (Guillermo: better for Steveston and south; the Steveston gauge
 sits in the river mouth and reads ~0.6m lower and ~20min later than the
 coast). Squamish and Porteau: Darrell Bay. Jericho: Point Atkinson. Erwin
 Park: Sandy Cove. Ambleside and Dundarave: Ambleside. White Rock, Crescent
-Beach: their own stations. Boundary Bay, Tsawwassen: Tsawwassen. The North
+Beach: their own stations. Boundary Bay, Tsawwassen: Tsawwassen. Cates
+Park: Deep Cove (Second Narrows has no predictions). The North
 Shore stations read within ~0.05m of Point Atkinson.
+
+## Cates Park Boat Launch
+
+Added Oct 2026 at Ivan Dianov's request, for wing foil and windsurf. The
+launch is the Cates Park boat ramp on the north shore of Burrard Inlet.
+Directions per Guillermo: best on W and SW, E and SE can work, anything with
+north in it is offshore (favorable arc E through W). Floods east, ebbs west.
+Fetch is short (about 6km down the inlet on a west wind), so expect chop
+rather than swell. No live station yet: VA7IS in North Vancouver read near
+zero on a 10 to 13kt westerly. No water forecast point is needed (the ramp
+and mid channel share a model cell), and no EC marine note, since the Strait
+of Georgia forecast doesn't describe the wind this far up the inlet. Tide
+limits for the launch are still to confirm with Ivan.
 
 ## Known limitations / good next steps
 

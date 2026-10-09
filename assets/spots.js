@@ -709,6 +709,48 @@ export const SPOTS = [
     outflow: { enabled: false },
     current_note: "Big waves here when the tide in the channel is going out (ebb) combined with a NW or West wind — same mechanic as Dundarave Pier Beach next door. Per local rider knowledge (Michael Thomas, North Shore Wing Group): the last hour or two of falling tide before slack, still with a west wind, produces a notably good rip. Not modeled (this app doesn't track tide state yet); factor in manually against a tide table.",
     direction_note: "The more west in the wind, the better — a wind with a lot of north in it works less well. Almost identical to Dundarave Pier Beach nearby; on a given day one spot can work better than the other."
+  },
+  {
+    // New spot (Oct 2026), requested by Ivan Dianov in the group chat for
+    // wing foil and windsurf. Coordinates are the Cates Park boat ramp
+    // (OpenStreetMap slipway node), on the north shore of Burrard Inlet
+    // just west of the Indian Arm entrance.
+    id: "cates-park",
+    // Swell index (rules.js swellForHours). currents: the compass direction
+    // the water flows TOWARD on each tide, per Guillermo (Oct 2026): floods
+    // east, ebbs west, so a west wind against the ebb stands the water up.
+    // fetchKm: rough open water distance upwind (map estimates, to be tuned
+    // from rider wave reports): about 6km down the inlet toward Second
+    // Narrows on a west wind, about 4km toward Belcarra and the Port Moody
+    // arm on E or SE, and only the 1.5 to 2km across to Burnaby otherwise.
+    currents: { flood: 90, ebb: 270 },
+    swell: { fetchKm: [[[245, 280], 6], [[90, 150], 4]], defaultFetchKm: 2 },
+    // Tide: Deep Cove (nearest DFO station with predictions, 3.0km; Second
+    // Narrows has none). Rule: always the nearest DFO station, except
+    // Steveston (Tsawwassen, see garry-point).
+    tideStation: { code: "07765", id: "5dd3064ee0fdc4b9b4be6707", name: "Deep Cove" },
+    name: "Cates Park Boat Launch",
+    region: "North Vancouver",
+    lat: 49.30166, lon: -122.95910,
+    // No modelPoint: the inlet is narrow and every fine model put the ramp
+    // and mid channel in the same cell (ratio 1.00 over the last 14 days).
+    // The inlet does run about half the speed of the open strait off
+    // Jericho in the same models, which is real shelter, not a land cell.
+    // No marineZone either: the EC Strait of Georgia forecast doesn't
+    // describe the wind this far up Burrard Inlet.
+    sports: ["wingfoil", "windsurf"],
+    level: "intermediate",
+    // Per Guillermo: West mostly, and South West; East or SE can work too.
+    // Anything with north in it is offshore here, so the arc stops at W
+    // (280 leaves room for model direction rounding) and starts at E.
+    favorable_deg: [[90, 280]],
+    // No live station: the closest one, VA7IS in North Vancouver, read near
+    // zero while the models had a 10 to 13kt westerly, so it isn't trusted.
+    thermal: { enabled: false },
+    outflow: { enabled: false },
+    direction_note: "Best on W and SW. E and SE can work too. Any wind with north in it (NW, N, NE) is offshore here, so skip it.",
+    current_note: "Floods east, ebbs west. A west wind against the ebb gives the most chop.",
+    access_note: "Small local spot. Launch from the Cates Park boat ramp; share it with boat traffic."
   }
 ];
 

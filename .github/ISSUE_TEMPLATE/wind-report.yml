@@ -28,6 +28,7 @@ body:
         - erwin-park
         - dundarave-pier
         - ambleside
+        - cates-park
     validations:
       required: true
   - type: input

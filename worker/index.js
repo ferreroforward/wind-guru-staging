@@ -18,7 +18,7 @@ const REPO = "wind-guru-staging"; // STAGING VALUE
 const VALID_SPOTS = [
   "squamish-spit", "porteau-cove", "jericho-spanish-banks", "garry-point",
   "boundary-bay", "white-rock-east", "crescent-beach", "tsawwassen-south",
-  "erwin-park", "dundarave-pier", "ambleside",
+  "erwin-park", "dundarave-pier", "ambleside", "cates-park",
 ];
 
 function corsHeaders(env) {
