@@ -803,18 +803,21 @@ export const SPOTS = [
     // east edge is a line north from Berry Point, about 2km west of the
     // ramp. A 5 knot limit applies within 150m of shore from Little Cates
     // Park to 250m west of the boat launch.
-    caution_note: "Port rules: no sail, kite, wing or paddle craft in the Second Narrows shipping zone, which starts about 2km west of the ramp (a line north from Berry Point), so don't ride west toward the bridges. 5 knot limit within 150m of shore around the park and launch: get out past 150m before you get up on the foil.",
+    // Local knowledge from Ivan Dianov (Oct 10 2026) in the same box.
+    caution_note: "Rocks by the beach next to the ramp are a hazard at low tide: take care coming in and out on the foil. Lots of boat traffic heading to Indian Arm and Deep Cove. Port rules: no sail, kite, wing or paddle craft in the Second Narrows shipping zone, which starts about 2km west of the ramp (a line north from Berry Point), so don't ride west toward the bridges. 5 knot limit within 150m of shore around the park and launch: get out past 150m before you get up on the foil.",
     // Per Guillermo: West mostly, and South West; East or SE can work too.
     // Anything with north in it is offshore here, so the arc stops at W
     // (280 leaves room for model direction rounding) and starts at E.
     favorable_deg: [[90, 280]],
-    // No live station: the closest one, VA7IS in North Vancouver, read near
+    // No live station or camera: Ivan knows of none either (Oct 10 2026).
+    // The closest one, VA7IS in North Vancouver, read near
     // zero while the models had a 10 to 13kt westerly, so it isn't trusted.
     thermal: { enabled: false },
     outflow: { enabled: false },
-    direction_note: "Best on W and SW. E and SE can work too. Any wind with north in it (NW, N, NE) is offshore here, so skip it.",
-    current_note: "Floods east, ebbs west. A west wind against the ebb gives the most chop.",
-    access_note: "Small local spot. Launch from the Cates Park boat ramp; share it with boat traffic."
+    direction_note: "Best on W and SW. E and SE can work too. Any wind with north in it (NW, N, NE) is offshore here, so skip it. Confirmed by Ivan Dianov (Oct 2026).",
+    current_note: "Floods east, ebbs west. Some current, but not enough to matter for riding (Ivan Dianov). A west wind against the ebb gives the most chop.",
+    tide_note: "No tide limit: deep water at the ramp (Ivan Dianov). At low tide, watch the rocks by the beach next to the ramp when coming in or out on the foil.",
+    access_note: "Small local spot. Launch from the Cates Park boat ramp; share it with the boat traffic heading to Indian Arm and Deep Cove."
   }
 ];
 

@@ -980,7 +980,11 @@ rather than swell. No live station yet: VA7IS in North Vancouver read near
 zero on a 10 to 13kt westerly. No water forecast point is needed (the ramp
 and mid channel share a model cell), and no EC marine note, since the Strait
 of Georgia forecast doesn't describe the wind this far up the inlet. Tide
-limits for the launch are still to confirm with Ivan.
+limits: none, per Ivan (Oct 10 2026): the ramp is deep water at any tide,
+but rocks by the beach next to the ramp are a hazard at low tide coming in
+or out on the foil. Lots of boat traffic to Indian Arm and Deep Cove; some
+current, not enough to matter. He confirmed the directions and knows of no
+wind station or camera for the spot.
 
 ## Known limitations / good next steps
 
