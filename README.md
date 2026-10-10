@@ -846,6 +846,65 @@ waves, good swell) so the fetch and current numbers can be tuned; the
 Cloudflare Worker needs redeploying (`wrangler deploy` in worker/) for it to
 reach the issue.
 
+## Tsawwassen Ferry Terminal: two sides
+
+Per Guillermo (Oct 2026). The causeway runs east to west and is ridden on
+both sides. South side (the usual one): S and SW are onshore and can be
+great; SE works but is gusty; W is side shore on both sides; NW and N are
+offshore there, advanced riders only. North
+side: the opposite (NNW is onshore), but it needs at least 10ft of tide (it
+dries below that) and there's little room to launch a kite, so it's rarely
+used. The spot is rated advanced either way: high consequences for a
+beginner if things go wrong, kiting most. The forecast itself is unchanged.
+The favorable arc now runs from SE round through W to N (W and SE were
+flagged before), and `sides.sectors` in spots.js drives a card line and a
+popup line that say which side works each hour and whether the north side
+has its tide.
+
+## Webcams
+
+Under "Live surface conditions around the region", a Webcams block lists
+cameras from `WEBCAMS` in assets/spots.js (Oct 2026: Sea to Sky Gondola for
+Squamish, Jericho Sailing Centre streamcam for Jericho). Where the owner
+publishes a snapshot image (Jericho, via its streaming host), the card shows
+the latest picture, loaded straight from the owner's server (nothing is
+copied into this repo) and refreshed every 2 minutes while the page is open.
+The gondola embeds its picture inside its own page and blocks other sites,
+so it gets a link card only. Every card opens the owner's live page. Add a
+camera with its name, area, page url, optional snapshot `image` and
+`credit`, and optionally the spot id it looks at.
+
+## Safety warnings
+
+A spot's `caution_note` shows as a red box at the top of its card on every
+day, and its best bets entry gets an ADVANCED ONLY or EXPERTS ONLY tag.
+Per Guillermo (Oct 2026): Steveston (Garry Point) is expert only, never for
+beginners; riders must know self rescue and maritime rules, give way to the
+heavy commercial boat traffic, and not ride alone, or at least carry a way
+to call emergency services. Tsawwassen is advanced only: high consequences
+if things go wrong, especially kiting.
+
+## Squamish outflow
+
+Per Guillermo (Oct 2026), riders don't use the Spit on an outflow. Any wind
+with north in it (from 271 to 89 degrees), or any hour the engine calls
+outflow, is marked `outflow_not_ridden` (rules.js classifyHour): it is never
+a best bet, the map dot goes grey, and the card still shows those hours in
+grey with an OUTFLOW tag and a line saying it is an outflow, not the inflow,
+and only worth it by boat. When the learned thermal says the hour is really
+an inflow, the mark is cleared. Porteau Cove is unchanged: it works on a
+strong outflow (Pam Rocks rule).
+
+## Wind strength words
+
+The best bets list and the hour popup describe the wind with the Environment
+Canada Beaufort scale term for the forecast speed (Calm, Light air, Light
+breeze, Gentle breeze 7 to 10kt, Moderate breeze 11 to 16kt, Fresh breeze 17
+to 21kt, Strong breeze 22 to 27kt, Near gale 28 to 33kt, Gale 34 to 40kt and
+up). This replaced the afternoon breeze / outflow / general / mixed labels
+in Oct 2026 at Guillermo's request. The popup text still says where the
+wind comes from.
+
 ## Marine forecast and tides on the page
 
 The EC marine forecast for Howe Sound and the Strait of Georgia (south of

@@ -79,6 +79,8 @@
   .bulletin-meta{font-size:0.8rem;opacity:0.85;}
   .epic-line{background:#fff3e6;border:1px solid #f0b27f;color:#8a3f06;border-radius:8px;padding:6px 10px;font-size:0.86rem;font-weight:600;margin:0 0 10px;}
   .hour-cell.epic{box-shadow:inset 0 0 0 2px #e8833a;}
+  .hour-cell.outflow{background:var(--panel2);border-color:var(--border);}
+  .hour-cell.outflow .p,.hour-cell.outflow .d{color:var(--muted);}
   .hour-cell .agree-dot{position:absolute;bottom:2px;right:3px;font-size:0.6rem;line-height:1;color:#1f8a4c;font-weight:700;}
   .hour-cell .epic-dot{position:absolute;bottom:2px;left:3px;font-size:0.65rem;line-height:1;}
   .hour-cell .swell-dot{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);font-size:0.65rem;line-height:1;}
@@ -90,6 +92,9 @@
   .spot-card .head .name{font-weight:700;font-size:1.15rem;}
   .spot-card .head .region{color:var(--muted);font-size:0.88rem;}
   .spot-card .sports{font-size:0.85rem;color:var(--muted);}
+  .outflow-line{color:var(--red);}
+  .caution-line{background:#fde8e8;border:1px solid #f5b5b5;color:#9b1c1c;border-radius:8px;padding:6px 10px;font-size:0.86rem;font-weight:600;margin:0 0 10px;}
+  .outflow-tag{font-size:0.65rem;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:0.02em;}
   .live-check{font-size:0.85rem;padding:5px 10px;border-radius:8px;margin-bottom:10px;display:inline-block;}
   .live-check.match{background:var(--green-bg);color:var(--green);}
   .live-check.mismatch{background:var(--red-bg);color:var(--red);}
@@ -143,6 +148,11 @@
   .obs-card .obs-reading{font-size:1.15rem;font-weight:700;}
   .obs-card .obs-reading .unit{font-size:0.75rem;font-weight:400;color:var(--muted);}
   .obs-card .obs-meta{font-size:0.78rem;color:var(--muted);margin-top:3px;}
+  .cam-head{font-size:0.95rem;margin:18px 0 4px;color:var(--text);}
+  a.cam-card{display:block;text-decoration:none;color:inherit;}
+  a.cam-card:hover{border-color:var(--accent);}
+  .cam-thumb{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:var(--panel2);margin-bottom:8px;}
+  .cam-nothumb{display:flex;align-items:center;justify-content:center;width:100%;aspect-ratio:16/9;border-radius:8px;background:var(--panel2);color:var(--muted);font-size:0.8rem;margin-bottom:8px;text-align:center;padding:0 8px;box-sizing:border-box;}
   .obs-note{font-size:0.85rem;color:var(--muted);margin:8px 0 14px;}
   .links-list{font-size:0.95rem;color:var(--muted);line-height:1.9;}
   .links-list a{color:var(--accent);font-weight:600;text-decoration:none;}
@@ -150,13 +160,17 @@
   .about{background:var(--panel);border:1px solid var(--border);box-shadow:var(--shadow);border-radius:14px;padding:18px 20px;font-size:0.95rem;color:var(--muted);line-height:1.65;margin-top:30px;}
   .about b{color:var(--text);}
   .support{background:var(--panel);border:1px solid var(--border);box-shadow:var(--shadow);border-radius:14px;padding:18px 20px;margin-top:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
-  .support-text{font-size:0.95rem;color:var(--muted);line-height:1.55;}
+  .support-text{font-size:0.95rem;color:var(--muted);line-height:1.55;flex:1 1 320px;}
   .support-text b{color:var(--text);}
   .support-btn{flex:0 0 auto;background:#ffc439;border:1px solid #ffc439;color:#1b2438;padding:12px 22px;border-radius:24px;font-weight:700;font-size:0.95rem;text-decoration:none;white-space:nowrap;}
   .support-btn:hover{background:#ffb400;border-color:#ffb400;}
+  .support-actions{display:flex;flex-direction:column;align-items:center;gap:6px;flex:0 0 auto;}
+  .support-sub{font-size:0.78rem;color:var(--muted);text-align:center;}
+  .support-sub a{color:var(--accent);}
   @media (max-width:600px){
     .support{flex-direction:column;align-items:flex-start;padding:16px;}
-    .support-btn{width:100%;text-align:center;}
+    .support-btn{width:100%;text-align:center;box-sizing:border-box;}
+    .support-actions{width:100%;}
   }
   footer{text-align:center;color:var(--muted);font-size:0.86rem;padding:22px 0 40px;}
   .empty{color:var(--muted);font-size:1rem;padding:22px;text-align:center;}
@@ -221,7 +235,12 @@
       <b>Enjoying Wind Guru?</b><br>
       It's free and always will be. If it's saved you a wasted trip to the beach, you're welcome to buy me a coffee.
     </div>
-    <a class="support-btn" href="https://paypal.me/ferreroforward" target="_blank" rel="noopener">☕ Buy me a coffee</a>
+    <!-- Stripe payment link (Oct 2026): card, Apple Pay or Google Pay, no
+         account or login needed. PayPal stays as a second option. -->
+    <div class="support-actions">
+      <a class="support-btn" href="https://buy.stripe.com/00wfZg2P27G82ry10k1wY00" target="_blank" rel="noopener">☕ Buy me a coffee</a>
+      <div class="support-sub">Card, Apple Pay or Google Pay, no account needed · or <a href="https://paypal.me/ferreroforward" target="_blank" rel="noopener">PayPal</a></div>
+    </div>
   </div>
 
   <div class="daily-take-card" id="dailyTakeCard" style="display:none;">
@@ -277,6 +296,11 @@
     <h2 class="section">Live surface conditions around the region</h2>
     <div class="obs-note">Real-time station readings, not a forecast — includes our own spot stations plus the wider regional picture from <a href="https://wtfbc.ca/swob.php" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">wtfbc.ca</a>.</div>
     <div class="obs-grid" id="obsGrid"></div>
+    <div id="camBlock" style="display:none;">
+      <h3 class="cam-head">📷 Webcams</h3>
+      <div class="obs-note" style="margin-top:0;">Latest picture from each camera where the owner publishes one, refreshed every 2 minutes. Tap a camera for the owner's live page.</div>
+      <div class="obs-grid" id="camGrid"></div>
+    </div>
   </div>
 
   <div class="about" style="margin-top:16px;">
@@ -322,7 +346,7 @@
 const ASSET_VERSION = await fetch("data/version.json", { cache: "no-store" })
   .then(r => (r.ok ? r.json() : null)).then(v => v?.version).catch(() => null)
   ?? String(Math.floor(Date.now() / 600000));
-const { SPOTS } = await import(`./assets/spots.js?v=${ASSET_VERSION}`);
+const { SPOTS, inSector, WEBCAMS } = await import(`./assets/spots.js?v=${ASSET_VERSION}`);
 const { probabilityInRange, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, referenceStationSpeeds, dropModels, buildMosUrl, reshapeMos, applyMos, currentPacificHourString, swellForHours } = await import(`./assets/rules.js?v=${ASSET_VERSION}`);
 
 let forecast = null; // loaded forecast.json shape
@@ -439,18 +463,26 @@ function tierClass(pct) {
   return "lvl-red";
 }
 
-// Plain-language stand-in for the internal wind-regime classification —
-// riders care whether it's an afternoon breeze or a general blow, not the
-// meteorological label used inside the rule engine.
-function regimeLabel(regime) {
-  switch (regime) {
-    case "thermal": return "Afternoon breeze";
-    case "outflow": return "Outflow wind";
-    case "synoptic": return "General wind";
-    case "calm": return "Light / calm";
-    case "mixed": return "Mixed wind";
-    default: return "Wind";
-  }
+// Wind strength in words, from the Environment Canada Beaufort wind scale
+// (canada.ca, "Beaufort wind scale table"), by the forecast speed in knots.
+// Per Guillermo (Oct 2026): this replaces the outflow / general / mixed wind
+// labels in the best bets list and the hour popup, which riders found
+// unclear. The popup text below the heading still explains where the wind
+// comes from.
+const BEAUFORT = [
+  [1, 0, "Calm"], [4, 1, "Light air"], [7, 2, "Light breeze"], [11, 3, "Gentle breeze"],
+  [17, 4, "Moderate breeze"], [22, 5, "Fresh breeze"], [28, 6, "Strong breeze"],
+  [34, 7, "Near gale"], [41, 8, "Gale"], [48, 9, "Strong gale"], [56, 10, "Storm"],
+  [64, 11, "Violent storm"], [Infinity, 12, "Hurricane"],
+];
+function beaufort(kt) {
+  if (kt == null || isNaN(kt)) return null;
+  const k = Math.round(kt);
+  const [, force, term] = BEAUFORT.find(([below]) => k < below);
+  return { force, term };
+}
+function windTerm(kt) {
+  return beaufort(kt)?.term ?? "No data";
 }
 
 // Picks the best-scoring hour for a spot, preferring hours where the wind
@@ -604,7 +636,9 @@ function renderBestBetsHeading() {
 
 function renderBestBets() {
   renderBestBetsHeading();
-  const ranked = rankedSpotsForDay().filter(r => r.probability >= MIN_LIST_PROBABILITY);
+  // An outflow at a spot riders don't use on one (Squamish) is never a best
+  // bet; the spot's card below still shows it, marked as outflow.
+  const ranked = rankedSpotsForDay().filter(r => r.probability >= MIN_LIST_PROBABILITY && !r.hour.outflow_not_ridden);
 
   bestBetsEl.innerHTML = "";
   if (!ranked.length) { bestBetsEl.innerHTML = `<div class="empty">Nothing hit ${MIN_LIST_PROBABILITY}%+ for this range today — try a wider range or another day.</div>`; return; }
@@ -621,7 +655,7 @@ function renderBestBets() {
       <div class="bet-badge ${cls}">${r.probability}%</div>
       <div class="bet-info">
         <div class="name">${r.spot.name} <span style="color:var(--muted);font-weight:400;font-size:0.8rem;">· ${r.spot.region}</span></div>
-        <div class="detail">${r.hour.time.slice(11,16)} · ${r.hour.speed_kt != null ? Math.round(r.hour.speed_kt) : "–"}${gustText}kt ${r.hour.direction_label ?? ""} · ${regimeLabel(r.hour.regime)}${gustyTag}${offshoreTag}</div>
+        <div class="detail">${r.hour.time.slice(11,16)} · ${r.hour.speed_kt != null ? Math.round(r.hour.speed_kt) : "–"}${gustText}kt ${r.hour.direction_label ?? ""} · <span title="Beaufort force ${beaufort(r.hour.speed_kt)?.force ?? ""} (Environment Canada wind scale)">${windTerm(r.hour.speed_kt)}</span>${gustyTag}${offshoreTag}${r.spot.caution_note ? `<span class="offshore-tag" title="${r.spot.caution_note}">⚠️ ${r.spot.level === "expert" ? "EXPERTS ONLY" : "ADVANCED ONLY"}</span>` : ""}</div>
       </div>
     `;
     bestBetsEl.appendChild(div);
@@ -781,9 +815,11 @@ function showTip(cellEl, h, spotId) {
   const ecText = ec ? `<div style="margin-top:4px;opacity:0.9;font-weight:400;">📻 Environment Canada: ${ec.direction_label} ${ec.lo_kt}${ec.hi_kt !== ec.lo_kt ? ` to ${ec.hi_kt}` : ""}kt, stronger than the models here</div>` : "";
   const sw = h.swell;
   const swellText = sw && sw.label !== "flat" ? `<div style="margin-top:4px;opacity:0.9;font-weight:400;">🌊 ${swellLabel(sw.label)}: about ${sw.hs_ft}ft (${sw.hs_m.toFixed(1)}m)${sw.period_s ? `, ${sw.period_s}s` : ""} after ${sw.duration_h}h of wind${sw.vs_wind ? `, ${sw.vs_wind === "against" ? `wind against the ${sw.current}` : sw.vs_wind === "with" ? `${sw.current} running with the wind` : `${sw.current} across the wind`}` : ""}${sw.building ? " (4h+ against the tide: building)" : ""}</div>` : "";
+  const sv = sideVerdict(SPOTS.find(s => s.id === spotId), h);
+  const sideText = sv ? `<div style="margin-top:4px;opacity:0.9;font-weight:400;">↔️ ${sv.text}</div>` : "";
   const epicText = h.epic ? `<div style="margin-top:4px;font-weight:700;color:#ffcf9e;">🔥 Matches this spot's epic day setup</div>` : "";
   const spotName = (SPOTS.find(s => s.id === spotId) || {}).name ?? spotId;
-  globalTip.innerHTML = `<b>${regimeLabel(h.regime)}</b>${speedText}${summaryText}${tideText}${swellText}${ecText}${mosText}${agreeText}${epicText}
+  globalTip.innerHTML = `<b>${windTerm(h.speed_kt)}${h.speed_kt != null ? ` <span style="font-weight:400;opacity:0.8;">(Beaufort ${beaufort(h.speed_kt).force})</span>` : ""}</b>${speedText}${summaryText}${sideText}${tideText}${swellText}${ecText}${mosText}${agreeText}${epicText}
     <button type="button" class="report-trigger" data-spot="${spotId}" data-name="${spotName}" data-date="${h.time.slice(0, 10)}" data-time="${h.time.slice(11, 16)}" data-forecast="${h.speed_kt != null ? h.speed_kt : ""}">📝 Report actual conditions →</button>`;
   const rect = cellEl.getBoundingClientRect();
   globalTip.style.display = "block";
@@ -818,6 +854,62 @@ function tideLineForDay(spot) {
   return `<div class="tide-line">🌊 Tides${spot.tide_station ? ` (${spot.tide_station})` : ""}: ${list.map(t => `<b>${t.type === "high" ? "High" : "Low"}</b> ${fmt(t.time)} ${t.height_ft}ft`).join(" · ")}</div>`;
 }
 
+// Spots ridden on both sides of a causeway (Tsawwassen, per Guillermo Oct
+// 2026): which side works this hour, from the spot's `sides.sectors` (first
+// match wins), and whether the north side has the tide it needs. Returns
+// null for spots without `sides`.
+function sideVerdict(sp, h) {
+  const sd = sp?.sides;
+  if (!sd || h.direction_deg == null) return null;
+  const sec = sd.sectors.find(x => inSector(h.direction_deg, x.dir));
+  if (!sec) return { key: "other", text: sd.otherText };
+  if (!sec.northOnshore) return { key: sec.key, text: sec.text };
+  const min = sd.northMinTideFt, ft = h.tide?.level_ft;
+  const tideOk = ft != null && ft >= min;
+  const northText = ft == null ? `; north side onshore, needs ${min}ft+ of tide`
+    : tideOk ? `; north side onshore (tide ${ft}ft)` : `; north side onshore but dry (tide ${ft}ft, needs ${min}ft+)`;
+  return { key: sec.key, text: sec.text + northText, tideOk };
+}
+
+// One sentence per run of windy hours (10kt+) on the selected day, e.g.
+// "South side onshore 1pm to 3pm (SW). West: side shore on both sides 4pm
+// (W). South side offshore, advanced only, 5pm to 8pm (NW); north side
+// onshore, tide 10ft+ from 6pm to 8pm."
+function sideLineForDay(sp, hours) {
+  if (!sp?.sides) return "";
+  const windy = hours.filter(h => h.speed_kt != null && h.speed_kt >= 10 && h.direction_deg != null);
+  const hr = (h) => hourLabel(Number(h.time.slice(11, 13)));
+  const span = (list) => list.length > 1 ? `${hr(list[0])} to ${hr(list[list.length - 1])}` : hr(list[0]);
+  const runs = [];
+  for (const h of windy) {
+    const v = sideVerdict(sp, h);
+    const last = runs[runs.length - 1];
+    const prevHour = last ? Number(last.hours[last.hours.length - 1].time.slice(11, 13)) : null;
+    if (last && last.v.key === v.key && Number(h.time.slice(11, 13)) === prevHour + 1) last.hours.push(h);
+    else runs.push({ v, hours: [h] });
+  }
+  if (!runs.length) return "";
+  const min = sp.sides.northMinTideFt;
+  const parts = runs.map(r => {
+    const dirs = [...new Set(r.hours.map(h => h.direction_label))].slice(0, 3).join(", ");
+    const sec = sp.sides.sectors.find(x => x.key === r.v.key);
+    const base = sec ? sec.text : sp.sides.otherText;
+    if (!sec?.northOnshore) return `${base} ${span(r.hours)} (${dirs}).`;
+    const ok = r.hours.filter(h => h.tide?.level_ft != null && h.tide.level_ft >= min);
+    const northText = ok.length ? `; north side onshore, tide ${min}ft+ ${ok.length > 1 ? `from ${span(ok)}` : `at ${span(ok)}`}`
+      : `; north side onshore but the tide stays under ${min}ft (dry)`;
+    return `${base}, ${span(r.hours)} (${dirs})${northText}.`;
+  });
+  return `<div class="tide-line">↔️ ${parts.join(" ")}</div>`;
+}
+
+// Spot safety warning (caution_note in spots.js), shown on every card for
+// that spot whatever the forecast: Steveston and Tsawwassen, per Guillermo
+// (Oct 2026).
+function cautionLine(sp) {
+  return sp?.caution_note ? `<div class="caution-line">⚠️ ${sp.caution_note}</div>` : "";
+}
+
 function swellLabel(l) { return l === "good swell" ? "Good swell" : l === "waves" ? "Waves" : l === "chop" ? "Chop" : "Flat"; }
 // The day's best wave hours, e.g. "🌊 Waves 9am to 11am, up to 3.6ft, wind
 // against the ebb". Only shown when the swell index says waves or better.
@@ -848,6 +940,18 @@ function ecLineForDay(hours) {
   const from = hourLabel(Number(hit[0].time.slice(11, 13)));
   const range = e.hi_kt !== e.lo_kt ? `${e.lo_kt} to ${e.hi_kt}` : `${e.lo_kt}`;
   return `<div class="tide-line">📻 Environment Canada calls ${e.direction_label} ${range}kt from about ${from}, stronger than the models here (${models === modelsHi ? models : `${models} to ${modelsHi}`}kt). Check the live readings before you go.</div>`;
+}
+
+// Squamish (Oct 2026, per Guillermo): riders don't launch at the Spit on an
+// outflow. The card says so plainly whenever the day has outflow hours.
+function outflowLineForDay(hours) {
+  const hit = hours.filter(h => h.outflow_not_ridden && h.speed_kt != null && h.speed_kt >= 8);
+  if (!hit.length) return "";
+  const from = hourLabel(Number(hit[0].time.slice(11, 13)));
+  const to = hourLabel(Number(hit[hit.length - 1].time.slice(11, 13)));
+  const peak = Math.round(Math.max(...hit.map(h => h.speed_kt)));
+  const dirs = [...new Set(hit.map(h => h.direction_label).filter(Boolean))].slice(0, 3).join(", ");
+  return `<div class="tide-line outflow-line">⬇️ <b>Outflow, not inflow</b> ${from === to ? `at ${from}` : `${from} to ${to}`} (${dirs}, up to ${peak}kt): north wind draining down the Sound. Riders don't launch here on an outflow; only worth it by boat.</div>`;
 }
 
 function renderSpotCards() {
@@ -888,9 +992,12 @@ function renderSpotCards() {
         <div class="sports">${sp.sports.join(" · ")}</div>
       </div>
       ${epicWindowsForDay(spot).map(w => `<div class="epic-line">🔥 Possible epic day: ${hourLabel(Number(w.start.slice(0, 2)))} to ${hourLabel(Number(w.end.slice(0, 2)))}, up to ${w.peak_kt}kt${tideRangeText(w)}</div>`).join("")}
+      ${cautionLine(sp)}
       ${tideLineForDay(spot)}
       ${swellLineForDay(hours)}
       ${ecLineForDay(hours)}
+      ${outflowLineForDay(hours)}
+      ${sideLineForDay(sp, hours)}
       ${liveBadge}
       <div class="hour-strip"></div>
     `;
@@ -902,20 +1009,20 @@ function renderSpotCards() {
         const { probability } = probabilityInRange(h, minKt);
         const cls = tierClass(probability);
         const cellEl = document.createElement("div");
-        cellEl.className = `hour-cell ${cls}${h.epic ? " epic" : ""}`;
+        cellEl.className = `hour-cell ${h.outflow_not_ridden ? "outflow" : cls}${h.epic ? " epic" : ""}`;
         cellEl.tabIndex = 0; // keyboard/touch accessible, not just mouse hover
         cellEl.setAttribute("role", "button");
-        cellEl.setAttribute("aria-label", `${h.time.slice(11,16)}: ${probability}% chance, ${h.speed_kt != null ? Math.round(h.speed_kt) : "no"} knots ${h.direction_label ?? ""}${h.favorable_direction === false ? ", offshore direction" : ""}${h.gusty ? ", gusty" : ""}`);
+        cellEl.setAttribute("aria-label", `${h.time.slice(11,16)}: ${probability}% chance, ${h.speed_kt != null ? Math.round(h.speed_kt) : "no"} knots ${h.direction_label ?? ""}${h.outflow_not_ridden ? ", outflow, not ridden here" : h.favorable_direction === false ? ", offshore direction" : ""}${h.gusty ? ", gusty" : ""}`);
         cellEl.innerHTML = `
           ${h.gusty ? `<div class="gusty-dot" title="Gusty — strong upper-level wind">💨</div>` : ""}
           ${h.epic ? `<div class="epic-dot" title="Matches this spot's epic day setup">🔥</div>` : ""}
           ${h.swell && (h.swell.label === "waves" || h.swell.label === "good swell") ? `<div class="swell-dot" title="${swellLabel(h.swell.label)}: about ${h.swell.hs_ft}ft">🌊</div>` : ""}
           ${h.models_agree ? `<div class="agree-dot" title="Models agree within 15%: higher confidence">✓</div>` : ""}
-          ${h.favorable_direction === false ? `<div class="offshore-dot" title="Offshore / unfavorable direction">⚠️</div>` : ""}
+          ${h.outflow_not_ridden ? `<div class="offshore-dot" title="Outflow, not inflow: riders don't launch here on an outflow">⬇️</div>` : h.favorable_direction === false ? `<div class="offshore-dot" title="Offshore / unfavorable direction">⚠️</div>` : ""}
           <div class="t">${h.time.slice(11,16)}</div>
           <div class="p">${probability}%</div>
           <div class="d">${h.speed_kt != null ? Math.round(h.speed_kt) : "–"}${h.gust_kt != null ? `–${Math.round(h.gust_kt)}` : ""}kt</div>
-          <div class="dir">${h.direction_label}</div>
+          <div class="dir">${h.direction_label}${h.outflow_not_ridden ? `<div class="outflow-tag">outflow</div>` : ""}</div>
         `;
         cellEl.addEventListener("mouseenter", () => { cancelHide(); showTip(cellEl, h, sp.id); });
         cellEl.addEventListener("mouseleave", scheduleHide);
@@ -940,12 +1047,13 @@ function renderMap() {
   SPOTS.forEach(sp => {
     const spot = forecast.spots.find(s => s.id === sp.id);
     let pct = null;
-    if (spot) { const b = bestWindowForSpot(spot); pct = b ? b.probability : null; }
-    const color = pct === null ? "#4a5776" : pct >= 65 ? "#1fb570" : pct >= 35 ? "#e3b23c" : "#e0546b";
+    let outflow = false;
+    if (spot) { const b = bestWindowForSpot(spot); pct = b ? b.probability : null; outflow = !!b?.hour.outflow_not_ridden; }
+    const color = pct === null || outflow ? "#4a5776" : pct >= 65 ? "#1fb570" : pct >= 35 ? "#e3b23c" : "#e0546b";
     const marker = L.circleMarker([sp.lat, sp.lon], {
       radius: 9, color, fillColor: color, fillOpacity: 0.85, weight: 2,
     }).addTo(markerLayer);
-    marker.bindPopup(`<b>${sp.name}</b><br>${pct === null ? "no data" : pct + "% chance of " + rangeLabel()}`);
+    marker.bindPopup(`<b>${sp.name}</b><br>${pct === null ? "no data" : outflow ? "Outflow, not inflow: not ridden here" : pct + "% chance of " + rangeLabel()}`);
   });
 }
 
@@ -955,11 +1063,40 @@ function renderMap() {
 // only, same as the marine bulletin/MSLP data — wtfbc.ca doesn't offer CORS
 // for a browser fetch, so this section is simply absent on the "Refresh
 // live" client-side fallback path.
+// Webcam link cards (WEBCAMS in spots.js, Oct 2026). Shown even when the
+// station readings are missing. Returns how many were drawn.
+function renderWebcams() {
+  const block = document.getElementById("camBlock");
+  const grid = document.getElementById("camGrid");
+  const cams = WEBCAMS || [];
+  block.style.display = cams.length ? "block" : "none";
+  grid.innerHTML = cams.map(c => {
+    const spot = c.spotId ? SPOTS.find(s => s.id === c.spotId) : null;
+    const pic = c.image
+      ? `<img class="cam-thumb" data-src="${c.image}" src="${camSrc(c.image)}" alt="Latest picture from ${c.name}" loading="lazy" onerror="this.outerHTML='<div class=&quot;cam-nothumb&quot;>Picture not available right now</div>'">`
+      : `<div class="cam-nothumb">Live picture on the owner's page</div>`;
+    return `<a class="obs-card cam-card" href="${c.url}" target="_blank" rel="noopener">
+        ${pic}
+        <div class="obs-name">${c.name}</div>
+        <div class="obs-meta">${c.area}${spot ? ` · looks at ${spot.name}` : ""}${c.credit ? ` · picture: ${c.credit}` : ""}</div>
+        <div class="obs-meta" style="color:var(--accent);font-weight:600;margin-top:6px;">Open live camera ↗</div>
+      </a>`;
+  }).join("");
+  return cams.length;
+}
+// Cache buster so each refresh pulls the camera's newest snapshot.
+function camSrc(url) { return `${url}${url.includes("?") ? "&" : "?"}t=${Math.floor(Date.now() / 60000)}`; }
+setInterval(() => {
+  if (document.hidden) return;
+  document.querySelectorAll("img.cam-thumb[data-src]").forEach(img => { img.src = camSrc(img.dataset.src); });
+}, 120000);
+
 function renderSurfaceObservations() {
   const section = document.getElementById("obsSection");
   const grid = document.getElementById("obsGrid");
   const stations = forecast.surface_observations?.stations || [];
-  if (!stations.length) { section.style.display = "none"; return; }
+  const cams = renderWebcams();
+  if (!stations.length && !cams) { section.style.display = "none"; return; }
   section.style.display = "block";
   grid.innerHTML = stations.map(s => {
     const isCalm = s.direction_label === "calm" || (s.speed_kt === 0 && !s.direction_label);

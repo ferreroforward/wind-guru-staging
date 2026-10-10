@@ -774,6 +774,12 @@ export function classifyHour(spot, row, localHour, month, refSpeedKt = null, pre
     ? spot.outflow_favorable_deg
     : spot.favorable_deg;
   let favorable = sectorList ? sectorList.some(s => inSector(direction_deg, s)) : true;
+  // Spots riders don't use on an outflow (Squamish, per Guillermo Oct 2026):
+  // any wind with north in it, or anything the engine calls outflow, is
+  // marked so the page can show it without recommending it.
+  let outflowNotRidden = !!spot.outflowNotRidden &&
+    (regime === "outflow" || (direction_deg != null && inSector(direction_deg, spot.outflowNotRidden.dirSector)));
+  if (outflowNotRidden) favorable = false;
 
   // How much more should the fine-resolution local model (GEM/HRDPS) count
   // relative to the coarse global models, when scoring this specific hour?
@@ -940,6 +946,7 @@ export function classifyHour(spot, row, localHour, month, refSpeedKt = null, pre
       if (direction_deg == null || !inSector(direction_deg, thermalCfg.dirSector)) {
         direction_deg = thermalCfg.typicalDirDeg ?? 190;
         favorable = true;
+        outflowNotRidden = false; // the learned thermal says inflow
       }
     } else {
       if (regime === "thermal" || est < 5) regime = est < 5 ? "calm" : "mixed";
@@ -1260,7 +1267,8 @@ export function classifyHour(spot, row, localHour, month, refSpeedKt = null, pre
     case "mixed": summary = "Some wind expected, but it doesn't clearly match this spot's usual pattern — less certain than usual."; break;
     default: summary = "Wind expected.";
   }
-  if (favorable === false) summary += " Direction looks offshore or otherwise tricky here — use caution.";
+  if (outflowNotRidden) summary = "Outflow: north wind draining down the Sound, not the inflow. Riders don't launch here on an outflow; only worth it by boat.";
+  else if (favorable === false) summary += " Direction looks offshore or otherwise tricky here — use caution.";
   if (gusty) summary += " Expect it to be gustier than the average speed alone suggests.";
 
   return {
@@ -1277,6 +1285,7 @@ export function classifyHour(spot, row, localHour, month, refSpeedKt = null, pre
     reason,
     summary,
     favorable_direction: favorable,
+    outflow_not_ridden: outflowNotRidden,
     model_agreement: Math.round(agreement * 100) / 100,
     models_agree: modelsAgree,
     model_count: ag.count,

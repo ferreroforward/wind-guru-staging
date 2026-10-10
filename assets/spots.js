@@ -68,8 +68,13 @@ export const SPOTS = [
     marineZone: "howe_sound",
     sports: ["wingfoil", "kite", "windsurf"],
     level: "advanced",
-    favorable_deg: [[150, 260]], // S–SW thermal inflow, or N outflow (handled separately as outflow regime)
-    outflow_favorable_deg: [[300, 40]],
+    favorable_deg: [[150, 260]], // S–SW thermal inflow
+    // Per Guillermo (Oct 2026): riders don't use the Spit on an outflow, so
+    // any wind with north in it is never recommended here. The hours still
+    // show (some go out by boat), marked as outflow, not inflow, and the spot
+    // is left out of the best bets for them (rules.js classifyHour,
+    // index.html).
+    outflowNotRidden: { dirSector: [271, 89] },
     pressureGradientAware: true, // factor in MSLP gradient — see rules.js
     pamRocksAware: true, // use the live Pam Rocks nowcast on the current hour — see rules.js
     // Live wind meter at the Spit itself, published by Squamish Windsports
@@ -278,7 +283,10 @@ export const SPOTS = [
     marineZone: "strait_of_georgia_south",
     marineAnchorFactor: 0.9,
     sports: ["kite", "windsurf", "wingfoil"],
-    level: "intermediate",
+    // Per Guillermo (Oct 2026): super advanced, never for beginners. Shown
+    // on the card as a warning (caution_note, index.html cautionLine).
+    level: "expert",
+    caution_note: "Expert riders only, never for beginners. You must be very familiar with self rescue and maritime rules. Heavy commercial boat traffic: always give way to the boats. Don't ride alone, or at least carry a way to call emergency services.",
     // Widened to take in NNW: Guillermo's best ever session here (Sep 25
     // 2026) was in NNW 21 gusting 26 at Sand Heads. W, NW and SW remain the
     // core directions (see current_note).
@@ -495,7 +503,7 @@ export const SPOTS = [
     // Tide: Tsawwassen (nearest DFO station, 1.4km). Rule: always the nearest DFO station,
     // except Steveston (Tsawwassen, see garry-point).
     tideStation: { code: "07590", id: "5cebf1de3d0f4a073c4bb935", name: "Tsawwassen" },
-    name: "Tsawwassen Ferry Terminal (South Causeway)",
+    name: "Tsawwassen Ferry Terminal Causeway",
     // Water forecast point (Sep 28 2026): the beach cell is part land for
     // several models (ECMWF read 0.42x, HRRR 0.57x, NBM 0.62x; the learned forecast already uses its own point, this is for the rest vs a point further out, last 14 days, 8kt+ hours),
     // which reads the wind light. Same fix as Steveston.
@@ -506,9 +514,30 @@ export const SPOTS = [
     marineZone: "strait_of_georgia_south",
     marineAnchorFactor: 0.9,
     sports: ["kite", "wingfoil", "windsurf"],
-    level: "intermediate",
-    // Flat water on NW/N; SW and S also work (bring more waves).
-    favorable_deg: [[160, 230], [300, 20]],
+    // Advanced, per Guillermo (Oct 2026): even when it's onshore, the
+    // consequences for a beginner are high if things go wrong, kiting most.
+    level: "advanced",
+    // The causeway runs east to west and is ridden on both sides (Guillermo,
+    // Oct 2026). South side (the usual one): S and SW are onshore and can be
+    // great; SE works but is gusty; W is side shore on both sides; NW and N
+    // are offshore on the south side, advanced only. North side: the mirror
+    // image (NNW is onshore), but it needs 10ft+ of tide (dries below that)
+    // and there's little room to launch a kite, so it's rarely used.
+    // Something works from SE round through W to N, so all of that is
+    // favorable; `sides` below says which side, hour by hour (index.html
+    // sideVerdict, sideLineForDay and the hour popup). First match wins.
+    favorable_deg: [[120, 30]],
+    sides: {
+      sectors: [
+        { dir: [120, 150], key: "se", text: "SE: works on the south side, but gusty" },
+        { dir: [151, 260], key: "south", text: "South side onshore" },
+        { dir: [261, 284], key: "west", text: "West: side shore on both sides" },
+        { dir: [285, 30], key: "off", text: "South side offshore, advanced only", northOnshore: true },
+      ],
+      northMinTideFt: 10,
+      otherText: "Wind along the causeway, not a usual direction here",
+    },
+    caution_note: "Advanced riders only: high consequences if things go wrong, especially kiting.",
     // EC's Tsawwassen Ferry Terminal station, right at the causeway, per
     // Guillermo (Sep 2026). Replaces the White Rock METAR, 19km away.
     liveStation: { code: "vtf", name: "Tsawwassen Ferry Terminal" },
@@ -519,8 +548,8 @@ export const SPOTS = [
     mos: { point: "tsaw", offsetKt: 0 },
     thermal: { enabled: false },
     outflow: { enabled: false },
-    direction_note: "South side of the causeway: NW or N gives flat-water conditions; SW brings more waves, S also works. (The north side of the causeway is the mirror image of this — flat when the south side is wavy and vice versa — but isn't separately modeled here.)",
-    tide_note: "South side isn't foilable below about 8ft of tide."
+    direction_note: "The causeway runs east to west and can be ridden on both sides. South side (most common): S and SW are onshore and can be great; SE works but is gusty; W is side shore on both sides; N and NW are offshore there, advanced riders only. North side: the opposite, so NNW is onshore; rarely used.",
+    tide_note: "South side isn't foilable below about 8ft of tide. North side needs at least 10ft (it dries below that) and has little room to launch a kite."
   },
   {
     // Corrected location (was a placeholder guess at Point Roberts, ~45km
@@ -764,6 +793,19 @@ export const SPOTS = [
     current_note: "Floods east, ebbs west. A west wind against the ebb gives the most chop.",
     access_note: "Small local spot. Launch from the Cates Park boat ramp; share it with boat traffic."
   }
+];
+
+// Webcams shown under "Live surface conditions around the region"
+// (index.html renderWebcams), per Guillermo (Oct 2026). `image` is the
+// camera's own latest snapshot, loaded straight from the owner's server
+// (nothing is copied into this repo) and refreshed while the page is open;
+// the card links to the owner's page. Cameras without a public snapshot
+// (the Sea to Sky Gondola embeds its picture inside its own page and blocks
+// other sites) get a link card only. To add one: name, area, camera page
+// url, optional snapshot image url, optional spot id it looks at.
+export const WEBCAMS = [
+  { name: "Jericho Sailing Centre streamcam", area: "Jericho and English Bay", url: "https://jsca.bc.ca/services/steamcam-ptz/", image: "https://streamer5.brownrice.com/cam-images/jscaptz.jpg", credit: "Jericho Sailing Centre", spotId: "jericho-spanish-banks" },
+  { name: "Sea to Sky Gondola", area: "Squamish and Howe Sound", url: "https://www.seatoskygondola.com/weather-and-cams/", spotId: "squamish-spit" },
 ];
 
 export const DEG_LABELS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
