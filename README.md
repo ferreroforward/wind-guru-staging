@@ -861,6 +861,16 @@ flagged before), and `sides.sectors` in spots.js drives a card line and a
 popup line that say which side works each hour and whether the north side
 has its tide.
 
+## Disclaimer
+
+A "Use at your own risk" popup (Guillermo, Oct 2026) shows on a visitor's
+first visit and must be accepted to continue: the site is an unofficial
+tool that can be wrong, wind sports are dangerous, and the visitor accepts
+all risk and liability for using its information and recommendations. The
+acceptance is remembered in the browser per `DISCLAIMER_VERSION` in
+index.html; bump it when the wording changes so everyone sees it again.
+The footer link reopens it.
+
 ## Port rules and never recommended spots
 
 From the Vancouver Fraser Port Authority Boaters' Handbook (checked Oct 2026,

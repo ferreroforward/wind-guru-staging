@@ -122,6 +122,10 @@
   .report-modal-backdrop{position:fixed;inset:0;background:rgba(27,36,56,0.5);z-index:1100;display:flex;align-items:center;justify-content:center;padding:16px;}
   .report-modal{background:var(--panel);border-radius:14px;box-shadow:0 12px 32px rgba(27,36,56,0.3);padding:22px 24px;width:100%;max-width:360px;}
   .report-modal h3{margin:0 0 6px;font-size:1.15rem;}
+  .disclaimer-backdrop{z-index:1300;}
+  .disclaimer-modal{max-width:460px;max-height:calc(100vh - 32px);overflow:auto;}
+  .disclaimer-modal p{font-size:0.92rem;line-height:1.5;margin:10px 0;color:var(--text);}
+  footer a#disclaimerLink{color:inherit;text-decoration:underline;}
   .report-modal-context{color:var(--muted);font-size:0.88rem;margin-bottom:16px;line-height:1.4;}
   .report-field{display:block;font-size:0.88rem;color:var(--muted);margin-bottom:14px;}
   .report-field .optional{font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;font-size:0.8rem;}
@@ -263,6 +267,21 @@
   <div id="spotCards"><div class="empty">Loading…</div></div>
   <div id="globalTip"></div>
 
+  <!-- Disclaimer (Guillermo, Oct 2026): shown on a visitor's first visit,
+       and again whenever DISCLAIMER_VERSION changes, until they accept.
+       Always reachable from the footer link. -->
+  <div class="report-modal-backdrop disclaimer-backdrop" id="disclaimerBackdrop" style="display:none;">
+    <div class="report-modal disclaimer-modal" role="dialog" aria-modal="true" aria-labelledby="disclaimerTitle">
+      <h3 id="disclaimerTitle">⚠️ Use at your own risk</h3>
+      <p>Wind Guru is a free, unofficial forecast tool built by a local rider. Its forecasts, odds, spot notes and recommendations can be wrong, out of date or incomplete, and conditions on the water change fast.</p>
+      <p>Wind and water sports are dangerous. Using this site, and acting on anything it shows, is entirely at your own risk. You are responsible for checking official forecasts and live conditions, knowing and following local rules and regulations, judging your own ability and equipment, and deciding whether it is safe to go out.</p>
+      <p><b>By using this site you accept all risk and all liability for your use of its information and recommendations, and you agree that Wind Guru and its creator are not liable for any injury, loss or damage.</b></p>
+      <div class="report-modal-actions">
+        <button type="button" id="disclaimerAccept">I understand and accept</button>
+      </div>
+    </div>
+  </div>
+
   <div class="report-modal-backdrop" id="reportModalBackdrop" style="display:none;">
     <div class="report-modal" role="dialog" aria-modal="true" aria-labelledby="reportModalTitle">
       <h3 id="reportModalTitle">Report actual conditions</h3>
@@ -334,7 +353,7 @@
 
 </main>
 
-<footer>Wind Guru · built for Strait of Georgia, Howe Sound &amp; Metro Vancouver <span id="versionNote"></span></footer>
+<footer>Wind Guru · built for Strait of Georgia, Howe Sound &amp; Metro Vancouver <span id="versionNote"></span><br><a href="#" id="disclaimerLink">Use at your own risk: read the disclaimer</a></footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script type="module">
@@ -1383,6 +1402,28 @@ async function loadVersion() {
   }
 }
 loadVersion();
+
+// Disclaimer: must be accepted once per DISCLAIMER_VERSION. Bump the version
+// when the wording changes so everyone sees it again. If the browser blocks
+// storage, it simply shows again on the next visit.
+const DISCLAIMER_VERSION = "2026-10-10";
+const DISCLAIMER_KEY = "windGuruDisclaimerAccepted";
+function disclaimerAccepted() {
+  try { return localStorage.getItem(DISCLAIMER_KEY) === DISCLAIMER_VERSION; } catch { return false; }
+}
+function showDisclaimer() {
+  const bd = document.getElementById("disclaimerBackdrop");
+  bd.style.display = "flex";
+  document.body.style.overflow = "hidden";
+  document.getElementById("disclaimerAccept").focus();
+}
+document.getElementById("disclaimerAccept").addEventListener("click", () => {
+  try { localStorage.setItem(DISCLAIMER_KEY, DISCLAIMER_VERSION); } catch {}
+  document.getElementById("disclaimerBackdrop").style.display = "none";
+  document.body.style.overflow = "";
+});
+document.getElementById("disclaimerLink").addEventListener("click", (e) => { e.preventDefault(); showDisclaimer(); });
+if (!disclaimerAccepted()) showDisclaimer();
 
 loadStatic();
 </script>
