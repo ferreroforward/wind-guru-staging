@@ -869,7 +869,8 @@ tool that can be wrong, wind sports are dangerous, and the visitor accepts
 all risk and liability for using its information and recommendations. The
 acceptance is remembered in the browser per `DISCLAIMER_VERSION` in
 index.html; bump it when the wording changes so everyone sees it again.
-The footer link reopens it.
+The full text is also always shown in a box at the bottom of the page,
+copied from the popup on load so the wording lives in one place.
 
 ## Port rules and never recommended spots
 

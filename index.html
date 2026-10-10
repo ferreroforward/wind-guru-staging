@@ -125,7 +125,11 @@
   .disclaimer-backdrop{z-index:1300;}
   .disclaimer-modal{max-width:460px;max-height:calc(100vh - 32px);overflow:auto;}
   .disclaimer-modal p{font-size:0.92rem;line-height:1.5;margin:10px 0;color:var(--text);}
-  footer a#disclaimerLink{color:inherit;text-decoration:underline;}
+  .disclaimer-full{margin:28px 0 0;padding:16px 20px;background:var(--panel);border:1px solid var(--border);border-radius:14px;box-sizing:border-box;}
+  .disclaimer-full h2{font-size:0.95rem;margin:0 0 6px;color:var(--text);}
+  .disclaimer-full p{font-size:0.85rem;line-height:1.5;color:var(--muted);margin:8px 0;}
+  .disclaimer-full p b{color:var(--text);}
+  @media (max-width:640px){ .disclaimer-full{padding:14px 16px;} }
   .report-modal-context{color:var(--muted);font-size:0.88rem;margin-bottom:16px;line-height:1.4;}
   .report-field{display:block;font-size:0.88rem;color:var(--muted);margin-bottom:14px;}
   .report-field .optional{font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;font-size:0.8rem;}
@@ -351,9 +355,16 @@
     This is a forecasting aid, not a safety guarantee — always check current conditions, tides and marine warnings before heading out.
   </div>
 
+  <!-- Full disclaimer, always visible at the bottom (Guillermo, Oct 2026).
+       Filled from the popup's text on load so the wording lives in one place. -->
+  <section class="disclaimer-full" id="disclaimerFull" aria-labelledby="disclaimerFullTitle">
+    <h2 id="disclaimerFullTitle">⚠️ Disclaimer: use at your own risk</h2>
+    <div id="disclaimerFullText"></div>
+  </section>
+
 </main>
 
-<footer>Wind Guru · built for Strait of Georgia, Howe Sound &amp; Metro Vancouver <span id="versionNote"></span><br><a href="#" id="disclaimerLink">Use at your own risk: read the disclaimer</a></footer>
+<footer>Wind Guru · built for Strait of Georgia, Howe Sound &amp; Metro Vancouver <span id="versionNote"></span></footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script type="module">
@@ -1422,7 +1433,9 @@ document.getElementById("disclaimerAccept").addEventListener("click", () => {
   document.getElementById("disclaimerBackdrop").style.display = "none";
   document.body.style.overflow = "";
 });
-document.getElementById("disclaimerLink").addEventListener("click", (e) => { e.preventDefault(); showDisclaimer(); });
+// Same wording, always visible at the bottom of the page.
+document.getElementById("disclaimerFullText").innerHTML =
+  [...document.querySelectorAll("#disclaimerBackdrop .disclaimer-modal p")].map(p => p.outerHTML).join("");
 if (!disclaimerAccepted()) showDisclaimer();
 
 loadStatic();
