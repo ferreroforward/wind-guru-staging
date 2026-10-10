@@ -861,6 +861,28 @@ flagged before), and `sides.sectors` in spots.js drives a card line and a
 popup line that say which side works each hour and whether the north side
 has its tide.
 
+## Port rules and never recommended spots
+
+From the Vancouver Fraser Port Authority Boaters' Handbook (checked Oct 2026,
+after a local rider raised Steveston):
+
+- Fraser River South Arm (TCZ-4): the deep sea channel plus 61m either side,
+  from 1nm past Sand Heads light to New Westminster. Pleasure craft and
+  sailing vessels must be under mechanical power; non motorized craft keep
+  clear of the channel and stay near shore; no loitering.
+- First Narrows (TCZ-1) and Second Narrows (TCZ-2): non motorized craft,
+  sailboats and boards included, are prohibited. TCZ-1 starts just off
+  Ambleside toward the Lions Gate Bridge; TCZ-2's east edge is a line north
+  from Berry Point, about 2km west of the Cates Park ramp.
+- Cates Park: 5 knot limit within 150m of shore from Little Cates Park to
+  250m west of the boat launch.
+- Kiteboards: daylight hours only in port waters.
+
+These show in each spot's red caution box, and best bets tag the spot
+PORT RULES. Steveston (Garry Point) is `neverRecommend` (Guillermo, Oct 10
+2026): never a best bet, windiest pick or epic headline, grey map dot; its
+card and forecast stay for experienced locals.
+
 ## Webcams
 
 Under "Live surface conditions around the region", a Webcams block lists

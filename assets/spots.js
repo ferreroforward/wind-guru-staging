@@ -286,7 +286,18 @@ export const SPOTS = [
     // Per Guillermo (Oct 2026): super advanced, never for beginners. Shown
     // on the card as a warning (caution_note, index.html cautionLine).
     level: "expert",
-    caution_note: "Expert riders only, never for beginners. You must be very familiar with self rescue and maritime rules. Heavy commercial boat traffic: always give way to the boats. Don't ride alone, or at least carry a way to call emergency services.",
+    // Shown but never recommended (Guillermo, Oct 10 2026, after local rider
+    // feedback and the port rules): never a best bet, windiest pick, epic
+    // headline or evening report pick; its card, map dot and forecast stay
+    // for experienced locals (index.html, neverRecommend).
+    neverRecommend: true,
+    // Port rules (Vancouver Fraser Port Authority Boaters' Handbook, Oct
+    // 2026): the South Arm is traffic control zone TCZ-4, the deep sea
+    // channel plus 61m either side from 1nm past Sand Heads light to New
+    // Westminster. Pleasure craft and sailing vessels must be under
+    // mechanical power there; non motorized craft keep clear of the channel
+    // and stay near shore; no loitering. Kiteboards: daylight only.
+    caution_note: "Not recommended by Wind Guru; shown for experienced local riders only. Port rules: wind powered craft are not allowed in the Fraser River shipping channel or within 61m of it (traffic control zone, Sand Heads to New Westminster), so stay close to shore and clear of the channel. Kites daylight only. Expert riders only, never for beginners: know self rescue and maritime rules, always give way to the heavy commercial boat traffic, and don't ride alone, or at least carry a way to call emergency services.",
     // Widened to take in NNW: Guillermo's best ever session here (Sep 25
     // 2026) was in NNW 21 gusting 26 at Sand Heads. W, NW and SW remain the
     // core directions (see current_note).
@@ -731,6 +742,12 @@ export const SPOTS = [
     marineAnchorFactor: 0.8,
     sports: ["windsurf", "wingfoil"],
     level: "intermediate",
+    // Port rules (Boaters' Handbook, Oct 2026): non motorized craft,
+    // including sailboats and boards, are prohibited in the First Narrows
+    // traffic control zone (TCZ-1), which starts just off Ambleside: its
+    // west edge runs from the Lions Gate Bridge north pier through Capilano
+    // light to a line north from Ferguson Point.
+    caution_note: "Port rules: no sail, kite, wing or paddle craft in the First Narrows shipping zone, which starts just off Ambleside toward the Lions Gate Bridge and the channel. Stay west and close to shore.",
     // Right at the entrance to Burrard Inlet / First Narrows — same general
     // English Bay opening as Jericho/Spanish Banks, so provisionally given
     // the same westerly favorable sector rather than guessing a new one.
@@ -781,6 +798,12 @@ export const SPOTS = [
     // describe the wind this far up Burrard Inlet.
     sports: ["wingfoil", "windsurf"],
     level: "intermediate",
+    // Port rules (Boaters' Handbook, Oct 2026): non motorized craft are
+    // prohibited in the Second Narrows traffic control zone (TCZ-2), whose
+    // east edge is a line north from Berry Point, about 2km west of the
+    // ramp. A 5 knot limit applies within 150m of shore from Little Cates
+    // Park to 250m west of the boat launch.
+    caution_note: "Port rules: no sail, kite, wing or paddle craft in the Second Narrows shipping zone, which starts about 2km west of the ramp (a line north from Berry Point), so don't ride west toward the bridges. 5 knot limit within 150m of shore around the park and launch: get out past 150m before you get up on the foil.",
     // Per Guillermo: West mostly, and South West; East or SE can work too.
     // Anything with north in it is offshore here, so the arc stops at W
     // (280 leaves room for model direction rounding) and starts at E.

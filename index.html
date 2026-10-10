@@ -542,6 +542,7 @@ const CONFIDENCE_FLOOR = 35;
 function windiestGoodBetForDay() {
   let best = null;
   for (const sp of SPOTS) {
+    if (sp.neverRecommend) continue;
     const spot = forecast.spots.find(s => s.id === sp.id);
     if (!spot) continue;
     for (const h of hoursForSelectedDay(spot)) {
@@ -588,6 +589,7 @@ function renderEpicCard() {
   const body = document.getElementById("epicBody");
   const items = [];
   for (const sp of SPOTS) {
+    if (sp.neverRecommend) continue;
     const spotData = forecast.spots.find(s => s.id === sp.id);
     for (const w of epicWindowsForDay(spotData)) items.push({ sp, w });
   }
@@ -638,7 +640,9 @@ function renderBestBets() {
   renderBestBetsHeading();
   // An outflow at a spot riders don't use on one (Squamish) is never a best
   // bet; the spot's card below still shows it, marked as outflow.
-  const ranked = rankedSpotsForDay().filter(r => r.probability >= MIN_LIST_PROBABILITY && !r.hour.outflow_not_ridden);
+  // neverRecommend spots (Steveston, Oct 2026) keep their card but are
+  // never a best bet.
+  const ranked = rankedSpotsForDay().filter(r => r.probability >= MIN_LIST_PROBABILITY && !r.hour.outflow_not_ridden && !r.spot.neverRecommend);
 
   bestBetsEl.innerHTML = "";
   if (!ranked.length) { bestBetsEl.innerHTML = `<div class="empty">Nothing hit ${MIN_LIST_PROBABILITY}%+ for this range today — try a wider range or another day.</div>`; return; }
@@ -655,7 +659,7 @@ function renderBestBets() {
       <div class="bet-badge ${cls}">${r.probability}%</div>
       <div class="bet-info">
         <div class="name">${r.spot.name} <span style="color:var(--muted);font-weight:400;font-size:0.8rem;">· ${r.spot.region}</span></div>
-        <div class="detail">${r.hour.time.slice(11,16)} · ${r.hour.speed_kt != null ? Math.round(r.hour.speed_kt) : "–"}${gustText}kt ${r.hour.direction_label ?? ""} · <span title="Beaufort force ${beaufort(r.hour.speed_kt)?.force ?? ""} (Environment Canada wind scale)">${windTerm(r.hour.speed_kt)}</span>${gustyTag}${offshoreTag}${r.spot.caution_note ? `<span class="offshore-tag" title="${r.spot.caution_note}">⚠️ ${r.spot.level === "expert" ? "EXPERTS ONLY" : "ADVANCED ONLY"}</span>` : ""}</div>
+        <div class="detail">${r.hour.time.slice(11,16)} · ${r.hour.speed_kt != null ? Math.round(r.hour.speed_kt) : "–"}${gustText}kt ${r.hour.direction_label ?? ""} · <span title="Beaufort force ${beaufort(r.hour.speed_kt)?.force ?? ""} (Environment Canada wind scale)">${windTerm(r.hour.speed_kt)}</span>${gustyTag}${offshoreTag}${r.spot.caution_note ? `<span class="offshore-tag" title="${r.spot.caution_note}">⚠️ ${r.spot.level === "expert" ? "EXPERTS ONLY" : r.spot.level === "advanced" ? "ADVANCED ONLY" : "PORT RULES"}</span>` : ""}</div>
       </div>
     `;
     bestBetsEl.appendChild(div);
@@ -1049,11 +1053,11 @@ function renderMap() {
     let pct = null;
     let outflow = false;
     if (spot) { const b = bestWindowForSpot(spot); pct = b ? b.probability : null; outflow = !!b?.hour.outflow_not_ridden; }
-    const color = pct === null || outflow ? "#4a5776" : pct >= 65 ? "#1fb570" : pct >= 35 ? "#e3b23c" : "#e0546b";
+    const color = pct === null || outflow || sp.neverRecommend ? "#4a5776" : pct >= 65 ? "#1fb570" : pct >= 35 ? "#e3b23c" : "#e0546b";
     const marker = L.circleMarker([sp.lat, sp.lon], {
       radius: 9, color, fillColor: color, fillOpacity: 0.85, weight: 2,
     }).addTo(markerLayer);
-    marker.bindPopup(`<b>${sp.name}</b><br>${pct === null ? "no data" : outflow ? "Outflow, not inflow: not ridden here" : pct + "% chance of " + rangeLabel()}`);
+    marker.bindPopup(`<b>${sp.name}</b><br>${pct === null ? "no data" : outflow ? "Outflow, not inflow: not ridden here" : sp.neverRecommend ? `Not recommended; experienced locals only (${pct}% chance of ${rangeLabel()})` : pct + "% chance of " + rangeLabel()}`);
   });
 }
 
