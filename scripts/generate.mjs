@@ -8,7 +8,7 @@ import { writeFile, mkdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-import { SPOTS, PRESSURE_REFERENCE, degToLabel, DEG_LABELS } from "../assets/spots.js";
+import { SPOTS, PRESSURE_REFERENCE, degToLabel, DEG_LABELS, WEBCAMS } from "../assets/spots.js";
 import { MODELS, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, rowsToPressureMap, rowsToSpeedMap, currentPacificHourString, explainMismatch, parseMarineWindText, marineAnchorForHour, parseEcIssued, dropModels, tideForHour, flagEpicHours, buildMosUrl, reshapeMos, applyMos, swellForHours, thermalInputs, applyThermalModel } from "../assets/rules.js";
 
 // Minutes between "now" and a Pacific-local "HH:MM" observation time, on the
@@ -881,6 +881,27 @@ async function fetchDailyTakes() {
   return takes;
 }
 
+// Webcams that stream to YouTube through CamStreamer (White Rock, Oct
+// 2026): follow each CamStreamer embed's redirect to the stream's current
+// YouTube id, since it changes whenever the stream restarts. The page builds
+// the picture from YouTube's live thumbnail for that id.
+async function resolveWebcams() {
+  const out = {};
+  for (const cam of WEBCAMS) {
+    if (!cam.camstreamer) continue;
+    try {
+      const res = await fetch(`https://camstreamer.com/embed/${cam.camstreamer}`, { redirect: "manual" });
+      const loc = res.headers.get("location") || "";
+      const m = loc.match(/youtube\.com\/embed\/([A-Za-z0-9_-]{11})/);
+      if (m) out[cam.id] = { youtube: m[1] };
+      else console.log(`[webcam] ${cam.name}: no YouTube id in redirect (status ${res.status})`);
+    } catch (err) {
+      console.log(`[webcam] ${cam.name} failed: ${err.message}`);
+    }
+  }
+  return out;
+}
+
 async function main() {
   const startedAt = new Date();
   const spotsOut = [];
@@ -1305,6 +1326,7 @@ async function main() {
     live_verification_count: cappedEntries.length,
     mos_score: await readFile(path.join(__dirname, "..", "data", "mos-score.json"), "utf8").then(JSON.parse).catch(() => null),
     surface_observations: surfaceObservations,
+    webcams: await resolveWebcams(),
     missing_spots: missingSpots,
     spots: spotsOut,
   };

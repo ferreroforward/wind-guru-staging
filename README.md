@@ -870,7 +870,13 @@ publishes a snapshot image (Jericho, via its streaming host), the card shows
 the latest picture, loaded straight from the owner's server (nothing is
 copied into this repo) and refreshed every 2 minutes while the page is open.
 The gondola embeds its picture inside its own page and blocks other sites,
-so it gets a link card only. Every card opens the owner's live page. Add a
+so it gets a link card only. White Rock's East Beach and West Beach (pier)
+cameras stream to YouTube through CamStreamer, the embed the city uses on
+its own page; their cards show YouTube's live thumbnail for the stream.
+The YouTube id changes when a stream restarts, so every forecast run
+follows the CamStreamer embed to the current id (`resolveWebcams` in
+generate.mjs, `webcams` in forecast.json), with the id in spots.js as the
+fallback. Every card opens the owner's live page. Add a
 camera with its name, area, page url, optional snapshot `image` and
 `credit`, and optionally the spot id it looks at.
 

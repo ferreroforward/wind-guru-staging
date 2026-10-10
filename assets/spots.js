@@ -801,11 +801,20 @@ export const SPOTS = [
 // (nothing is copied into this repo) and refreshed while the page is open;
 // the card links to the owner's page. Cameras without a public snapshot
 // (the Sea to Sky Gondola embeds its picture inside its own page and blocks
-// other sites) get a link card only. To add one: name, area, camera page
-// url, optional snapshot image url, optional spot id it looks at.
+// other sites) get a link card only.
+// White Rock's cameras stream to YouTube through CamStreamer, the embed the
+// city uses on its own page. The picture is YouTube's live thumbnail for
+// the stream. The YouTube id changes when a stream restarts, so each
+// forecast run follows the CamStreamer embed to the current id
+// (generate.mjs resolveWebcams, forecast.json `webcams`); `youtube` here is
+// only the fallback.
+// To add one: id, name, area, camera page url, optional snapshot image url
+// or camstreamer embed id, optional credit and spot id it looks at.
 export const WEBCAMS = [
-  { name: "Jericho Sailing Centre streamcam", area: "Jericho and English Bay", url: "https://jsca.bc.ca/services/steamcam-ptz/", image: "https://streamer5.brownrice.com/cam-images/jscaptz.jpg", credit: "Jericho Sailing Centre", spotId: "jericho-spanish-banks" },
-  { name: "Sea to Sky Gondola", area: "Squamish and Howe Sound", url: "https://www.seatoskygondola.com/weather-and-cams/", spotId: "squamish-spit" },
+  { id: "jericho", name: "Jericho Sailing Centre streamcam", area: "Jericho and English Bay", url: "https://jsca.bc.ca/services/steamcam-ptz/", image: "https://streamer5.brownrice.com/cam-images/jscaptz.jpg", credit: "Jericho Sailing Centre", spotId: "jericho-spanish-banks" },
+  { id: "whiterock-east", name: "White Rock East Beach camera", area: "White Rock East Beach", url: "https://www.whiterockcity.ca/1212/Waterfront-Live-Cameras", camstreamer: "Sev2OTrlNL6v43zBHBp0DuE9tobufzZI1zXUkAdW", youtube: "ClvJjIz5GE4", credit: "City of White Rock", spotId: "white-rock-east" },
+  { id: "whiterock-west", name: "White Rock West Beach (pier) camera", area: "White Rock West Beach and the pier", url: "https://www.whiterockcity.ca/1212/Waterfront-Live-Cameras", camstreamer: "kJLUClW1kDbLu1C1N8WKsKXGxWcK0gI26OvLxcc2", youtube: "4MK3E9EWDSY", credit: "City of White Rock" },
+  { id: "gondola", name: "Sea to Sky Gondola", area: "Squamish and Howe Sound", url: "https://www.seatoskygondola.com/weather-and-cams/", spotId: "squamish-spit" },
 ];
 
 export const DEG_LABELS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];

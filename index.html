@@ -1072,8 +1072,12 @@ function renderWebcams() {
   block.style.display = cams.length ? "block" : "none";
   grid.innerHTML = cams.map(c => {
     const spot = c.spotId ? SPOTS.find(s => s.id === c.spotId) : null;
-    const pic = c.image
-      ? `<img class="cam-thumb" data-src="${c.image}" src="${camSrc(c.image)}" alt="Latest picture from ${c.name}" loading="lazy" onerror="this.outerHTML='<div class=&quot;cam-nothumb&quot;>Picture not available right now</div>'">`
+    // YouTube streams (White Rock): the stream's live thumbnail, from the id
+    // the last forecast run resolved, else the id in spots.js.
+    const yt = c.camstreamer ? (forecast?.webcams?.[c.id]?.youtube || c.youtube) : null;
+    const image = c.image || (yt ? `https://i.ytimg.com/vi/${yt}/maxresdefault_live.jpg` : null);
+    const pic = image
+      ? `<img class="cam-thumb" data-src="${image}" src="${camSrc(image)}" alt="Latest picture from ${c.name}" loading="lazy" onerror="this.outerHTML='<div class=&quot;cam-nothumb&quot;>Picture not available right now</div>'">`
       : `<div class="cam-nothumb">Live picture on the owner's page</div>`;
     return `<a class="obs-card cam-card" href="${c.url}" target="_blank" rel="noopener">
         ${pic}
