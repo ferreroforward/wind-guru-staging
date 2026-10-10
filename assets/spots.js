@@ -297,7 +297,7 @@ export const SPOTS = [
     // Westminster. Pleasure craft and sailing vessels must be under
     // mechanical power there; non motorized craft keep clear of the channel
     // and stay near shore; no loitering. Kiteboards: daylight only.
-    caution_note: "Not recommended by Wind Guru; shown for experienced local riders only. Port rules: wind powered craft are not allowed in the Fraser River shipping channel or within 61m of it (traffic control zone, Sand Heads to New Westminster), so stay close to shore and clear of the channel. Kites daylight only. Expert riders only, never for beginners: know self rescue and maritime rules, always give way to the heavy commercial boat traffic, and don't ride alone, or at least carry a way to call emergency services.",
+    caution_note: "Not recommended by Wind Guru; shown for experienced local riders only. Port rules: wind powered craft are not allowed in the Fraser River shipping channel or within 61m of it (traffic control zone, Sand Heads to New Westminster), so stay close to shore and clear of the channel. Expert riders only, never for beginners: know self rescue and maritime rules, always give way to the heavy commercial boat traffic, and don't ride alone, or at least carry a way to call emergency services.",
     // Widened to take in NNW: Guillermo's best ever session here (Sep 25
     // 2026) was in NNW 21 gusting 26 at Sand Heads. W, NW and SW remain the
     // core directions (see current_note).
