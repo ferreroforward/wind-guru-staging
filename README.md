@@ -861,6 +861,14 @@ flagged before), and `sides.sectors` in spots.js drives a card line and a
 popup line that say which side works each hour and whether the north side
 has its tide.
 
+## Visitor stats
+
+Cloudflare Web Analytics (free, no cookies, no tracking of individuals) is
+loaded at the end of index.html. See page views, countries, referrers and
+devices in the Cloudflare dashboard under Web Analytics, site
+`ferreroforward.github.io`; filter by path `/wind-guru/` for production or
+`/wind-guru-staging/` for staging.
+
 ## Disclaimer
 
 A "Use at your own risk" popup (Guillermo, Oct 2026) shows on a visitor's
