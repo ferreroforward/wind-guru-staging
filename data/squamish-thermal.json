@@ -1,0 +1,38 @@
+{
+  "station": "Squamish Spit wind meter",
+  "trained": "2026-10-03",
+  "period": "2025-05-13..2025-09-16, 2026-05-12..2026-09-18",
+  "truth": "squamishwindsports.com Spit meter, hourly mean, inflow only (hours from outside 130 to 280 degrees count as 0)",
+  "inputs": "Open-Meteo historical forecast API, mean of gfs_seamless, ecmwf_ifs025 and gem_seamless",
+  "hours": [9, 20],
+  "n_hours": 2909,
+  "n_days": 254,
+  "input_models": ["gfs", "ecmwf", "gem"],
+  "backtest": {
+    "method": "leave one month out, hours 11 to 18",
+    "mae_kt": { "learned_A": 2.6, "learned_B": 2.9, "scaling_2_85x": 4.7, "hour_of_day_only": 3.9 },
+    "bias_kt": { "learned_A": -0.1, "scaling_2_85x": -2.5 },
+    "days_with_3h_of_15kt": { "total": 198, "learned_A_caught": 179, "scaling_caught": 143 },
+    "other_days": { "total": 56, "learned_A_falsely_on": 17, "scaling_falsely_on": 7 }
+  },
+  "clip": {
+    "rad": [23.33, 906.33], "cl": [0, 100], "dTls": [-1.37, 3.4], "dTint": [-3.23, 9.07],
+    "dTlil": [-1, 14.3], "dPL": [-1.97, 4.77], "dPloc": [-0.8, 1.3], "coarseS": [-4.84, 8.18], "gem": [0.4, 11.9]
+  },
+  "variants": [
+    {
+      "id": "A",
+      "features": ["h1s", "h1c", "h2s", "h2c", "rad", "cl", "dTls", "dTint", "dTlil", "dPL", "dPloc", "coarseS", "gem"],
+      "intercept": 1.9407,
+      "coef": [-2.7966, -1.292, -1.2636, 0.62519, 0.0081225, 0.0089661, 0.94397, 0.5495, -0.30648, 0.0089245, 1.1203, 0.84642, 0.355],
+      "err": [4.051, -0.0877]
+    },
+    {
+      "id": "B",
+      "features": ["h1s", "h1c", "h2s", "h2c", "rad", "cl", "dTls", "dTint", "dTlil", "dPL", "dPloc"],
+      "intercept": 2.601,
+      "coef": [-4.4918, -0.7811, -1.2949, 0.69183, 0.011948, 0.013725, 0.54935, 0.63736, -0.352, 1.4131, 1.6442],
+      "err": [5.034, -0.1309]
+    }
+  ]
+}

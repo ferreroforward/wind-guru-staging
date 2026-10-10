@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 import { SPOTS, PRESSURE_REFERENCE, degToLabel, DEG_LABELS } from "../assets/spots.js";
-import { MODELS, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, rowsToPressureMap, rowsToSpeedMap, currentPacificHourString, explainMismatch, parseMarineWindText, marineAnchorForHour, parseEcIssued, dropModels, tideForHour, flagEpicHours, buildMosUrl, reshapeMos, applyMos, swellForHours } from "../assets/rules.js";
+import { MODELS, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, rowsToPressureMap, rowsToSpeedMap, currentPacificHourString, explainMismatch, parseMarineWindText, marineAnchorForHour, parseEcIssued, dropModels, tideForHour, flagEpicHours, buildMosUrl, reshapeMos, applyMos, swellForHours, thermalInputs, applyThermalModel } from "../assets/rules.js";
 
 // Minutes between "now" and a Pacific-local "HH:MM" observation time, on the
 // (safe) assumption the observation is from earlier today — used to catch a
@@ -38,6 +38,7 @@ const OVERRIDES_PATH = path.join(__dirname, "..", "data", "calibration-overrides
 const LIVE_LOG_PATH = path.join(__dirname, "..", "data", "live-verification-log.json");
 const MOS_PATH = path.join(__dirname, "..", "data", "mos-coefficients.json");
 const MOS_RECENT_PATH = path.join(__dirname, "..", "data", "mos-recent.json");
+const THERMAL_PATH = path.join(__dirname, "..", "data", "squamish-thermal.json");
 const FORECAST_DAYS = 4; // "today" + 3 days ahead
 const LIVE_ERROR_THRESHOLD = 0.20; // 20% — flag as a "mismatch" in the UI/console at this gap or bigger
 const LIVE_LOG_MAX_PER_SPOT = 40; // cap so the log file doesn't grow forever
@@ -216,7 +217,12 @@ async function fetchSquamishWindsportsObservation(station) {
   const dirDeg = json.wd ? parseFloat(json.wd[i]) : NaN;
   const dtMs = json.dt ? parseFloat(json.dt[i]) * 1000 : null;
   return {
-    time: dtMs ? new Date(dtMs).toLocaleTimeString("en-US", { timeZone: "America/Los_Angeles", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : null,
+    // The meter's `dt` is not a true epoch: it is local wall-clock time
+    // written as if it were UTC ("UTC plus local shift" in the site's own
+    // chart script, which plots it with no conversion). Formatting it in
+    // Pacific time read every reading 7 or 8 hours early, so the staleness
+    // check threw them all away and Squamish never got a live check.
+    time: dtMs ? new Date(dtMs).toLocaleTimeString("en-US", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : null,
     speedKt,
     gustKt: isFinite(gustKt) ? gustKt : null,
     directionAbbr: null,
@@ -326,28 +332,43 @@ function swobObservation(station) {
 // snapshot). So: up to 4 tries, waiting 3, 8 and 20 seconds (or what the
 // server's Retry-After asks, up to a minute), on 429, 5xx and network
 // errors. Other errors (400, 404) fail straight away.
+// Two kinds of failure, retried differently (Oct 3 2026):
+//  - an HTTP 429/5xx: the server is busy, so wait (3s, 8s, 20s) and give up
+//    after `tries` attempts, as before.
+//  - a thrown network error ("fetch failed"): in the Action these came one
+//    per pooled connection the server had already closed. Every run showed
+//    the same requests failing first try, and once the gradient stations
+//    went from 3 to 4 parallel fetches Jericho needed a 5th attempt it did
+//    not have, so it dropped out of two snapshots in a row. Each failure
+//    discards one dead connection, so these are retried quickly and more
+//    often (NETWORK_TRIES) and the cause is logged.
+const NETWORK_TRIES = 8;
 async function fetchRetry(url, options = {}, tries = 4) {
   const waits = [3000, 8000, 20000];
+  const networkWaits = [300, 600, 1000, 2000, 4000, 8000, 20000];
   let lastErr = null;
-  for (let i = 0; i < tries; i++) {
+  let httpFails = 0, networkFails = 0;
+  for (;;) {
     try {
       const res = await fetch(url, options);
       if (res.ok || (res.status < 500 && res.status !== 429)) return res;
       lastErr = new Error(`HTTP ${res.status} ${res.statusText}`);
-      if (i === tries - 1) return res;
+      httpFails++;
+      if (httpFails >= tries) return res;
       const ra = Number(res.headers.get("retry-after"));
-      const wait = isFinite(ra) && ra > 0 ? Math.min(60000, ra * 1000) : waits[Math.min(i, waits.length - 1)];
+      const wait = isFinite(ra) && ra > 0 ? Math.min(60000, ra * 1000) : waits[Math.min(httpFails - 1, waits.length - 1)];
       console.log(`  [retry] ${String(url).slice(0, 70)}... ${lastErr.message}, waiting ${Math.round(wait / 1000)}s`);
       await new Promise((r) => setTimeout(r, wait));
     } catch (err) {
       lastErr = err;
-      if (i === tries - 1) throw err;
-      const wait = waits[Math.min(i, waits.length - 1)];
-      console.log(`  [retry] ${String(url).slice(0, 70)}... ${err.message}, waiting ${Math.round(wait / 1000)}s`);
+      networkFails++;
+      if (networkFails >= Math.max(tries, NETWORK_TRIES)) throw err;
+      const wait = networkWaits[Math.min(networkFails - 1, networkWaits.length - 1)];
+      const cause = err?.cause?.code || err?.cause?.message || "";
+      console.log(`  [retry] ${String(url).slice(0, 70)}... ${err.message}${cause ? ` (${cause})` : ""}, waiting ${wait / 1000}s`);
       await new Promise((r) => setTimeout(r, wait));
     }
   }
-  throw lastErr;
 }
 
 const liveObsCache = {};
@@ -494,6 +515,15 @@ function labelHilo(arr) {
 // Learned correction inputs (see applyMos in rules.js): the pure models at
 // the exact point each spot's blend was trained on. One request per point.
 let mosCoefficients = null;
+// Learned Squamish thermal (see applyThermalModel in rules.js). Optional:
+// without the file the old 2.85x scaling is used.
+let thermalModel = null;
+try {
+  thermalModel = JSON.parse(await readFile(THERMAL_PATH, "utf8"));
+  console.log(`Loaded learned thermal for ${thermalModel.station} (trained ${thermalModel.trained})`);
+} catch {
+  console.log("No data/squamish-thermal.json, learned thermal off this run.");
+}
 async function loadMosCoefficients() {
   try {
     mosCoefficients = JSON.parse(await readFile(MOS_PATH, "utf8"));
@@ -748,15 +778,19 @@ async function getReferenceSpeeds(station) {
 let gradientStations = null;
 async function getGradientStations() {
   if (gradientStations) return gradientStations;
-  const [interiorRows, coastalRows, mouthRows] = await Promise.all([
+  const [interiorRows, coastalRows, mouthRows, farRows] = await Promise.all([
     getStationRows(PRESSURE_REFERENCE.interior),
     getStationRows(PRESSURE_REFERENCE.coastal),
     getStationRows(PRESSURE_REFERENCE.howeSoundMouth),
+    PRESSURE_REFERENCE.far ? getStationRows(PRESSURE_REFERENCE.far) : null,
   ]);
+  const byTime = (rows) => (rows ? Object.fromEntries(rows.map((r) => [r.time, r])) : {});
   gradientStations = {
     interior: interiorRows ? rowsToPressureMap(interiorRows) : {},
     coastal: coastalRows ? rowsToPressureMap(coastalRows) : {},
     mouth: mouthRows ? rowsToPressureMap(mouthRows) : {},
+    // Whole rows by hour, for the learned thermal (it needs temperatures too).
+    rows: { interior: byTime(interiorRows), coastal: byTime(coastalRows), mouth: byTime(mouthRows), far: byTime(farRows) },
   };
   return gradientStations;
 }
@@ -774,7 +808,7 @@ async function getGradientStations() {
 // from wind-report handling for symmetry (state=open only, so retracting a
 // take is just closing its issue).
 const DAILY_TAKE_OWNER = "ferreroforward";
-const DAILY_TAKE_REPO = "wind-guru-staging"; // STAGING VALUE -- "wind-guru" on production, same as apply-feedback.mjs's REPO
+const DAILY_TAKE_REPO = "wind-guru"; // kept in sync with apply-feedback.mjs's REPO
 const AUTHOR_USERNAME = "ferreroforward"; // Guillermo's own GitHub login -- NOT swapped between staging/production, it's the same account either way
 
 function extractIssueField(body, exactLabel) {
@@ -887,16 +921,28 @@ async function main() {
   swobBoardForLive = swobBoardStations;
   console.log(`  parsed ${swobBoardStations.length} station(s)`);
 
-  for (const spot of SPOTS) {
+  // A spot whose fetch fails goes to the back of the queue for one more
+  // try after the others, instead of being dropped from the snapshot.
+  const spotQueue = [...SPOTS];
+  const retriedSpots = new Set();
+  const requeue = (spot) => {
+    if (retriedSpots.has(spot.id)) return;
+    retriedSpots.add(spot.id);
+    spotQueue.push(spot);
+    console.log(`  will try ${spot.name} once more at the end`);
+  };
+  while (spotQueue.length) {
+    const spot = spotQueue.shift();
     process.stdout.write(`Fetching ${spot.name}... `);
     let rows;
     try {
       rows = await fetchSpot(spot);
     } catch (err) {
       console.log(`ERROR: ${err.message}`);
+      requeue(spot);
       continue;
     }
-    if (!rows) { console.log("skipped"); continue; }
+    if (!rows) { console.log("skipped"); requeue(spot); continue; }
     console.log(`${rows.length} hours`);
 
     let refMap = null;
@@ -909,7 +955,7 @@ async function main() {
     }
 
     let gm = null;
-    if (spot.pressureGradientAware) {
+    if (spot.pressureGradientAware || spot.thermal?.learned) {
       try {
         gm = await getGradientStations();
       } catch (err) {
@@ -981,7 +1027,14 @@ async function main() {
         if (mosNow) mosNow.leadHours = nowIdx >= 0 ? Math.max(0, rowIdx - nowIdx) : null;
       }
 
-      return classifyHour(spot, row, hour, month, refSpeedKt, pressureGradients, overrideRecord, pamRocksNow, marineAnchor, liveRefNow, mosNow);
+      // Learned thermal estimate for this hour (Squamish), from the drivers.
+      let thermalNow = null;
+      if (spot.thermal?.learned && thermalModel && gm?.rows) {
+        const refs = { mouth: gm.rows.mouth[row.time], coastal: gm.rows.coastal[row.time], interior: gm.rows.interior[row.time], far: gm.rows.far[row.time] };
+        thermalNow = applyThermalModel(thermalModel, thermalInputs(row, refs, hour));
+      }
+
+      return classifyHour(spot, row, hour, month, refSpeedKt, pressureGradients, overrideRecord, pamRocksNow, marineAnchor, liveRefNow, mosNow, thermalNow);
     });
 
     // Tide state per hour (for spots with a tideStation), then the spot's
@@ -1181,7 +1234,8 @@ async function main() {
   // a confusing partial one, and the Action step failing is itself a signal
   // (GitHub emails the repo owner on a failed scheduled workflow run).
   const MIN_SUCCESS_RATE = 0.7;
-  const successRate = spotsOut.length / SPOTS.length;
+  const freshCount = spotsOut.length;
+  const successRate = freshCount / SPOTS.length;
   if (successRate < MIN_SUCCESS_RATE) {
     console.error(`\nOnly ${spotsOut.length}/${SPOTS.length} spots fetched successfully (${Math.round(successRate * 100)}%) — aborting without writing data/forecast.json to avoid publishing a partial snapshot.`);
     process.exit(1);
@@ -1208,6 +1262,35 @@ async function main() {
   await mkdir(path.dirname(LIVE_LOG_PATH), { recursive: true });
   await writeFile(LIVE_LOG_PATH, JSON.stringify({ updated_at: startedAt.toISOString(), entries: cappedEntries }, null, 2));
 
+  // Spots that still failed after the second try: rather than vanish from
+  // the page with no explanation (Jericho, Oct 3 2026), carry the spot's
+  // hours over from the previous snapshot, stamped with `stale_from` (when
+  // those hours were actually generated) so the page can say so. Only while
+  // the old hours are under MAX_CARRY_HOURS old; past that the spot is listed
+  // in `missing_spots` instead, which the page also shows.
+  const MAX_CARRY_HOURS = 24;
+  const missingSpots = [];
+  const gotIds = new Set(spotsOut.map((s) => s.id));
+  if (gotIds.size < SPOTS.length) {
+    const previous = await readFile(OUT_PATH, "utf8").then(JSON.parse).catch(() => null);
+    for (const spot of SPOTS) {
+      if (gotIds.has(spot.id)) continue;
+      const old = previous?.spots?.find((s) => s.id === spot.id);
+      const staleFrom = old ? (old.stale_from || previous.generated_at) : null;
+      const ageH = staleFrom ? (startedAt.getTime() - new Date(staleFrom).getTime()) / 3600000 : Infinity;
+      if (old && ageH >= 0 && ageH <= MAX_CARRY_HOURS) {
+        spotsOut.push({ ...old, stale_from: staleFrom, live_check: null });
+        console.log(`[${spot.id}] no forecast this run: carried over the ${staleFrom} hours (${ageH.toFixed(1)}h old).`);
+      } else {
+        missingSpots.push({ id: spot.id, name: spot.name });
+        console.log(`[${spot.id}] no forecast this run and nothing recent to carry over: listed as missing.`);
+      }
+    }
+  }
+  // Back to the order of spots.js (retried and carried spots were appended).
+  const spotOrder = new Map(SPOTS.map((s, i) => [s.id, i]));
+  spotsOut.sort((a, b) => spotOrder.get(a.id) - spotOrder.get(b.id));
+
   const forecast = {
     generated_at: startedAt.toISOString(),
     generated_at_label: startedAt.toLocaleString("en-US", {
@@ -1222,6 +1305,7 @@ async function main() {
     live_verification_count: cappedEntries.length,
     mos_score: await readFile(path.join(__dirname, "..", "data", "mos-score.json"), "utf8").then(JSON.parse).catch(() => null),
     surface_observations: surfaceObservations,
+    missing_spots: missingSpots,
     spots: spotsOut,
   };
 

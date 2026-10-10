@@ -638,7 +638,7 @@ function clearSkyRadiationWm2(latDeg, doy, localHour) {
 // the hour matching "right now" — same live-observation caveat as pamRocksNow.
 // `mosNow`, if provided, is applyMos()'s result for this hour plus its
 // `leadHours` (see the learned correction section at the end of this file).
-export function classifyHour(spot, row, localHour, month, refSpeedKt = null, pressureGradients = null, overrideRecord = null, pamRocksNow = null, marineAnchor = null, liveRefNow = null, mosNow = null) {
+export function classifyHour(spot, row, localHour, month, refSpeedKt = null, pressureGradients = null, overrideRecord = null, pamRocksNow = null, marineAnchor = null, liveRefNow = null, mosNow = null, thermalNow = null) {
   const speedVals = Object.values(row.speeds).filter(v => v != null);
   const cloudVals = Object.values(row.cloud).filter(v => v != null);
   const radiationVals = Object.values(row.radiation || {}).filter(v => v != null);
@@ -655,7 +655,7 @@ export function classifyHour(spot, row, localHour, month, refSpeedKt = null, pre
   const dirPairs = Object.entries(row.dirs)
     .filter(([, v]) => v != null)
     .map(([k, v]) => ({ deg: v, weight: (row.speeds[k] != null ? Math.max(row.speeds[k], 0.5) : 1) * modelWeight(row, k) }));
-  const direction_deg = circularMeanDeg(dirPairs.map(p => p.deg), dirPairs.map(p => p.weight));
+  let direction_deg = circularMeanDeg(dirPairs.map(p => p.deg), dirPairs.map(p => p.weight));
   const cloud_pct = mean(cloudVals);
   const radiation_wm2 = radiationVals.length ? mean(radiationVals) : null;
   const upperSpeedVals = Object.values(row.upperSpeeds || {}).filter(v => v != null);
@@ -773,7 +773,7 @@ export function classifyHour(spot, row, localHour, month, refSpeedKt = null, pre
   const sectorList = (regime === "outflow" && spot.outflow_favorable_deg)
     ? spot.outflow_favorable_deg
     : spot.favorable_deg;
-  const favorable = sectorList ? sectorList.some(s => inSector(direction_deg, s)) : true;
+  let favorable = sectorList ? sectorList.some(s => inSector(direction_deg, s)) : true;
 
   // How much more should the fine-resolution local model (GEM/HRDPS) count
   // relative to the coarse global models, when scoring this specific hour?
@@ -882,6 +882,68 @@ export function classifyHour(spot, row, localHour, month, refSpeedKt = null, pre
         : ` Pam Rocks forecast ~${Math.round(mosNow.speed)}kt, but not from an inflow (south) or outflow (north) direction, so it doesn't reach Porteau well.`;
     } else {
       reason += ` Learned forecast for this spot (a year of ${mosNow.station} readings vs the models): ~${Math.round(est)}kt.`;
+    }
+  }
+
+  // Learned thermal estimate (see applyThermalModel at the end of this file).
+  // Squamish is driven by the land vs water temperature difference and the
+  // pressure gradient along the corridor, so where a spot has
+  // `thermal.learned` the number comes from those drivers (plus sun and the
+  // models' own southerly wind), fitted to two summers of Spit meter
+  // readings, instead of from scaling two coarse models by 2.85. It forecasts
+  // the INFLOW speed, so a real outflow hour is left to the outflow logic
+  // above. Reuses the learned forecast plumbing (mos_used, mos.sigma_kt) so
+  // the odds use its own measured error and rider feedback multipliers,
+  // which were learned against the old scaling, are not applied on top.
+  // Three guards (Oct 3 2026 review), each for a case the fit never saw:
+  //  - season: only thermal.learnedMonths. October stays on: on Oct 3 2026
+  //    the meter read 13 to 15kt S from 2pm to 5pm, the fit said 8.5kt and
+  //    the models 3 to 6kt, so out of season it was low, not high.
+  //  - sun: its daily shape is a summer one, so it kept ~9kt going at 7pm and
+  //    8pm in October, after sunset. Needs the sun meaningfully up for this
+  //    date and hour (clear sky ceiling over LEARNED_MIN_CLEAR_SKY_WM2).
+  //  - a weak estimate while the models blow from outside the inflow sector
+  //    is not an inflow hour: keep the models' own number and direction
+  //    rather than print an inflow speed beside an outflow arrow.
+  const LEARNED_MIN_CLEAR_SKY_WM2 = 50;
+  const learnedMonths = thermalCfg?.learnedMonths || thermalCfg?.months || [];
+  const learnedWeakOffAxis = thermalNow && thermalNow.speed != null && thermalNow.speed < 8 &&
+    direction_deg != null && !inSector(direction_deg, thermalCfg?.dirSector || [0, 360]);
+  if (spot.thermal && spot.thermal.learned && thermalNow && thermalNow.speed != null &&
+      regime !== "outflow" && learnedMonths.includes(month) &&
+      clearSkyWm2 > LEARNED_MIN_CLEAR_SKY_WM2 && !learnedWeakOffAxis) {
+    const est = thermalNow.speed;
+    mosUsed = true;
+    calibrated = false;
+    displaySpeed = est;
+    displayGust = est * calibratedGustMultiplier(direction_deg);
+    displayModels = row.speeds;
+    mosSigma = thermalNow.sigma;
+    mosInfo = {
+      station: thermalNow.station,
+      station_kt: Math.round(est * 10) / 10,
+      variant: `thermal-${thermalNow.variant}`,
+      sigma_kt: Math.round(thermalNow.sigma * 10) / 10,
+      recent_offset_kt: 0,
+      thermal: true,
+      drivers: thermalNow.drivers,
+    };
+    const d = thermalNow.drivers || {};
+    const fmt = (v, digits = 1) => (v == null ? "?" : (v > 0 ? "+" : "") + v.toFixed(digits));
+    const driverNote = ` Learned thermal estimate ~${Math.round(est)}kt (two summers of Spit meter readings): sun ${d.radiation_wm2 != null ? Math.round(d.radiation_wm2) : "?"} W/m², Squamish ${fmt(d.land_minus_water_c)}°C vs the water, Pemberton ${fmt(d.interior_minus_coast_c)}°C vs Vancouver, pressure coast minus interior ${fmt(d.coast_minus_interior_hpa)}hPa, mouth minus Spit ${fmt(d.mouth_minus_spit_hpa)}hPa.`;
+    if (est >= 8) {
+      regime = "thermal";
+      reason = `${thermalCfg.note.split(".")[0]}.${driverNote}`;
+      // The estimate is an inflow speed. When the models' own direction is
+      // still muddled (light northerly while the thermal fills in), show the
+      // inflow direction the number actually refers to.
+      if (direction_deg == null || !inSector(direction_deg, thermalCfg.dirSector)) {
+        direction_deg = thermalCfg.typicalDirDeg ?? 190;
+        favorable = true;
+      }
+    } else {
+      if (regime === "thermal" || est < 5) regime = est < 5 ? "calm" : "mixed";
+      reason = (est < 5 ? "Light: the thermal drivers don't add up to much this hour." : "A weak thermal at best this hour.") + driverNote;
     }
   }
 
@@ -1790,4 +1852,100 @@ export function swellForHours(spot, hours) {
       building: vsWind === "against" && dur >= 4 && spd >= 12,
     };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Learned Squamish thermal (data/squamish-thermal.json, refit by
+// scripts/thermal-train.mjs).
+//
+// Why: the old number was 2.85 x the mean of GFS and ECMWF. Sun, temperature
+// difference and pressure gradient only changed the label and the confidence,
+// so a day the coarse models read near calm stayed near calm however hot and
+// sunny the valley was. Back test, May to September 2025 and 2026 (254 days,
+// 2909 meter hours, leave one month out), hours 11 to 18:
+//   2.85x scaling:  average miss 4.7kt, 2.5kt low, caught 143 of 198 days
+//                   that had 3+ hours of 15kt
+//   hour of day only: 3.9kt (the scaling was worse than climatology)
+//   this model:     2.6kt, no bias, caught 179 of 198; falsely on 17 of 56
+//                   (the scaling: 7 of 56)
+// Its known weakness: it leans toward the seasonal average, so on the 25
+// weakest days (actual 7kt) it said 10kt.
+//
+// Inputs, all from the same model rows the generator already fetches, as the
+// mean of GFS, ECMWF and HRDPS (THERMAL_INPUT_MODELS):
+//   rad      shortwave radiation at the spot (W/m2)
+//   cl       total cloud at the spot (%)
+//   dTls     2m temperature, spot minus the mouth of the sound (land vs water)
+//   dTint    Pemberton minus Vancouver
+//   dTlil    Lillooet minus Vancouver
+//   dPL      MSLP, Vancouver minus Pemberton (large scale check)
+//   dPloc    MSLP, mouth of the sound minus the spot (local channel check)
+//   coarseS  southerly part of the GFS and ECMWF mean wind (toward 190 deg)
+//   gem      HRDPS speed at the spot
+// plus two harmonics of the local hour for the daily shape (build late
+// morning, peak about 2pm, fade toward sunset). Variant B drops the two wind
+// inputs for hours where they are missing.
+// ---------------------------------------------------------------------------
+export const THERMAL_INPUT_MODELS = ["gfs", "ecmwf", "gem"];
+function meanOfKeys(obj, keys) {
+  const v = keys.map(k => obj?.[k]).filter(x => x != null && isFinite(x));
+  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+}
+const diffOrNull = (a, b) => (a != null && b != null ? a - b : null);
+
+// refs: the model rows for the same hour at { mouth, coastal, interior, far }
+// (see PRESSURE_REFERENCE in spots.js).
+export function thermalInputs(row, refs, localHour) {
+  if (!row || !refs) return null;
+  const K = THERMAL_INPUT_MODELS;
+  const t = (r) => meanOfKeys(r?.temp, K), p = (r) => meanOfKeys(r?.pressure, K);
+  const pairs = K.map(k => [row.speeds?.[k], row.dirs?.[k]]).filter(([sp, d]) => sp != null && d != null);
+  const dir = pairs.length ? circularMeanDeg(pairs.map(x => x[1]), pairs.map(x => Math.max(x[0], 0.5))) : null;
+  const coarse = meanOfKeys(row.speeds, ["gfs", "ecmwf"]);
+  return {
+    hour: localHour,
+    rad: meanOfKeys(row.radiation, K),
+    cl: meanOfKeys(row.cloud, K),
+    dTls: diffOrNull(t(row), t(refs.mouth)),
+    dTint: diffOrNull(t(refs.interior), t(refs.coastal)),
+    dTlil: diffOrNull(t(refs.far), t(refs.coastal)),
+    dPL: diffOrNull(p(refs.coastal), p(refs.interior)),
+    dPloc: diffOrNull(p(refs.mouth), p(row)),
+    coarseS: (coarse != null && dir != null) ? coarse * Math.cos((dir - 190) * Math.PI / 180) : null,
+    gem: row.speeds?.gem ?? null,
+  };
+}
+
+export function applyThermalModel(model, x) {
+  if (!model || !x || x.hour == null) return null;
+  const [h0, h1] = model.hours || [9, 20];
+  if (x.hour < h0 || x.hour > h1) return null;
+  const hourTerm = {
+    h1s: Math.sin(2 * Math.PI * x.hour / 24), h1c: Math.cos(2 * Math.PI * x.hour / 24),
+    h2s: Math.sin(4 * Math.PI * x.hour / 24), h2c: Math.cos(4 * Math.PI * x.hour / 24),
+  };
+  for (const v of model.variants || []) {
+    let sum = v.intercept, ok = true;
+    for (let i = 0; i < v.features.length; i++) {
+      const f = v.features[i];
+      let val = f in hourTerm ? hourTerm[f] : x[f];
+      if (val == null || !isFinite(val)) { ok = false; break; }
+      // Stay inside what the two summers of training actually saw (1st to
+      // 99th percentile), so an odd hour can't extrapolate to a silly number.
+      const c = model.clip?.[f];
+      if (c) val = Math.min(c[1], Math.max(c[0], val));
+      sum += v.coef[i] * val;
+    }
+    if (!ok) continue;
+    const speed = Math.min(35, Math.max(0, sum));
+    const sigma = Math.max(1.5, (v.err[0] + v.err[1] * speed) * SQRT_HALF_PI);
+    return {
+      speed, sigma, variant: v.id, station: model.station,
+      drivers: {
+        radiation_wm2: x.rad, land_minus_water_c: x.dTls, interior_minus_coast_c: x.dTint,
+        coast_minus_interior_hpa: x.dPL, mouth_minus_spit_hpa: x.dPloc,
+      },
+    };
+  }
+  return null;
 }

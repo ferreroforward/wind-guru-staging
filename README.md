@@ -211,6 +211,15 @@ overwriting `data/forecast.json` with a partial snapshot — the last good
 snapshot stays live, and the failed Action run itself is a signal (GitHub
 emails the repo owner by default on a failed scheduled workflow).
 
+If only a few spots fail (Oct 3 2026: Jericho dropped out of two snapshots in
+a row and the page showed nothing about it), three things now happen. Network
+errors are retried more times and faster than HTTP errors (each failure was
+one pooled connection the server had already closed). A spot that still fails
+is tried once more after all the others. And if it fails again, its hours are
+carried over from the previous snapshot with a `stale_from` stamp, as long as
+they are under 24 hours old; otherwise it is listed in `missing_spots`. The
+page shows a badge next to "Updated ..." in both cases.
+
 ## App version
 
 The footer shows which commit is actually live and when — e.g. "v3f9a21
@@ -742,6 +751,55 @@ month), typical miss unchanged. The spread factor rarely triggered and was
 neutral. At Sand Heads this September the middle odds ran generous (said
 about 50%, happened about 25%) even after the offset, which neither fix
 changes; worth watching in the nightly score.
+
+## Learned Squamish thermal (Oct 2026)
+
+Squamish is about two differences: land vs water temperature, and the pressure
+gradient along the corridor. Until now neither moved the number. The speed was
+2.85 x the mean of GFS and ECMWF; sun only set the "thermal" label and the
+pressure checks only moved confidence. On Oct 3 2026 the coarse models read
+1.5kt, so the page said 3.5kt on a sunny day.
+
+Now the Squamish Spit number for 9am to 8pm comes from `applyThermalModel`
+(rules.js) with coefficients in `data/squamish-thermal.json`: sun and cloud
+at the spot, Squamish minus the mouth of the sound, Pemberton and Lillooet
+minus Vancouver, the two pressure checks (Vancouver minus Pemberton, mouth
+minus Spit), the southerly part of the coarse model wind, HRDPS, and the hour
+of day. It forecasts the inflow speed, so outflow hours stay with the outflow
+logic. The 2.85x scaling remains as the fallback when the file or the inputs
+are missing (including the page's own "live" refresh, which has no reference
+points).
+
+Back test against the Spit meter, May to September 2025 and 2026 (254 days,
+2909 hours, leave one month out), hours 11 to 18:
+
+| | average miss | bias | days with 3+ hours of 15kt caught (of 198) | other days called on (of 56) |
+|---|---|---|---|---|
+| 2.85x scaling | 4.7kt | 2.5kt low | 143 | 7 |
+| hour of day only | 3.9kt | 0 | | |
+| learned, no model wind (variant B) | 2.9kt | 0 | 171 | 15 |
+| learned (variant A) | 2.6kt | 0 | 179 | 17 |
+
+Known limits: it leans toward the seasonal average (on the 25 weakest days,
+actual 7kt, it said 10kt), the meter only runs mid May to mid September so
+April and October are outside the training range, and the back test used
+short lead model data, not day ahead forecasts. Rider feedback multipliers are
+not applied on top (they were learned against the old scaling).
+
+Guards added Oct 3 2026, after it called 14kt for an October afternoon with
+the models at 1 to 7kt, and 9kt at 7pm and 8pm after sunset: it only runs in
+`thermal.learnedMonths` (May to October), only while the sun is meaningfully
+up for that date and hour (clear sky ceiling over 50 W/m²), and a weak
+estimate (under 8kt) is ignored when the models blow from outside the inflow
+sector. Outside those the models and the old scaling apply, as before the
+learned fit. October was kept on because of Oct 3 2026: the meter read 13 to
+15kt S from 2pm to 5pm and died by 6:45pm; the fit said 8.5kt for the
+afternoon, the models and the scaling 3 to 6kt.
+
+Refit: `node scripts/thermal-train.mjs fit` (needs network; `selftest` checks
+the maths offline). Also fixed here: the Spit meter's `dt` is local time
+written as UTC, so the live check was reading every Spit reading 7 or 8 hours
+old and discarding it.
 
 ## Live stations (Sep 2026)
 

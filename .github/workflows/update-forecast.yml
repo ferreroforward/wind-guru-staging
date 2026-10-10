@@ -33,6 +33,14 @@ on:
 permissions:
   contents: write
 
+# One run at a time (added Sep 28 2026): a new wind report can fire two
+# runs within a second (issue opened, then edited). Both generated a
+# snapshot and the second one's push lost the race on data/forecast.json.
+# Queued runs now wait for the previous one and start from its commit.
+concurrency:
+  group: update-forecast
+  cancel-in-progress: false
+
 jobs:
   update-forecast:
     runs-on: ubuntu-latest

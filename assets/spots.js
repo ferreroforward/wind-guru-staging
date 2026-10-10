@@ -35,6 +35,8 @@ export const PRESSURE_REFERENCE = {
   interior: { name: "Pemberton", lat: 50.3040, lon: -122.7960 },
   coastal: { name: "Vancouver", lat: 49.1967, lon: -123.1815 },
   howeSoundMouth: { name: "Point Atkinson", lat: 49.3300, lon: -123.2650 },
+  // Far interior, for the learned Squamish thermal (Lillooet minus Vancouver temperature).
+  far: { name: "Lillooet", lat: 50.6900, lon: -121.9300 },
 };
 
 export const SPOTS = [
@@ -81,6 +83,16 @@ export const SPOTS = [
     thermal: {
       enabled: true,
       calibrated: true, // apply the local GFS-class-underread correction — see rules.js
+      // Learned from the Spit meter: sun, temperature and pressure differences set
+      // the number (applyThermalModel in rules.js). The 2.85x scaling above stays
+      // as the fallback when the learned inputs are missing.
+      learned: true,
+      // Months the learned fit runs in. Trained on mid May to mid Sep; October
+      // kept on after Oct 3 2026 (observed 13 to 15kt S from 2pm to 5pm, the
+      // fit said 8.5kt, the models and the scaling 3 to 6kt). April has no
+      // such check yet, so it stays on the models and the scaling.
+      learnedMonths: [5,6,7,8,9,10],
+      typicalDirDeg: 190,
       months: [4,5,6,7,8,9,10],
       hourWindow: [10, 19],
       dirSector: [150, 260], // S–SW up-sound

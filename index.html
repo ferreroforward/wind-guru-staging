@@ -314,8 +314,16 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script type="module">
-import { SPOTS } from "./assets/spots.js";
-import { probabilityInRange, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, referenceStationSpeeds, dropModels, buildMosUrl, reshapeMos, applyMos, currentPacificHourString, swellForHours } from "./assets/rules.js";
+// Load the spot list and rules tagged with the deployed version, so a
+// browser holding an older copy (GitHub Pages lets browsers keep files for
+// 10 minutes) picks up a new spot or rule change as soon as it is live,
+// instead of drawing the old spot list next to a newer forecast. Oct 2026,
+// after Cates Park was missing from the map on staging until a hard refresh.
+const ASSET_VERSION = await fetch("data/version.json", { cache: "no-store" })
+  .then(r => (r.ok ? r.json() : null)).then(v => v?.version).catch(() => null)
+  ?? String(Math.floor(Date.now() / 600000));
+const { SPOTS } = await import(`./assets/spots.js?v=${ASSET_VERSION}`);
+const { probabilityInRange, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, referenceStationSpeeds, dropModels, buildMosUrl, reshapeMos, applyMos, currentPacificHourString, swellForHours } = await import(`./assets/rules.js?v=${ASSET_VERSION}`);
 
 let forecast = null; // loaded forecast.json shape
 let selectedDayIndex = 0;
@@ -620,14 +628,14 @@ function renderBestBets() {
   });
 }
 
-const GITHUB_REPO = "ferreroforward/wind-guru-staging"; // STAGING VALUE
+const GITHUB_REPO = "ferreroforward/wind-guru";
 
 // Cloudflare Worker that turns a report-popup submission into a GitHub
 // issue server-side (see worker/README.md for what it does and how to
 // deploy it) — replace YOUR-SUBDOMAIN once it's deployed. Until then the
 // popup's submit button will fail every time and fall back to the GitHub
 // link below, which still works on its own.
-const WORKER_URL = "https://wind-guru-reports-staging.guillermo-ferrero.workers.dev"; // STAGING VALUE
+const WORKER_URL = "https://wind-guru-reports.guillermo-ferrero.workers.dev";
 
 // h is optional — falls back to today's date and an empty time if no
 // specific hour is available.
@@ -768,7 +776,7 @@ function showTip(cellEl, h, spotId) {
   const m = h.mos;
   const mosText = h.mos_used && m ? `<div style="margin-top:4px;opacity:0.9;font-weight:400;">${m.flow !== undefined
       ? `Pam Rocks forecast ${Math.round(m.station_kt)}kt${m.flow ? ` (${m.flow}, Porteau needs ${m.flow === "inflow" ? "14kt+" : "25 to 30kt+"})` : ", not an inflow or outflow"}`
-      : `Learned from a year of ${m.station} readings`}, typically within ±${Math.round(m.sigma_kt * 0.8)}kt${m.recent_offset_kt ? ` (includes ${m.recent_offset_kt > 0 ? "+" : ""}${m.recent_offset_kt}kt from the last week's misses)` : ""}</div>` : "";
+      : m.thermal ? `Learned from two summers of Spit meter readings (sun, temperature and pressure differences)` : `Learned from a year of ${m.station} readings`}, typically within ±${Math.round(m.sigma_kt * 0.8)}kt${m.recent_offset_kt ? ` (includes ${m.recent_offset_kt > 0 ? "+" : ""}${m.recent_offset_kt}kt from the last week's misses)` : ""}</div>` : "";
   const ec = h.marine_ec && h.marine_ec.gap_kt >= 4 && !h.live_reference_triggered ? h.marine_ec : null;
   const ecText = ec ? `<div style="margin-top:4px;opacity:0.9;font-weight:400;">📻 Environment Canada: ${ec.direction_label} ${ec.lo_kt}${ec.hi_kt !== ec.lo_kt ? ` to ${ec.hi_kt}` : ""}kt, stronger than the models here</div>` : "";
   const sw = h.swell;
@@ -1034,7 +1042,21 @@ function renderFreshnessBadge() {
   // Yellow + "partial" is the honest version of the same "just fetched" idea.
   const cls = isLive ? "stale" : ageMs > VERY_STALE_AFTER_MS ? "very-stale" : ageMs > STALE_AFTER_MS ? "stale" : "fresh";
   const statusText = isLive ? "Live (partial) — just fetched" : `Updated ${formatRelative(ageMs)}`;
-  genLabel.innerHTML = `<span class="update-badge ${cls}" title="${forecast.generated_at_label}"><span class="dot"></span>${statusText}</span>`;
+  // Spots the last run could not fetch (see MAX_CARRY_HOURS in generate.mjs):
+  // either shown with the previous run's hours (stale_from) or missing
+  // outright. Said plainly here so a spot never just vanishes or quietly
+  // shows old numbers.
+  const shortName = (n) => String(n).split(/ [-(]/)[0];
+  const notes = [];
+  for (const s of forecast.spots || []) {
+    if (!s.stale_from) continue;
+    const age = Date.now() - new Date(s.stale_from).getTime();
+    notes.push(`<span class="update-badge ${age > STALE_AFTER_MS ? "very-stale" : "stale"}" title="The last update could not fetch this spot, so its hours are from the earlier run."><span class="dot"></span>${shortName(s.name)}: older forecast, from ${formatRelative(age)}</span>`);
+  }
+  for (const m of forecast.missing_spots || []) {
+    notes.push(`<span class="update-badge very-stale" title="The last update could not fetch this spot and had nothing recent to show instead."><span class="dot"></span>${shortName(m.name)}: no forecast this update</span>`);
+  }
+  genLabel.innerHTML = `<span class="update-badge ${cls}" title="${forecast.generated_at_label}"><span class="dot"></span>${statusText}</span>${notes.length ? " " + notes.join(" ") : ""}`;
   genLabel.title = forecast.generated_at_label;
 }
 
