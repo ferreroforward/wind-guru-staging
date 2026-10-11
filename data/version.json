@@ -1,5 +1,5 @@
 {
-  "version": "677bdef",
-  "message": "Fix invalid workflow expression syntax breaking every run since it landed",
-  "deployed_at": "2026-09-20T20:39:59Z"
+  "version": "644e3b5",
+  "message": "Update forecast snapshot [skip ci]",
+  "deployed_at": "2026-10-11T18:09:22Z"
 }
