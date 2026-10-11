@@ -866,7 +866,7 @@ export function classifyHour(spot, row, localHour, month, refSpeedKt = null, pre
     displaySpeed = est;
     displayGust = est * gustRatio;
     displayModels = row.speeds;
-    mosSigma = mosNow.sigma * mosLeadFactor(mosNow.leadHours);
+    mosSigma = mosNow.sigma * mosLeadFactor(mosNow.leadHours) * (ruleInfo?.sigmaScale ?? 1);
     mosInfo = {
       station: mosNow.station,
       station_kt: Math.round(mosNow.speed * 10) / 10,
@@ -884,7 +884,7 @@ export function classifyHour(spot, row, localHour, month, refSpeedKt = null, pre
     }
     if (ruleInfo) {
       reason += ruleInfo.flow
-        ? ` Pam Rocks forecast ~${Math.round(mosNow.speed)}kt (${ruleInfo.flow}). Porteau works in an ${ruleInfo.flow} once Pam Rocks reads ${ruleInfo.flow === "inflow" ? "14kt+" : "25 to 30kt+"}${ruleInfo.works ? ", which this clears" : ", which this doesn't reach"}.`
+        ? ` Pam Rocks forecast ~${Math.round(mosNow.speed)}kt (${ruleInfo.flow}). Porteau works in an ${ruleInfo.flow} once Pam Rocks reads ${ruleInfo.thresholdKt}kt+${ruleInfo.works ? ", which this clears" : ", which this doesn't reach"}.`
         : ` Pam Rocks forecast ~${Math.round(mosNow.speed)}kt, but not from an inflow (south) or outflow (north) direction, so it doesn't reach Porteau well.`;
     } else {
       reason += ` Learned forecast for this spot (a year of ${mosNow.station} readings vs the models): ~${Math.round(est)}kt.`;
@@ -1748,8 +1748,9 @@ export function applyMos(point, input) {
 // reading [at Pam Rocks] for Porteau to work, on an outflow you need a
 // minimum of 25 to 30 knots". The Pam Rocks forecast is turned into a
 // Porteau estimate by shifting it so the rule's threshold lands on 12kt, the
-// app's usual "it's working" floor: 14kt inflow -> 12, 25kt outflow -> 12,
-// 30kt outflow -> 17. So P(Porteau >= 12) is exactly P(Pam Rocks clears the
+// app's usual "it's working" floor: 14kt inflow -> 12. The outflow uses a
+// curve instead (Oct 11 2026, see spots.js): 22kt -> 12, 26 -> 22, 30 -> 27.
+// So P(Porteau >= 12) is exactly P(Pam Rocks clears the
 // rule). Directions outside both sectors don't reach Porteau well.
 export function pamRocksRuleEstimate(rule, pamKt, pamDirDeg, fromModels = false) {
   if (pamKt == null) return null;
@@ -1759,12 +1760,38 @@ export function pamRocksRuleEstimate(rule, pamKt, pamDirDeg, fromModels = false)
   ];
   const hit = pamDirDeg != null ? flows.find(f => inSector(pamDirDeg, (fromModels && f.modelDirSector) || f.dirSector)) : null;
   const target = rule.worksAtKt ?? 12;
-  if (!hit) return { flow: null, thresholdKt: null, works: false, estimateKt: Math.max(0, pamKt * 0.5) };
+  if (!hit) return { flow: null, thresholdKt: null, works: false, estimateKt: Math.max(0, pamKt * 0.5), sigmaScale: 1 };
+  // A flow may carry a `curve` ([Pam Rocks kt, Porteau kt] points, straight
+  // lines between, 1:1 above the last point) instead of the flat shift: the
+  // outflow reaches Porteau at close to the Pam Rocks speed once it is
+  // established (Oct 11 2026, see spots.js). The curve must pass through
+  // [thresholdKt, worksAtKt] so the odds keep their meaning.
+  let estimateKt;
+  if (Array.isArray(hit.curve) && hit.curve.length >= 2) {
+    const c = hit.curve, last = c[c.length - 1];
+    if (pamKt <= c[0][0]) estimateKt = c[0][1] * (c[0][0] > 0 ? pamKt / c[0][0] : 1);
+    else if (pamKt >= last[0]) estimateKt = last[1] + (pamKt - last[0]);
+    else {
+      const i = c.findIndex(pt => pt[0] >= pamKt);
+      const [x0, y0] = c[i - 1], [x1, y1] = c[i];
+      estimateKt = y0 + (y1 - y0) * (pamKt - x0) / (x1 - x0);
+    }
+  } else {
+    estimateKt = pamKt - (hit.thresholdKt - target);
+  }
+  estimateKt = Math.max(0, estimateKt);
+  // How much the estimate moves per knot at Pam Rocks, measured from the
+  // threshold. The forecast's error band is in Pam Rocks knots, so it is
+  // stretched by this to stay honest on the steeper curve: P(estimate >=
+  // worksAtKt) is then exactly P(Pam Rocks >= threshold), as before.
+  const dx = pamKt - hit.thresholdKt;
+  const sigmaScale = Math.abs(dx) >= 0.5 ? Math.min(3, Math.max(0.5, (estimateKt - target) / dx)) : 1;
   return {
     flow: hit.flow,
     thresholdKt: hit.thresholdKt,
     works: pamKt >= hit.thresholdKt,
-    estimateKt: Math.max(0, pamKt - (hit.thresholdKt - target)),
+    estimateKt,
+    sigmaScale,
   };
 }
 
@@ -1810,11 +1837,21 @@ function fetchForDirection(spot, dirFromDeg) {
 }
 
 const SWELL_MIN_KT = 10;
+// Wind that builds the waves. Normally the spot's own number; where a spot
+// sets swell.useStationWind and the hour carries a learned station forecast
+// that is a real inflow or outflow (Porteau and Pam Rocks), the station's
+// open water wind if that is stronger. Not once the spot itself is under
+// 8kt, so a calm cove is never shown with waves.
+function swellWind(spot, h) {
+  const st = spot.swell?.useStationWind && h.mos_used && h.mos?.flow ? h.mos.station_kt : null;
+  if (st == null || h.speed_kt == null || h.speed_kt < 8) return h.speed_kt;
+  return Math.max(h.speed_kt, st);
+}
 export function swellForHours(spot, hours) {
   if (!spot.currents || !Array.isArray(hours)) return;
   for (let i = 0; i < hours.length; i++) {
     const h = hours[i];
-    const spd = h.speed_kt, dir = h.direction_deg;
+    const spd = swellWind(spot, h), dir = h.direction_deg;
     if (spd == null || dir == null || spd < 8) {
       h.swell = { label: "flat", hs_m: 0, hs_ft: 0, period_s: null, duration_h: 0 };
       continue;
@@ -1823,7 +1860,8 @@ export function swellForHours(spot, hours) {
     let dur = 1;
     for (let j = i - 1; j >= 0; j--) {
       const p = hours[j];
-      if (p.speed_kt == null || p.speed_kt < SWELL_MIN_KT || p.direction_deg == null || angularDiff(p.direction_deg, dir) > 45) break;
+      const pSpd = swellWind(spot, p);
+      if (pSpd == null || pSpd < SWELL_MIN_KT || p.direction_deg == null || angularDiff(p.direction_deg, dir) > 45) break;
       dur++;
     }
     const fetchKm = fetchForDirection(spot, dir);

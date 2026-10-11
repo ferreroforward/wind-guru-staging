@@ -843,7 +843,7 @@ function showTip(cellEl, h, spotId) {
   const agreeText = h.models_agree ? `<div style="margin-top:4px;opacity:0.9;font-weight:400;">✓ ${h.model_count ?? ""} models agree within 15%: higher confidence</div>` : "";
   const m = h.mos;
   const mosText = h.mos_used && m ? `<div style="margin-top:4px;opacity:0.9;font-weight:400;">${m.flow !== undefined
-      ? `Pam Rocks forecast ${Math.round(m.station_kt)}kt${m.flow ? ` (${m.flow}, Porteau needs ${m.flow === "inflow" ? "14kt+" : "25 to 30kt+"})` : ", not an inflow or outflow"}`
+      ? `Pam Rocks forecast ${Math.round(m.station_kt)}kt${m.flow ? ` (${m.flow}, Porteau needs ${m.threshold_kt ?? (m.flow === "inflow" ? 14 : 22)}kt+)` : ", not an inflow or outflow"}`
       : m.thermal ? `Learned from two summers of Spit meter readings (sun, temperature and pressure differences)` : `Learned from a year of ${m.station} readings`}, typically within ±${Math.round(m.sigma_kt * 0.8)}kt${m.recent_offset_kt ? ` (includes ${m.recent_offset_kt > 0 ? "+" : ""}${m.recent_offset_kt}kt from the last week's misses)` : ""}</div>` : "";
   const ec = h.marine_ec && h.marine_ec.gap_kt >= 4 && !h.live_reference_triggered ? h.marine_ec : null;
   const ecText = ec ? `<div style="margin-top:4px;opacity:0.9;font-weight:400;">📻 Environment Canada: ${ec.direction_label} ${ec.lo_kt}${ec.hi_kt !== ec.lo_kt ? ` to ${ec.hi_kt}` : ""}kt, stronger than the models here</div>` : "";

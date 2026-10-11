@@ -121,7 +121,10 @@ export const SPOTS = [
     // fetchKm: rough open water distance upwind, by the direction the wind
     // comes from (map estimates, to be tuned from rider wave reports).
     currents: { flood: 0, ebb: 180 },
-    swell: { fetchKm: [[[135, 260], 20], [[300, 40], 15]], defaultFetchKm: 6 },
+    // useStationWind: the waves are built by the wind over the open Sound,
+    // which the learned Pam Rocks forecast measures directly, so swell uses
+    // that (when it is an inflow or outflow) rather than the cove estimate.
+    swell: { fetchKm: [[[135, 260], 20], [[300, 40], 15]], defaultFetchKm: 6, useStationWind: true },
     // Tide: Darrell Bay (nearest DFO station, 13km up Howe Sound). Rule: always the nearest DFO station,
     // except Steveston (Tsawwassen, see garry-point).
     tideStation: { code: "07808", id: "5cebf1e43d0f4a073c4bc40e", name: "Darrell Bay" },
@@ -136,7 +139,7 @@ export const SPOTS = [
     pamRocksAware: true, // SW-inflow-projection thermal nowcast on the current hour — see rules.js
     // Guillermo's rule (Sep 2026): "in an inflow you need at least 14 knots
     // reading [at Pam Rocks] for Porteau to work, on an outflow you need a
-    // minimum of 25 to 30 knots". Used both for the live Pam Rocks reading
+    // minimum of 25 to 30 knots" (outflow lowered to 22, see below). Used both for the live Pam Rocks reading
     // (current hour) and, through the learned Pam Rocks forecast below, for
     // every forecast hour. Sectors from a year of Pam Rocks readings at 14kt+:
     // inflows come from 130 to 230 degrees, outflows from 320 to 50.
@@ -145,7 +148,17 @@ export const SPOTS = [
       // at Pam Rocks (a little wider; 87% of real outflow hours and 96% of
       // real inflow hours fall inside), used for forecast hours.
       inflow: { dirSector: [130, 230], modelDirSector: [125, 245], thresholdKt: 14 },
-      outflow: { dirSector: [320, 50], modelDirSector: [295, 65], thresholdKt: 25 },
+      // Outflow retuned Oct 11 2026 after a strong outflow morning: Pam Rocks
+      // read N 25 to 30kt at 6 to 9am and 22 gusting 28 at 10am, riders at
+      // Porteau were on 4m gear with great swell at 9:43am, while the old
+      // rule (threshold 25, estimate = Pam Rocks minus 13) showed 7 to 14kt
+      // and switched "works" off at 8am on a 24.6kt forecast. So: works from
+      // 22kt, and `curve` ([Pam Rocks kt, Porteau kt] points, straight lines
+      // between, 1:1 above the last) climbs quickly to near the Pam Rocks
+      // reading once the outflow is established, instead of a flat minus 13.
+      // The threshold still lands on worksAtKt, so the 12kt odds are still
+      // the odds that Pam Rocks clears the rule.
+      outflow: { dirSector: [320, 50], modelDirSector: [295, 65], thresholdKt: 22, curve: [[14, 0], [22, 12], [26, 22], [30, 27]] },
       worksAtKt: 12,
     },
     // Learned correction (rules.js applyMos, data/mos-coefficients.json):

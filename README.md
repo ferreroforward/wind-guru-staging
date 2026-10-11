@@ -721,10 +721,15 @@ already bias corrected against a year of data).
 
 **Porteau:** the blend forecasts Pam Rocks and Guillermo's rule turns it into
 Porteau: an inflow (Pam Rocks from 130 to 230 degrees) needs 14kt+, an
-outflow (320 to 50 degrees) needs 25 to 30kt+. The estimate is shifted so
-the rule's threshold lands on 12kt (14 inflow = 12, 25 outflow = 12, 30
-outflow = 17), so the 12kt+ odds are exactly the odds Pam Rocks clears the
-rule. The same rule is applied to the live Pam Rocks reading for the
+outflow (320 to 50 degrees) needs 22kt+ (lowered from 25 on Oct 11 2026:
+Pam Rocks at 22 to 25 was a 4m day with great swell at Porteau). The inflow
+estimate is shifted so the threshold lands on 12kt (14 inflow = 12). The
+outflow estimate follows a curve (`pamRocksRule.outflow.curve`: 22 = 12,
+26 = 22, 30 = 27, then 1:1), because an established outflow reaches Porteau
+at close to the Pam Rocks speed; the error band is stretched to match, so
+the 12kt+ odds are still exactly the odds Pam Rocks clears the rule.
+Porteau's swell is computed from the Pam Rocks forecast wind
+(`swell.useStationWind`). The same rule is applied to the live Pam Rocks reading for the
 current hour. Forecast directions use slightly wider sectors (125 to 245,
 295 to 65) because that's how the models' own direction sees those flows.
 
