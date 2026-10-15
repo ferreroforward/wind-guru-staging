@@ -866,6 +866,14 @@ flagged before), and `sides.sectors` in spots.js drives a card line and a
 popup line that say which side works each hour and whether the north side
 has its tide.
 
+## Show all spots
+
+"All spots, hour by hour" normally lists only spots with a 40%+ shot at the
+chosen range (plus any possible epic day). A "Show all spots" toggle next
+to the heading (rider request, Oct 2026) lists every spot's hours, and a
+note says how many are hidden when it is off. The choice is remembered in
+the browser.
+
 ## Visitor stats
 
 Cloudflare Web Analytics (free, no cookies, no tracking of individuals) is

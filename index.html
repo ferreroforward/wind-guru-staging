@@ -50,6 +50,11 @@
   .leaflet-popup-tip{background:var(--panel);}
 
   h2.section{font-size:1.1rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin:30px 0 12px;}
+  .cards-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .show-all{display:inline-flex;align-items:center;gap:8px;font-size:0.92rem;font-weight:600;color:var(--text);cursor:pointer;padding:6px 12px;border:1px solid var(--border);border-radius:20px;background:var(--panel);}
+  .show-all input{width:18px;height:18px;margin:0;accent-color:var(--accent);cursor:pointer;}
+  .cards-note{font-size:0.85rem;color:var(--muted);margin:-4px 0 10px;}
+  .cards-note a{color:var(--accent);cursor:pointer;}
 
   .windiest-card{background:linear-gradient(135deg,#eaf3ff,#f4f6fb);border:1.5px solid var(--accent);box-shadow:var(--shadow);border-radius:14px;padding:16px 20px;margin:16px 0;}
   .windiest-eyebrow{font-size:0.78rem;font-weight:700;letter-spacing:0.05em;color:var(--accent);text-transform:uppercase;margin-bottom:6px;}
@@ -267,7 +272,13 @@
   <h2 class="section" id="bestBetsHeading">Best bets for your range, today's window</h2>
   <div class="best-bets" id="bestBets"><div class="empty">Loading…</div></div>
 
-  <h2 class="section">All spots — hour by hour</h2>
+  <div class="cards-head">
+    <h2 class="section">All spots — hour by hour</h2>
+    <!-- Rider request (Oct 2026): see every spot's hours, not only the ones
+         with a decent shot at the chosen range. Remembered per browser. -->
+    <label class="show-all"><input type="checkbox" id="showAllSpots"> Show all spots</label>
+  </div>
+  <div class="cards-note" id="cardsNote"></div>
   <div id="spotCards"><div class="empty">Loading…</div></div>
   <div id="globalTip"></div>
 
@@ -988,18 +999,38 @@ function outflowLineForDay(hours) {
   return `<div class="tide-line outflow-line">⬇️ <b>Outflow, not inflow</b> ${from === to ? `at ${from}` : `${from} to ${to}`} (${dirs}, up to ${peak}kt): north wind draining down the Sound. Riders don't launch here on an outflow; only worth it by boat.</div>`;
 }
 
+// "Show all spots" toggle: off shows only spots with a decent shot at the
+// chosen range (the original behaviour), on shows every spot's hours.
+let showAllSpots = false;
+try { showAllSpots = localStorage.getItem("windGuruShowAll") === "1"; } catch {}
+function setShowAll(on) {
+  showAllSpots = on;
+  try { localStorage.setItem("windGuruShowAll", on ? "1" : "0"); } catch {}
+  document.getElementById("showAllSpots").checked = on;
+  renderSpotCards();
+}
+document.getElementById("showAllSpots").checked = showAllSpots;
+document.getElementById("showAllSpots").addEventListener("change", e => setShowAll(e.target.checked));
+
 function renderSpotCards() {
   spotCardsEl.innerHTML = "";
+  const noteEl = document.getElementById("cardsNote");
   const goodIds = new Set(rankedSpotsForDay().filter(r => r.probability >= MIN_LIST_PROBABILITY).map(r => r.spot.id));
   // A spot with a possible epic window always gets its card, whatever range
   // is selected.
   for (const sd of forecast.spots) if (epicWindowsForDay(sd).length) goodIds.add(sd.id);
-  if (!goodIds.size) {
-    spotCardsEl.innerHTML = `<div class="empty">Nothing hit ${MIN_LIST_PROBABILITY}%+ for this range today — try a wider range or another day. (Every spot is still on the map above.)</div>`;
+  const withData = SPOTS.filter(sp => forecast.spots.some(s => s.id === sp.id));
+  const hidden = withData.filter(sp => !goodIds.has(sp.id)).length;
+  noteEl.innerHTML = showAllSpots
+    ? `Showing all ${withData.length} spots, including those under ${MIN_LIST_PROBABILITY}% for your range.`
+    : hidden ? `${hidden} spot${hidden === 1 ? "" : "s"} under ${MIN_LIST_PROBABILITY}% for your range ${hidden === 1 ? "is" : "are"} hidden. <a id="cardsShowAll">Show all spots</a>` : "";
+  document.getElementById("cardsShowAll")?.addEventListener("click", () => setShowAll(true));
+  if (!goodIds.size && !showAllSpots) {
+    spotCardsEl.innerHTML = `<div class="empty">Nothing hit ${MIN_LIST_PROBABILITY}%+ for this range today — try a wider range, another day, or turn on Show all spots.</div>`;
     return;
   }
   SPOTS.forEach(sp => {
-    if (!goodIds.has(sp.id)) return; // below MIN_LIST_PROBABILITY — map only, not the list (see renderMap)
+    if (!showAllSpots && !goodIds.has(sp.id)) return; // below MIN_LIST_PROBABILITY — hidden unless Show all spots is on
     const spot = forecast.spots.find(s => s.id === sp.id);
     if (!spot) return;
     const hours = hoursForSelectedDay(spot);
