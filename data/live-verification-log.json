@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-11T18:05:33.321Z",
+  "updated_at": "2026-10-15T17:35:25.592Z",
   "entries": [
     {
       "spot": "boundary-bay",
@@ -378,6 +378,19 @@
       "station": "White Rock, BC",
       "reasoning": "Forecast showed calm/mixed and live wind came in lighter still — models were on the right track, just a bit high.",
       "checked_at": "2026-08-15T03:05:00.396Z"
+    },
+    {
+      "spot": "porteau-cove",
+      "time": "2026-10-15T10:00",
+      "forecasted": 12,
+      "actual": 22,
+      "ratio": 1.8333333333333333,
+      "source": "live-station",
+      "station": "Pam Rocks (Howe Sound entrance)",
+      "regime": "synoptic",
+      "mismatch": true,
+      "reasoning": "Synoptic regime, but the magnitude missed — model agreement was 70%, so spread between models likely explains some of the gap.",
+      "checked_at": "2026-10-15T17:35:25.592Z"
     },
     {
       "spot": "porteau-cove",
@@ -885,19 +898,6 @@
       "mismatch": true,
       "reasoning": "Synoptic regime, but the magnitude missed — model agreement was 69%, so spread between models likely explains some of the gap. This hour already had a rider-feedback adjustment applied.",
       "checked_at": "2026-09-04T00:21:07.541Z"
-    },
-    {
-      "spot": "porteau-cove",
-      "time": "2026-09-02T17:00",
-      "forecasted": 9.8,
-      "actual": 1.9,
-      "ratio": 0.19387755102040813,
-      "source": "live-station",
-      "station": "Pam Rocks (Howe Sound entrance)",
-      "regime": "thermal",
-      "mismatch": true,
-      "reasoning": "Forecast called a thermal that came in weaker than shown — possible early suppression (heat, high cloud) or the gradient not fully developing. MSLP had already flagged this hour as uncertain. This hour already had the Squamish field calibration applied. This hour already had a rider-feedback adjustment applied.",
-      "checked_at": "2026-09-03T00:23:22.273Z"
     },
     {
       "spot": "white-rock-east",
