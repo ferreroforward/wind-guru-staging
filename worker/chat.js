@@ -27,7 +27,12 @@ const DEFAULTS = {
   DAILY_GLOBAL_LIMIT: 300,  // all visitors together, per day
   ALLOWED_ORIGIN: "https://ferreroforward.github.io",
 };
-const MAX_TOKENS = 700;
+// Sonnet 5.5 thinks before answering by default, and that thinking counts
+// against max_tokens (billed as output). 700 cut the first live answer off
+// mid sentence (Oct 20). Medium effort is the documented starting point for
+// chat; 4000 leaves room for thinking plus a short answer.
+const MAX_TOKENS = 4000;
+const EFFORT = "medium";
 
 // USD per million tokens (platform.claude.com pricing, Oct 2026).
 const PRICES = {
@@ -266,6 +271,7 @@ export default {
     const req = {
       model,
       max_tokens: MAX_TOKENS,
+      output_config: { effort: EFFORT },
       system: [
         { type: "text", text: `${RULES}\n\n# Knowledge\n\n${knowledge}`, cache_control: { type: "ephemeral", ttl: "1h" } },
         { type: "text", text: `# Forecast snapshot\n\n${live.text}`, cache_control: { type: "ephemeral", ttl: "1h" } },
@@ -295,7 +301,12 @@ export default {
       return json({ error: budget ? "Wind Guru AI has used up this month's budget and is back on the 1st. The forecast on the page is still fully up to date." : "Wind Guru AI couldn't answer just now. Please try again in a minute.", code: budget ? "budget" : "upstream" }, 502, env);
     }
 
-    const answer = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+    let answer = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+    // If it still ran out of room, end at the last full sentence instead of mid word.
+    if (data.stop_reason === "max_tokens" && answer) {
+      const cut = Math.max(answer.lastIndexOf(". "), answer.lastIndexOf(".\n"), answer.lastIndexOf("\n"));
+      if (cut > 40) answer = answer.slice(0, cut + 1).trim();
+    }
     const usd = costUsd(model, data.usage || {});
     month.usd = Math.round((month.usd + usd) * 1e6) / 1e6;
     month.n = (month.n || 0) + 1;
