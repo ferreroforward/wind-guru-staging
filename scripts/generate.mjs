@@ -8,6 +8,7 @@ import { writeFile, mkdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
+import { buildGuruLive } from "./guru-live.mjs";
 import { SPOTS, PRESSURE_REFERENCE, degToLabel, DEG_LABELS, WEBCAMS } from "../assets/spots.js";
 import { MODELS, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, rowsToPressureMap, rowsToSpeedMap, currentPacificHourString, explainMismatch, parseMarineWindText, marineAnchorForHour, parseEcIssued, dropModels, tideForHour, flagEpicHours, buildMosUrl, reshapeMos, applyMos, swellForHours, thermalInputs, applyThermalModel } from "../assets/rules.js";
 
@@ -1347,6 +1348,11 @@ async function main() {
   await mkdir(path.dirname(OUT_PATH), { recursive: true });
   await writeFile(OUT_PATH, JSON.stringify(forecast, null, 2));
   console.log(`\nWrote ${OUT_PATH}`);
+
+  // Small snapshot for Wind Guru AI (worker/chat.js); see scripts/guru-live.mjs.
+  const guruPath = path.join(__dirname, "..", "data", "guru-live.json");
+  await writeFile(guruPath, JSON.stringify(buildGuruLive(forecast, SPOTS)));
+  console.log(`Wrote ${guruPath}`);
 }
 
 main().catch((err) => {
