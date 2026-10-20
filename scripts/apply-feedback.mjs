@@ -86,6 +86,19 @@ const RATIO_SANITY_RANGE = [0.05, 20];
 const ACCURACY_TOLERANCE_KT = 3;
 const MIN_SAMPLES_FOR_ACCURACY = 10;
 
+// Wind direction in rider reports (Oct 2026). A report's direction counts
+// as matching the forecast when the two are within 45 degrees (two compass
+// points). Tracked per spot so direction sensitive spots (Tsawwassen,
+// Crescent Beach, Jericho, Squamish) can show how often the direction call
+// was right. It does not move the speed multipliers.
+const COMPASS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+const DIRECTION_MATCH_DEG = 45;
+function compassDeg(label) {
+  const i = COMPASS.indexOf(String(label || "").trim().toUpperCase());
+  return i < 0 ? null : i * 22.5;
+}
+function angleGap(a, b) { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; }
+
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -207,6 +220,7 @@ async function main() {
   // numerous automated live-station checks and is bucketed per spot (see
   // ACCURACY_TOLERANCE_KT above for why this needs its own pool).
   const accuracyPoints = [];
+  const directionPoints = {}; // spot -> [{ match }]
   for (const issue of issues) {
     const body = issue.body || "";
     const spot = extractField(body, "Spot");
@@ -218,6 +232,11 @@ async function main() {
     // reported gusts is on hand once that's worth tackling.
     const gustRaw = extractField(body, "Actual gust (kt)");
     const gust = gustRaw != null ? parseFloat(gustRaw) : null;
+    const actualDeg = compassDeg(extractField(body, "Actual direction (optional)"));
+    const forecastDeg = compassDeg(extractField(body, "Forecasted direction (optional)"));
+    if (spot && actualDeg != null && forecastDeg != null && onOrAfter(issue.created_at, SPOT_SINCE[spot])) {
+      (directionPoints[spot] ||= []).push({ match: angleGap(actualDeg, forecastDeg) <= DIRECTION_MATCH_DEG });
+    }
     if (!spot || !isFinite(forecasted) || !isFinite(actual) || forecasted <= 0) {
       console.log(`  Skipping issue #${issue.number} — couldn't parse spot/forecasted/actual.`);
       continue;
@@ -288,11 +307,20 @@ async function main() {
     console.log(`\nAccuracy badge: ${accuracyPoints.length}/${MIN_SAMPLES_FOR_ACCURACY} rider reports so far — not shown yet.`);
   }
 
+  // Direction call accuracy from rider reports that carry both directions.
+  const direction = { match_deg: DIRECTION_MATCH_DEG, spots: {} };
+  for (const [spot, pts] of Object.entries(directionPoints)) {
+    const matched = pts.filter(p => p.match).length;
+    direction.spots[spot] = { reports: pts.length, matched, hit_rate: Math.round((matched / pts.length) * 100) / 100 };
+    console.log(`  ${spot} [direction]: ${matched} of ${pts.length} rider reports within ${DIRECTION_MATCH_DEG} degrees of the forecast direction.`);
+  }
+
   const out = {
     generated_at: new Date().toISOString(),
     min_samples: MIN_SAMPLES,
     spots: overrides,
     accuracy,
+    direction,
   };
 
   await mkdir(path.dirname(OUT_PATH), { recursive: true });

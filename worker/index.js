@@ -56,7 +56,7 @@ export default {
       return jsonResponse({ error: "Invalid JSON" }, 400, env);
     }
 
-    const { spot, date, time, forecast_speed, actual_speed, actual_gust, wave_size } = data || {};
+    const { spot, date, time, forecast_speed, actual_speed, actual_gust, wave_size, wind_dir, forecast_dir } = data || {};
 
     // --- Validation. Every field here is untrusted, public-internet input
     // — this is the one place standing between an anonymous POST and a
@@ -82,6 +82,14 @@ export default {
     if (wave_size != null && wave_size !== "" && !WAVE_SIZES.includes(wave_size)) {
       return jsonResponse({ error: "Unknown wave_size" }, 400, env);
     }
+    // Optional wind direction (added Oct 2026): where the rider says it blew
+    // from, and the forecast's direction for that hour, both one of the 16
+    // compass points.
+    const DIRECTIONS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+    if (wind_dir != null && wind_dir !== "" && !DIRECTIONS.includes(wind_dir)) {
+      return jsonResponse({ error: "Unknown wind_dir" }, 400, env);
+    }
+    const forecastDir = DIRECTIONS.includes(forecast_dir) ? forecast_dir : null;
     // Loose sanity window (30 days back, 1 day forward) so this can't be
     // used to backdate/postdate junk far outside anything the calibration
     // pipeline (scripts/apply-feedback.mjs) would treat as a real report.
@@ -109,6 +117,8 @@ export default {
       "### Actual speed (kt)", "", String(actual_speed), "",
       "### Actual gust (kt)", "", actual_gust != null ? String(actual_gust) : "_No response_", "",
       "### Waves", "", wave_size ? wave_size : "_No response_", "",
+      "### Actual direction (optional)", "", wind_dir ? wind_dir : "_No response_", "",
+      "### Forecasted direction (optional)", "", forecastDir ? forecastDir : "_No response_", "",
       "### Notes — any idea why it differed?", "", "Submitted via the in-page report popup.", "",
     ].join("\n");
 

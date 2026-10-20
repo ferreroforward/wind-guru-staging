@@ -76,6 +76,18 @@ async function loadOverrides() {
   }
 }
 
+// The sitewide rider report numbers (accuracy within N knots, direction hit
+// rate per spot) live next to "spots" in the same file. loadOverrides only
+// returns the per spot multipliers, so these were never reaching the page.
+async function loadRiderFeedbackSummary() {
+  try {
+    const parsed = JSON.parse(await readFile(OVERRIDES_PATH, "utf8"));
+    return { accuracy: parsed.accuracy ?? null, direction: parsed.direction ?? null };
+  } catch {
+    return null;
+  }
+}
+
 // Rider-feedback overrides file may or may not exist yet on a fresh clone —
 // harmless if missing, same as loadOverrides above.
 async function loadLiveLog() {
@@ -1322,6 +1334,7 @@ async function main() {
     models_used: MODELS.map(m => m.label),
     marine_bulletins: bulletins,
     calibration_overrides: overrides,
+    rider_feedback: await loadRiderFeedbackSummary(),
     daily_takes: dailyTakes,
     live_verification_count: cappedEntries.length,
     mos_score: await readFile(path.join(__dirname, "..", "data", "mos-score.json"), "utf8").then(JSON.parse).catch(() => null),

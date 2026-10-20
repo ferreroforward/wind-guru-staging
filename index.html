@@ -100,6 +100,18 @@
   .outflow-line{color:var(--red);}
   .caution-line{background:#fde8e8;border:1px solid #f5b5b5;color:#9b1c1c;border-radius:8px;padding:6px 10px;font-size:0.86rem;font-weight:600;margin:0 0 10px;}
   .outflow-tag{font-size:0.65rem;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:0.02em;}
+  .track-line{font-size:0.82rem;color:var(--muted);margin:0 0 10px;line-height:1.45;}
+  .track-line a{color:var(--accent);font-weight:600;cursor:pointer;}
+  .trust{display:inline-block;font-size:0.75rem;font-weight:700;padding:1px 8px;border-radius:10px;margin-right:6px;}
+  .trust.high{background:var(--green-bg);color:var(--green);}
+  .trust.medium{background:rgba(179,121,14,0.12);color:var(--yellow);}
+  .trust.low{background:var(--red-bg);color:var(--red);}
+  .trust.none{background:var(--border);color:var(--muted);}
+  .track-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:10px;}
+  .track-card{background:var(--panel);border:1px solid var(--border);box-shadow:var(--shadow);border-radius:12px;padding:12px 14px;font-size:0.88rem;color:var(--muted);line-height:1.5;}
+  .track-card .tname{font-weight:700;color:var(--text);margin-bottom:4px;}
+  .track-card .big{font-size:1.15rem;font-weight:700;color:var(--text);}
+  #accuracyBadge a{text-decoration:none;cursor:pointer;}
   .live-check{font-size:0.85rem;padding:5px 10px;border-radius:8px;margin-bottom:10px;display:inline-block;}
   .live-check.match{background:var(--green-bg);color:var(--green);}
   .live-check.mismatch{background:var(--red-bg);color:var(--red);}
@@ -307,6 +319,29 @@
       <label class="report-field">Gust (kt) <span class="optional">optional</span>
         <input type="number" id="reportActualGust" min="0" max="90" step="1" inputmode="numeric" placeholder="e.g. 25">
       </label>
+      <!-- Wind direction (Oct 2026, Guillermo): matters most at direction
+           sensitive spots (Tsawwassen, Crescent Beach, Jericho, Squamish). -->
+      <label class="report-field">Wind direction <span class="optional">optional, where it blew from</span>
+        <select id="reportWindDir">
+          <option value="">Not sure</option>
+          <option value="N">N</option>
+          <option value="NNE">NNE</option>
+          <option value="NE">NE</option>
+          <option value="ENE">ENE</option>
+          <option value="E">E</option>
+          <option value="ESE">ESE</option>
+          <option value="SE">SE</option>
+          <option value="SSE">SSE</option>
+          <option value="S">S</option>
+          <option value="SSW">SSW</option>
+          <option value="SW">SW</option>
+          <option value="WSW">WSW</option>
+          <option value="W">W</option>
+          <option value="WNW">WNW</option>
+          <option value="NW">NW</option>
+          <option value="NNW">NNW</option>
+        </select>
+      </label>
       <label class="report-field">Waves <span class="optional">optional, helps tune the swell forecast</span>
         <select id="reportWaveSize">
           <option value="">Not sure</option>
@@ -337,6 +372,14 @@
     </div>
   </div>
 
+  <div id="trackSection" style="display:none;">
+    <h2 class="section" id="trackRecord">🎯 How we're doing</h2>
+    <div class="obs-note" id="trackIntro"></div>
+    <div class="track-grid" id="trackGrid"></div>
+    <div class="obs-note" id="trackRiders" style="margin-top:10px;"></div>
+    <div class="obs-note" id="trackUnmeasured" style="margin-top:6px;"></div>
+  </div>
+
   <div class="about" style="margin-top:16px;">
     <b>Explore more</b>
     <div class="links-list" style="margin-top:8px;">
@@ -357,7 +400,7 @@
     <br><br>
     <b>Tuned by local knowledge.</b> Some spots have quirky local wind patterns that generic forecasts miss — we adjust for that using real reports from local riders and nearby live wind stations, so the numbers get more accurate over time. Tap any hour on a spot’s forecast and use "Report actual conditions" to help tune it further.
     <br><br>
-    <b>Learned from a year of station data.</b> For Steveston, Tsawwassen, Erwin Park and Porteau (through Pam Rocks), the number comes from a blend of the best models fitted to a full year of Environment Canada station readings, which fixes each model's local habits. When it says 70%, it has happened about 70% of the time. It is rescored every night<span id="mosScoreText"></span>.
+    <b>Learned from a year of station data.</b> For Steveston, Tsawwassen, Erwin Park and Porteau (through Pam Rocks), the number comes from a blend of the best models fitted to a full year of Environment Canada station readings, which fixes each model's local habits. When it says 70%, it has happened about 70% of the time. It is rescored every night; see <a data-goto="trackRecord" style="color:var(--accent);font-weight:600;cursor:pointer;">How we're doing</a>.
     <br><br>
     <b>Only the good options are listed below.</b> The card at the top always calls out the single windiest good-conditions hour across every spot, no matter which quick pick is selected; the lists below only include spots with a decent shot at your chosen range, to keep the page short — every spot is still shown on the map above regardless of odds.
     <br><br>
@@ -751,19 +794,21 @@ const reportModalContext = document.getElementById("reportModalContext");
 const reportActualMin = document.getElementById("reportActualMin");
 const reportActualGust = document.getElementById("reportActualGust");
 const reportWaveSize = document.getElementById("reportWaveSize");
+const reportWindDir = document.getElementById("reportWindDir");
 const reportModalMsg = document.getElementById("reportModalMsg");
 const reportModalSubmit = document.getElementById("reportModalSubmit");
 const reportModalCancel = document.getElementById("reportModalCancel");
 let reportModalCtx = null;
 
 function openReportModal(ds) {
-  reportModalCtx = { spot: ds.spot, date: ds.date, time: ds.time, forecast_speed: ds.forecast };
+  reportModalCtx = { spot: ds.spot, date: ds.date, time: ds.time, forecast_speed: ds.forecast, forecast_dir: ds.dir || null };
   const whenText = ds.time ? `${ds.date} · ${ds.time}` : ds.date;
-  const forecastText = ds.forecast ? ` · forecast said ${ds.forecast}kt` : "";
+  const forecastText = ds.forecast ? ` · forecast said ${ds.forecast}kt${ds.dir ? ` ${ds.dir}` : ""}` : "";
   reportModalContext.textContent = `${ds.name} · ${whenText}${forecastText}`;
   reportActualMin.value = "";
   reportActualGust.value = "";
   reportWaveSize.value = "";
+  reportWindDir.value = "";
   reportModalMsg.textContent = "";
   reportModalMsg.className = "report-modal-msg";
   reportModalSubmit.disabled = false;
@@ -806,7 +851,7 @@ async function submitReport() {
     const res = await fetch(WORKER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...reportModalCtx, actual_speed: actual, actual_gust: gust, wave_size: reportWaveSize.value || null }),
+      body: JSON.stringify({ ...reportModalCtx, actual_speed: actual, actual_gust: gust, wave_size: reportWaveSize.value || null, wind_dir: reportWindDir.value || null }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     reportModalMsg.textContent = "Thanks — that's logged and feeds straight into the forecast.";
@@ -865,7 +910,7 @@ function showTip(cellEl, h, spotId) {
   const epicText = h.epic ? `<div style="margin-top:4px;font-weight:700;color:#ffcf9e;">🔥 Matches this spot's epic day setup</div>` : "";
   const spotName = (SPOTS.find(s => s.id === spotId) || {}).name ?? spotId;
   globalTip.innerHTML = `<b>${windTerm(h.speed_kt)}${h.speed_kt != null ? ` <span style="font-weight:400;opacity:0.8;">(Beaufort ${beaufort(h.speed_kt).force})</span>` : ""}</b>${speedText}${summaryText}${sideText}${tideText}${swellText}${ecText}${mosText}${agreeText}${epicText}
-    <button type="button" class="report-trigger" data-spot="${spotId}" data-name="${spotName}" data-date="${h.time.slice(0, 10)}" data-time="${h.time.slice(11, 16)}" data-forecast="${h.speed_kt != null ? h.speed_kt : ""}">📝 Report actual conditions →</button>`;
+    <button type="button" class="report-trigger" data-spot="${spotId}" data-name="${spotName}" data-date="${h.time.slice(0, 10)}" data-time="${h.time.slice(11, 16)}" data-forecast="${h.speed_kt != null ? h.speed_kt : ""}" data-dir="${h.direction_label ?? ""}">📝 Report actual conditions →</button>`;
   const rect = cellEl.getBoundingClientRect();
   globalTip.style.display = "block";
   // Measure after display:block so offsetWidth is accurate, then clamp to viewport.
@@ -1058,6 +1103,7 @@ function renderSpotCards() {
       </div>
       ${epicWindowsForDay(spot).map(w => `<div class="epic-line">🔥 Possible epic day: ${hourLabel(Number(w.start.slice(0, 2)))} to ${hourLabel(Number(w.end.slice(0, 2)))}, up to ${w.peak_kt}kt${tideRangeText(w)}</div>`).join("")}
       ${cautionLine(sp)}
+      ${trackLine(sp)}
       ${tideLineForDay(spot)}
       ${swellLineForDay(hours)}
       ${ecLineForDay(hours)}
@@ -1266,37 +1312,95 @@ function renderFreshnessBadge() {
   genLabel.title = forecast.generated_at_label;
 }
 
-// Sitewide "forecast accuracy" badge, computed by apply-feedback.mjs from
-// rider-submitted reports only (see ACCURACY_TOLERANCE_KT there) and passed
-// through untouched inside forecast.calibration_overrides.accuracy. Hidden
-// entirely below MIN_SAMPLES_FOR_ACCURACY reports rather than showing a
-// shaky early number.
+// Forecast track record (Oct 2026). Two honest sources:
+//  1. data/mos-score.json, rescored every night by mos-nightly.yml: the last
+//     30 days of the learned blend against the Environment Canada station
+//     each spot is tuned to (spot.mos.point). Typical miss in knots, share of
+//     windy hours (threshold_kt and up) we called, share of our windy calls
+//     that did not happen.
+//  2. Rider reports from apply-feedback.mjs (forecast.rider_feedback).
+// The live verification log is NOT used: it only keeps the misses, so it
+// would make every spot look worse than it is.
+function trustLevel(l) {
+  if (!l || !l.n) return null;
+  if (l.caught >= 0.7 && l.false_alarms <= 0.25 && l.mae_kt <= 3) return { cls: "high", label: "High trust" };
+  if (l.caught < 0.5 || l.mae_kt > 3.5) return { cls: "low", label: "Low trust" };
+  return { cls: "medium", label: "Medium trust" };
+}
+function trackFor(sp) {
+  const pt = sp?.mos?.point ? forecast?.mos_score?.points?.[sp.mos.point] : null;
+  const t = trustLevel(pt?.learned);
+  return t ? { pt, t } : null;
+}
+const pctOf = (x) => `${Math.round(x * 100)}%`;
+// Any element with data-goto="id" scrolls to that section.
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("[data-goto]");
+  if (!a) return;
+  e.preventDefault();
+  document.getElementById(a.dataset.goto)?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+function trackLine(sp) {
+  const tr = trackFor(sp);
+  if (!tr) return "";
+  const l = tr.pt.learned, ms = forecast.mos_score;
+  return `<div class="track-line"><span class="trust ${tr.t.cls}">${tr.t.label}</span>Last ${ms.window_days} days at ${tr.pt.station}: typical miss ${l.mae_kt}kt, caught ${pctOf(l.caught)} of the ${ms.threshold_kt}kt+ hours, ${pctOf(l.false_alarms)} false alarms. <a data-goto="trackRecord">How we're doing</a></div>`;
+}
+
+function renderTrackRecord() {
+  const sec = document.getElementById("trackSection");
+  if (!sec) return;
+  const ms = forecast?.mos_score;
+  const measured = SPOTS.map(sp => ({ sp, tr: trackFor(sp) })).filter(x => x.tr);
+  const fb = forecast?.rider_feedback;
+  if (!measured.length && !fb?.accuracy) { sec.style.display = "none"; return; }
+  sec.style.display = "";
+  const updated = ms?.updated_at ? new Date(ms.updated_at).toLocaleDateString("en-CA", { timeZone: "America/Vancouver", month: "short", day: "numeric" }) : "";
+  document.getElementById("trackIntro").textContent = ms
+    ? `Every night we check the last ${ms.window_days} days of our forecasts against what the nearest Environment Canada station actually measured. A "windy hour" is ${ms.threshold_kt}kt or more. Last checked ${updated}.`
+    : "";
+  document.getElementById("trackGrid").innerHTML = measured.map(({ sp, tr }) => {
+    const l = tr.pt.learned;
+    const top = (l.reliability || []).filter(b => b.n >= 10).slice(-1)[0];
+    const pa = tr.pt.plain_average;
+    const plain = pa?.caught != null ? `<div style="margin-top:4px;font-size:0.8rem;">Raw models on their own: typical miss ${pa.mae_kt}kt, caught ${pctOf(pa.caught)}.</div>` : "";
+    return `<div class="track-card">
+      <div class="tname">${sp.name}</div>
+      <span class="trust ${tr.t.cls}">${tr.t.label}</span><span style="font-size:0.8rem;">scored at ${tr.pt.station}</span>
+      <div style="margin-top:6px;"><span class="big">${pctOf(l.caught)}</span> of windy hours caught</div>
+      <div>Typical miss <b>${l.mae_kt}kt</b> · false alarms <b>${pctOf(l.false_alarms)}</b></div>
+      ${top ? `<div style="margin-top:4px;font-size:0.82rem;">When we said ${top.range.replace("-", " to ")}, it happened ${pctOf(top.happened)} of the time (${top.n} hours).</div>` : ""}
+      ${plain}
+    </div>`;
+  }).join("");
+  const acc = fb?.accuracy;
+  const dir = fb?.direction?.spots ? Object.entries(fb.direction.spots).filter(([, d]) => d.reports >= 3) : [];
+  const nameOf = (id) => SPOTS.find(s => s.id === id)?.name ?? id;
+  document.getElementById("trackRiders").innerHTML = acc
+    ? `<b>From rider reports:</b> ${pctOf(acc.hit_rate)} of ${acc.sample_size} reports were within ${acc.tolerance_kt}kt of what we forecast.` +
+      (dir.length ? ` Wind direction called within ${fb.direction.match_deg}°: ${dir.map(([id, d]) => `${nameOf(id)} ${pctOf(d.hit_rate)} of ${d.reports}`).join(", ")}.` : "") +
+      ` Every report you send makes these numbers sharper.`
+    : `<b>From rider reports:</b> not enough yet to score. Tap any hour and use "Report actual conditions".`;
+  const unmeasured = SPOTS.filter(sp => !trackFor(sp)).map(sp => sp.name);
+  document.getElementById("trackUnmeasured").textContent = unmeasured.length
+    ? `Not measured yet: ${unmeasured.join(", ")}. These spots have no long station record to score against, so we lean on rider reports and live checks there.`
+    : "";
+}
+
+// Small chip in the header that jumps to the track record panel.
 function renderAccuracyBadge() {
   const el = document.getElementById("accuracyBadge");
   if (!el) return;
-  const acc = forecast?.calibration_overrides?.accuracy;
-  if (!acc) { el.innerHTML = ""; return; }
-  const pct = Math.round(acc.hit_rate * 100);
-  const cls = pct >= 65 ? "fresh" : pct >= 40 ? "stale" : "very-stale";
-  el.innerHTML = `<span class="update-badge ${cls}" title="Based on ${acc.sample_size} rider reports comparing what Wind Guru forecast to what actually happened.">🎯 ${pct}% accurate within ${acc.tolerance_kt}kt (${acc.sample_size} reports)</span>`;
-}
-
-// Last 30 days of the learned blend vs the stations (scripts/mos-train.mjs,
-// copied into forecast.json by generate.mjs).
-function renderMosScore() {
-  const el = document.getElementById("mosScoreText");
-  if (!el) return;
   const pts = forecast?.mos_score?.points;
-  if (!pts) { el.textContent = ""; return; }
-  const parts = Object.values(pts).filter(p => p.learned?.n).map(p => `${p.station} within ${p.learned.mae_kt}kt on average${p.plain_average?.mae_kt != null ? ` (plain model average ${p.plain_average.mae_kt}kt)` : ""}`);
-  el.textContent = parts.length ? `; last ${forecast.mos_score.window_days} days: ${parts.join(", ")}` : "";
+  const any = pts && Object.values(pts).some(p => p.learned?.n);
+  el.innerHTML = any ? `<a class="update-badge" data-goto="trackRecord" title="How accurate our forecasts have been over the last 30 days">🎯 Track record</a>` : "";
 }
 
 function renderAll() {
   if (!forecast) return;
   renderFreshnessBadge();
-  renderMosScore();
   renderAccuracyBadge();
+  renderTrackRecord();
   if (!freshnessTimer) freshnessTimer = setInterval(renderFreshnessBadge, 60000); // keep "Xm ago" live while the tab is open
   renderBulletin();
   renderDayTabs();

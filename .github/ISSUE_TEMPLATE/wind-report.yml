@@ -68,10 +68,32 @@ body:
         - chop
         - waves
         - good swell
-  - type: input
+  - type: dropdown
     id: actual_direction
     attributes:
       label: Actual direction (optional)
+      description: Where the wind blew from
+      options:
+        - N
+        - NNE
+        - NE
+        - ENE
+        - E
+        - ESE
+        - SE
+        - SSE
+        - S
+        - SSW
+        - SW
+        - WSW
+        - W
+        - WNW
+        - NW
+        - NNW
+  - type: input
+    id: forecast_direction
+    attributes:
+      label: Forecasted direction (optional)
       placeholder: "e.g. SW"
   - type: textarea
     id: notes
