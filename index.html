@@ -780,7 +780,7 @@ const GITHUB_REPO = "ferreroforward/wind-guru";
 // deploy it) — replace YOUR-SUBDOMAIN once it's deployed. Until then the
 // popup's submit button will fail every time and fall back to the GitHub
 // link below, which still works on its own.
-const WORKER_URL = "https://wind-guru-reports.guillermo-ferrero.workers.dev";
+const WORKER_URL = "https://wind-guru-reports-staging.guillermo-ferrero.workers.dev"; // STAGING VALUE: staging reports go to wind-guru-staging
 
 // h is optional — falls back to today's date and an empty time if no
 // specific hour is available.
@@ -1599,7 +1599,7 @@ if (!disclaimerAccepted()) showDisclaimer();
 // ---- Wind Guru AI chat (Oct 2026) ----
 // worker/chat.js on Cloudflare. Empty string = chat hidden (production until
 // Guillermo has tested it on staging).
-const CHAT_URL = "";
+const CHAT_URL = "https://wind-guru-chat-staging.guillermo-ferrero.workers.dev"; // STAGING VALUE
 const CHAT_ACCEPT_KEY = "windGuruChatAccepted";
 const CHAT_ACCEPT_VERSION = "2026-10-20";
 const chatHistory = []; // { role, content }, this page visit only

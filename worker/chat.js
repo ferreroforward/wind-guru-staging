@@ -19,7 +19,7 @@
 //  - Optional plain vars to override the defaults below: MODEL,
 //    MONTHLY_BUDGET_USD, DAILY_LIMIT, DAILY_GLOBAL_LIMIT, ALLOWED_ORIGIN.
 
-const SITE_URL = "https://ferreroforward.github.io/wind-guru/";
+const SITE_URL = "https://ferreroforward.github.io/wind-guru-staging/"; // STAGING VALUE
 const DEFAULTS = {
   MODEL: "claude-sonnet-5-5",
   MONTHLY_BUDGET_USD: 10,   // worker stops answering past this; set the Anthropic Console limit a bit above it
