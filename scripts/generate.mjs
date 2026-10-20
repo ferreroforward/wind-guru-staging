@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 import { buildGuruLive } from "./guru-live.mjs";
+import { fetchJscaRows, fetchKiteloopRows, halfHourly, latestObservation, appendHistory, JSCA_HISTORY_META, jscaRow, TERMINAL_HISTORY_META, terminalRow } from "./extra-stations.mjs";
 import { SPOTS, PRESSURE_REFERENCE, degToLabel, DEG_LABELS, WEBCAMS } from "../assets/spots.js";
 import { MODELS, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, rowsToPressureMap, rowsToSpeedMap, currentPacificHourString, explainMismatch, parseMarineWindText, marineAnchorForHour, parseEcIssued, dropModels, tideForHour, flagEpicHours, buildMosUrl, reshapeMos, applyMos, swellForHours, thermalInputs, applyThermalModel } from "../assets/rules.js";
 
@@ -37,6 +38,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_PATH = path.join(__dirname, "..", "data", "forecast.json");
 const OVERRIDES_PATH = path.join(__dirname, "..", "data", "calibration-overrides.json");
 const LIVE_LOG_PATH = path.join(__dirname, "..", "data", "live-verification-log.json");
+const JSCA_HISTORY_PATH = path.join(__dirname, "..", "data", "jsca-history.json");
+const TERMINAL_HISTORY_PATH = path.join(__dirname, "..", "data", "squamish-terminal-history.json");
 const MOS_PATH = path.join(__dirname, "..", "data", "mos-coefficients.json");
 const MOS_RECENT_PATH = path.join(__dirname, "..", "data", "mos-recent.json");
 const THERMAL_PATH = path.join(__dirname, "..", "data", "squamish-thermal.json");
@@ -208,6 +211,9 @@ async function fetchEcObservation(station) {
 // Nanaimo).
 const BUOY_STATIONS = [
   { name: "Halibut Bank Buoy", code: "46146" },
+  // Jericho's live check moved to the club's beach station (Oct 2026); the
+  // buoy stays on the board as the open water read of English Bay.
+  { name: "English Bay buoy", code: "46304" },
 ];
 
 // Squamish Windsports Society's own wind meter at the Spit
@@ -400,6 +406,18 @@ async function getLiveObservation(station) {
   }
   return null;
 }
+// Jericho Sailing Centre and the Squamish terminal sensor (scripts/extra-stations.mjs):
+// fetched once per run and shared by the live check and the history files.
+const extraRows = {};
+async function extraStationRows(kind) {
+  if (!(kind in extraRows)) {
+    extraRows[kind] = (kind === "jsca" ? fetchJscaRows() : fetchKiteloopRows()).catch((err) => {
+      console.log(`[live:${kind}] fetch error: ${err.message}`);
+      return [];
+    });
+  }
+  return extraRows[kind];
+}
 async function getOneLiveObservation(station) {
   const cacheKey = `${station.type || "ec"}:${station.code || station.windSrc || station.sid || station.boardName || station.name}`;
   if (liveObsCache[cacheKey]) return liveObsCache[cacheKey];
@@ -408,6 +426,8 @@ async function getOneLiveObservation(station) {
       : station.type === "igetwind" ? await fetchIgetwindObservation(station)
       : station.type === "whiterockcity" ? await fetchWhiteRockCityObservation(station)
       : station.type === "swob" ? swobObservation(station)
+      : station.type === "jsca" ? latestObservation(await extraStationRows("jsca"))
+      : station.type === "kiteloop" ? latestObservation(await extraStationRows("kiteloop"), { windowMs: 15 * 60 * 1000 })
       : await fetchEcObservation(station);
     // Staleness check, applied uniformly across all three source types. The
     // igetwind fetcher already attaches a precise `ageMin` (it has a real
@@ -1195,10 +1215,13 @@ async function main() {
     seenStationKeys.add(key);
     try {
       const obs = await getLiveObservation(spot.liveStation); // cache hit in practice — already fetched above
-      if (!obs || obs.fromFallback) continue; // a fallback is already on wtfbc's board under its own name
+      // A fallback is normally already on wtfbc's board under its own name; the
+      // Squamish terminal sensor (Kiteloop) is not, so it gets its own card.
+      const fb = spot.liveStation.fallback;
+      if (!obs || (obs.fromFallback && fb?.type !== "kiteloop")) continue;
       ownStations.push({
-        name: spot.liveStation.name,
-        source_url: null,
+        name: obs.fromFallback ? fb.name : spot.liveStation.name,
+        source_url: (obs.fromFallback ? fb.sourceUrl : spot.liveStation.sourceUrl) ?? null,
         observed_local_time: obs.time,
         observed_age_min: obs.ageMin != null ? Math.round(obs.ageMin) : null,
         temp_c: null,
@@ -1240,6 +1263,7 @@ async function main() {
     /point atkinson/i,  // ours: "Point Atkinson" — wtfbc: "Point Atkinson"
     /white rock/i,      // ours: "White Rock East Beach" (the city sensor, direct) — wtfbc: same sensor
     /tsawwassen/i,      // ours: "Tsawwassen Ferry Terminal" (EC vtf) — wtfbc's "Tsawwassen Ferry Auto" copy read 0 most of the time
+    /jericho/i,         // ours: "Jericho Sailing Centre (beach)" read from the club's own file — wtfbc: same station
   ];
   // wtfbc.ca's board also carries stations well outside our forecast area
   // (interior BC, Vancouver Island beyond the "south of Nanaimo" marine
@@ -1253,6 +1277,22 @@ async function main() {
     .filter((s) => !DUPLICATE_OF_OWN_STATION.some((re) => re.test(s.name)))
     .filter((s) => !OUTSIDE_OUR_AREA.some((re) => re.test(s.name)))
     .map((s) => ({ ...s, source: "wtfbc" }));
+  // Keep our own copy of the two short files (about a day each) so we can
+  // score and learn from them later; see scripts/extra-stations.mjs.
+  try {
+    const jsca = await extraStationRows("jsca");
+    if (jsca.length) {
+      const h = await appendHistory(JSCA_HISTORY_PATH, JSCA_HISTORY_META, jsca, jscaRow);
+      console.log(`[history] Jericho Sailing Centre: ${h.total} half hours kept (+${h.added})`);
+    }
+    const term = await extraStationRows("kiteloop");
+    if (term.length) {
+      const h = await appendHistory(TERMINAL_HISTORY_PATH, TERMINAL_HISTORY_META, halfHourly(term), terminalRow);
+      console.log(`[history] Squamish terminal sensor: ${h.total} half hours kept (+${h.added})`);
+    }
+  } catch (err) {
+    console.log(`[history] failed: ${err.message}`);
+  }
   const surfaceObservations = {
     updated_at: startedAt.toISOString(),
     board_source_url: SWOB_BOARD_URL,

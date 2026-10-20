@@ -203,7 +203,15 @@ async function main() {
   const issues = await fetchReports();
   console.log(`Found ${issues.length} labeled issue(s).`);
 
-  const liveEntries = await loadLiveVerifications();
+  // Live checks taken against a station that no longer stands for the spot
+  // are left out: Jericho was checked against the English Bay buoy, open
+  // water well off the beach (W 12 to 14 on Oct 20 at 7am to 8am while the
+  // beach read under 1kt), and those checks had pushed its multiplier to
+  // 1.17. From Oct 2026 Jericho is checked at the club's beach station.
+  const RETIRED_LIVE_STATIONS = { "jericho-spanish-banks": ["English Bay buoy"] };
+  const allLive = await loadLiveVerifications();
+  const liveEntries = allLive.filter((e) => !(RETIRED_LIVE_STATIONS[e.spot] || []).includes(e.station));
+  if (allLive.length !== liveEntries.length) console.log(`Left out ${allLive.length - liveEntries.length} live check(s) from retired stations.`);
   console.log(`Found ${liveEntries.length} logged live-verification mismatch(es).`);
 
   // Rider reports don't capture which wind regime was in effect (the issue

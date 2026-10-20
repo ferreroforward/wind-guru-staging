@@ -84,7 +84,11 @@ export const SPOTS = [
     // sits in a wind shadow. generate.mjs compares this against the
     // forecast for the current hour and logs a mismatch if they disagree by
     // 20%+. See "Live verification" in README.
-    liveStation: { type: "squamishwindsports", windSrc: "spit", name: "Squamish Spit wind meter" },
+    // Fallback while the Spit meter is off (mid September to April): the
+    // shipping terminal sensor at the head of the Sound, as published by
+    // Kiteloop (scripts/extra-stations.mjs). Not at the Spit itself.
+    liveStation: { type: "squamishwindsports", windSrc: "spit", name: "Squamish Spit wind meter",
+      fallback: { type: "kiteloop", name: "Squamish terminal sensor (Kiteloop)", sourceUrl: "https://kiteloop.vercel.app/" } },
     thermal: {
       enabled: true,
       calibrated: true, // apply the local GFS-class-underread correction — see rules.js
@@ -243,7 +247,12 @@ export const SPOTS = [
     // English Bay buoy (EC 46304) first: open water right off the beach.
     // Jericho Sailing Centre's own sensor (via wtfbc.ca's board) when the
     // buoy has nothing fresh. Per Guillermo, Sep 2026.
-    liveStation: { code: "46304", name: "English Bay buoy", fallback: { type: "swob", boardName: "Jericho Sailing Centre", name: "Jericho Sailing Centre" } },
+    // The club's own beach station (Oct 2026, scripts/extra-stations.mjs). The
+    // English Bay buoy is open water well off the beach and read W 12 to 14
+    // on Oct 20 at 7am to 8am while the beach was under 1kt, so it no longer
+    // checks this spot; it stays on the live board.
+    liveStation: { type: "jsca", name: "Jericho Sailing Centre (beach)", sourceUrl: "https://jsca.bc.ca/services/weather/",
+      fallback: { type: "swob", boardName: "Jericho Sailing Centre", name: "Jericho Sailing Centre" } },
     calibrationSince: "2026-09-29",
     thermal: {
       enabled: true,
