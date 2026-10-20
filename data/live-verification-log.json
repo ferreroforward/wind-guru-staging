@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-20T15:21:01.145Z",
+  "updated_at": "2026-10-20T16:43:05.327Z",
   "entries": [
     {
       "spot": "boundary-bay",
@@ -378,6 +378,19 @@
       "station": "White Rock, BC",
       "reasoning": "Forecast showed calm/mixed and live wind came in lighter still — models were on the right track, just a bit high.",
       "checked_at": "2026-08-15T03:05:00.396Z"
+    },
+    {
+      "spot": "porteau-cove",
+      "time": "2026-10-20T09:00",
+      "forecasted": 9.5,
+      "actual": 15.9,
+      "ratio": 1.6736842105263159,
+      "source": "live-station",
+      "station": "Pam Rocks (Howe Sound entrance)",
+      "regime": "outflow",
+      "mismatch": true,
+      "reasoning": "Forecast called outflow but under-shot it — the real pressure gradient may be stronger than the reference stations captured.",
+      "checked_at": "2026-10-20T16:43:05.327Z"
     },
     {
       "spot": "porteau-cove",
@@ -887,19 +900,6 @@
       "checked_at": "2026-09-06T12:15:32.287Z"
     },
     {
-      "spot": "porteau-cove",
-      "time": "2026-09-05T05:00",
-      "forecasted": 18.8,
-      "actual": 26,
-      "ratio": 1.3829787234042552,
-      "source": "live-station",
-      "station": "Pam Rocks (Howe Sound entrance)",
-      "regime": "synoptic",
-      "mismatch": true,
-      "reasoning": "Synoptic regime, but the magnitude missed — model agreement was 46%, so spread between models likely explains some of the gap. This hour already had a rider-feedback adjustment applied.",
-      "checked_at": "2026-09-05T12:15:02.256Z"
-    },
-    {
       "spot": "white-rock-east",
       "time": "2026-09-27T16:00",
       "forecasted": 5,
@@ -1015,6 +1015,19 @@
       "mismatch": true,
       "reasoning": "Synoptic regime, but the magnitude missed — model agreement was 56%, so spread between models likely explains some of the gap.",
       "checked_at": "2026-08-28T02:19:42.599Z"
+    },
+    {
+      "spot": "garry-point",
+      "time": "2026-10-20T09:00",
+      "forecasted": 16.1,
+      "actual": 17.1,
+      "ratio": 1.062111801242236,
+      "source": "live-station",
+      "station": "Sand Heads",
+      "regime": "synoptic",
+      "mismatch": false,
+      "reasoning": null,
+      "checked_at": "2026-10-20T16:43:05.327Z"
     },
     {
       "spot": "garry-point",
@@ -1951,6 +1964,19 @@
       "mismatch": true,
       "reasoning": "Forecast showed calm/mixed and live wind came in lighter still — models were on the right track, just a bit high.",
       "checked_at": "2026-08-29T20:09:05.755Z"
+    },
+    {
+      "spot": "jericho-spanish-banks",
+      "time": "2026-10-20T09:00",
+      "forecasted": 9.6,
+      "actual": 4,
+      "ratio": 0.4166666666666667,
+      "source": "live-station",
+      "station": "Jericho Sailing Centre",
+      "regime": "mixed",
+      "mismatch": true,
+      "reasoning": "Forecast showed calm/mixed and live wind came in lighter still — models were on the right track, just a bit high.",
+      "checked_at": "2026-10-20T16:43:05.327Z"
     },
     {
       "spot": "jericho-spanish-banks",
