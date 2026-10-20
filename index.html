@@ -157,6 +157,7 @@
   .chat-form button{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:0 14px;font-weight:700;cursor:pointer;}
   .chat-form button:disabled{opacity:0.5;cursor:default;}
   .chat-foot{font-size:0.74rem;color:var(--muted);padding:0 12px 8px;}
+  .chat-foot a,.chat-msg.note a,.chat-msg.err a{color:var(--accent);font-weight:600;}
   .chat-typing{align-self:flex-start;color:var(--muted);font-size:0.85rem;font-style:italic;}
   @media (max-width:520px){ .chat-panel{right:0;bottom:0;width:100vw;max-width:100vw;height:85vh;max-height:85vh;border-radius:16px 16px 0 0;} .chat-fab{right:12px;bottom:12px;} }
   .report-modal-backdrop{position:fixed;inset:0;background:rgba(27,36,56,0.5);z-index:1100;display:flex;align-items:center;justify-content:center;padding:16px;}
@@ -1601,6 +1602,7 @@ if (!disclaimerAccepted()) showDisclaimer();
 // Guillermo has tested it on staging).
 const CHAT_URL = "https://wind-guru-chat-staging.guillermo-ferrero.workers.dev"; // STAGING VALUE
 const CHAT_ACCEPT_KEY = "windGuruChatAccepted";
+const CHAT_COFFEE_URL = "https://buy.stripe.com/00wfZg2P27G82ry10k1wY00";
 const CHAT_ACCEPT_VERSION = "2026-10-20";
 const chatHistory = []; // { role, content }, this page visit only
 const chatEls = {
@@ -1631,7 +1633,7 @@ function chatAccepted() { try { return localStorage.getItem(CHAT_ACCEPT_KEY) ===
 function chatIntro() {
   chatEls.log.innerHTML = "";
   if (!chatAccepted()) {
-    const n = chatAdd("note", `<b>Before you ask:</b> Wind Guru AI is an AI, not Guillermo. It reads the same forecast and Environment Canada stations as this page, and it can be wrong. It can never tell you a spot is safe for you. You ride at your own risk, as in the <a href="#disclaimerFull" data-chat-anchor="disclaimerFull">disclaimer</a>.<div style="margin-top:8px;"><button type="button" id="chatAccept" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer;">I understand</button></div>`);
+    const n = chatAdd("note", `<b>Before you ask:</b> Wind Guru AI is an AI, not Guillermo. It reads the same forecast and Environment Canada stations as this page, and it can be wrong. It can never tell you a spot is safe for you. You ride at your own risk, as in the <a href="#disclaimerFull" data-chat-anchor="disclaimerFull">disclaimer</a>.<br><br><b>It costs us to run.</b> Every answer is paid for, so if it helps you, please <a href="https://buy.stripe.com/00wfZg2P27G82ry10k1wY00" target="_blank" rel="noopener">buy us a coffee ☕</a> to keep it going. If it stops answering, we have reached this month's limit and it will be back on the 1st.<div style="margin-top:8px;"><button type="button" id="chatAccept" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer;">I understand</button></div>`);
     chatEls.input.disabled = chatEls.send.disabled = true;
     n.querySelector("#chatAccept").addEventListener("click", () => {
       try { localStorage.setItem(CHAT_ACCEPT_KEY, CHAT_ACCEPT_VERSION); } catch {}
@@ -1673,11 +1675,12 @@ async function chatAsk(q) {
     const data = await r.json().catch(() => ({}));
     typing.remove();
     if (!r.ok || !data.answer) {
-      chatAdd("err", chatEscape(data.error || "Wind Guru AI couldn't answer just now. Please try again in a minute."));
+      chatAdd("err", chatEscape(data.error || "Wind Guru AI couldn't answer just now. Please try again in a minute.") +
+        (data.code === "budget" ? ` <a href="${CHAT_COFFEE_URL}" target="_blank" rel="noopener">Buy us a coffee ☕</a> to help keep it running next month.` : ""));
     } else {
       chatHistory.push({ role: "user", content: q }, { role: "assistant", content: data.answer });
       chatAdd("bot", chatRender(data.answer));
-      if (data.remaining_today != null && data.remaining_today <= 3) chatEls.foot.textContent = `${data.remaining_today} question${data.remaining_today === 1 ? "" : "s"} left today. AI answers can be wrong.`;
+      if (data.remaining_today != null && data.remaining_today <= 3) chatEls.foot.innerHTML = `${data.remaining_today} question${data.remaining_today === 1 ? "" : "s"} left today. AI answers can be wrong. <a href="${CHAT_COFFEE_URL}" target="_blank" rel="noopener">Buy us a coffee ☕</a>`;
     }
   } catch {
     typing.remove();
@@ -1714,7 +1717,7 @@ loadStatic();
     <textarea id="chatInput" maxlength="500" rows="1" placeholder="Ask about wind, spots or tides" aria-label="Your question"></textarea>
     <button type="submit" id="chatSend">Send</button>
   </form>
-  <div class="chat-foot" id="chatFoot">AI answers from this page's forecast and live stations. It can be wrong.</div>
+  <div class="chat-foot" id="chatFoot">AI answers can be wrong. Each one costs us a little: <a href="https://buy.stripe.com/00wfZg2P27G82ry10k1wY00" target="_blank" rel="noopener">buy us a coffee ☕</a></div>
 </div>
 <!-- Cloudflare Web Analytics (Oct 2026): visit counts, no cookies, no tracking of
      individuals. Stats in the Cloudflare dashboard under Web Analytics for
