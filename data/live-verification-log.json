@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-21T15:46:54.179Z",
+  "updated_at": "2026-10-21T22:07:28.100Z",
   "entries": [
     {
       "spot": "boundary-bay",
@@ -1993,6 +1993,19 @@
     },
     {
       "spot": "jericho-spanish-banks",
+      "time": "2026-10-21T15:00",
+      "forecasted": 2.7,
+      "actual": 8.7,
+      "ratio": 1.7399999999999998,
+      "source": "live-station",
+      "station": "Jericho Sailing Centre (beach)",
+      "regime": "calm",
+      "mismatch": true,
+      "reasoning": "Forecast showed calm/mixed but live wind is running well above that — likely an unmodeled local effect or a synoptic push none of the current signals caught. This hour already had a rider-feedback adjustment applied.",
+      "checked_at": "2026-10-21T22:07:28.100Z"
+    },
+    {
+      "spot": "jericho-spanish-banks",
       "time": "2026-10-20T10:00",
       "forecasted": 9.8,
       "actual": 8.7,
@@ -2055,6 +2068,19 @@
       "mismatch": false,
       "reasoning": null,
       "checked_at": "2026-09-27T23:33:54.618Z"
+    },
+    {
+      "spot": "squamish-spit",
+      "time": "2026-10-21T15:00",
+      "forecasted": 10.5,
+      "actual": 3.2,
+      "ratio": 0.3047619047619048,
+      "source": "live-station",
+      "station": "Squamish terminal sensor (Kiteloop)",
+      "regime": "thermal",
+      "mismatch": true,
+      "reasoning": "Forecast called a thermal that came in weaker than shown — possible early suppression (heat, high cloud) or the gradient not fully developing. MSLP had already flagged this hour as uncertain.",
+      "checked_at": "2026-10-21T22:07:28.100Z"
     },
     {
       "spot": "squamish-spit",
