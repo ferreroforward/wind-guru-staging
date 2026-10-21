@@ -159,6 +159,13 @@
   .chat-foot{font-size:0.74rem;color:var(--muted);padding:0 12px 8px;}
   .chat-foot a,.chat-msg.note a,.chat-msg.err a{color:var(--accent);font-weight:600;}
   .chat-typing{align-self:flex-start;color:var(--muted);font-size:0.85rem;font-style:italic;}
+  .chat-rate{align-self:flex-start;display:flex;gap:6px;align-items:center;font-size:0.8rem;color:var(--muted);margin-top:-4px;flex-wrap:wrap;}
+  .chat-rate button{background:none;border:1px solid var(--border);border-radius:14px;padding:2px 9px;cursor:pointer;font-size:0.9rem;color:var(--text);}
+  .chat-rate textarea{width:100%;min-width:220px;border:1px solid var(--border);border-radius:8px;padding:6px 8px;font:inherit;font-size:16px;background:var(--panel);color:var(--text);}
+  .chat-report{align-self:stretch;background:var(--panel);border:1px solid var(--accent);border-radius:12px;padding:10px 12px;font-size:0.88rem;}
+  .chat-report .row{display:flex;gap:8px;margin-top:8px;}
+  .chat-report button{border-radius:8px;padding:6px 12px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--panel2);color:var(--text);}
+  .chat-report button.send{background:var(--accent);color:#fff;border-color:var(--accent);}
   @media (max-width:520px){ .chat-panel{right:0;bottom:0;width:100vw;max-width:100vw;height:85vh;max-height:85vh;border-radius:16px 16px 0 0;} .chat-fab{right:12px;bottom:12px;} }
   .report-modal-backdrop{position:fixed;inset:0;background:rgba(27,36,56,0.5);z-index:1100;display:flex;align-items:center;justify-content:center;padding:16px;}
   .report-modal{background:var(--panel);border-radius:14px;box-shadow:0 12px 32px rgba(27,36,56,0.3);padding:22px 24px;width:100%;max-width:360px;}
@@ -327,6 +334,7 @@
       <p>Wind Guru is a free, unofficial forecast tool built by a local rider. Its forecasts, odds, spot notes and recommendations can be wrong, out of date or incomplete, and conditions on the water change fast.</p>
       <p>Wind and water sports are dangerous. Using this site, and acting on anything it shows, is entirely at your own risk. You are responsible for checking official forecasts and live conditions, knowing and following local rules and regulations, judging your own ability and equipment, and deciding whether it is safe to go out.</p>
       <p><b>By using this site you accept all risk and all liability for your use of its information and recommendations, and you agree that Wind Guru and its creator are not liable for any injury, loss or damage.</b></p>
+      <p>Wind Guru AI, the chat on this page, is an AI and can be wrong. Questions, answers and any feedback sent through it are kept for up to 90 days, without names or IP addresses, to improve it. A conditions report is only sent if you tap Send, and like all reports it becomes public on GitHub.</p>
       <div class="report-modal-actions">
         <button type="button" id="disclaimerAccept">I understand and accept</button>
       </div>
@@ -1603,8 +1611,58 @@ if (!disclaimerAccepted()) showDisclaimer();
 const CHAT_URL = "https://wind-guru-chat-staging.guillermo-ferrero.workers.dev"; // STAGING VALUE
 const CHAT_ACCEPT_KEY = "windGuruChatAccepted";
 const CHAT_COFFEE_URL = "https://buy.stripe.com/00wfZg2P27G82ry10k1wY00";
-const CHAT_ACCEPT_VERSION = "2026-10-20";
+const CHAT_ACCEPT_VERSION = "2026-10-22"; // bumped when the notice changes (Oct 22: questions are now kept 90 days)
 const chatHistory = []; // { role, content }, this page visit only
+// Random id for this page visit, so the feedback page can show a conversation
+// together. Not tied to the visitor in any way.
+const chatConvId = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join("");
+function chatFeedback(body) {
+  return fetch(`${CHAT_URL}/feedback`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => {});
+}
+// 👍 / 👎 under an answer; 👎 opens an optional "what was wrong?" box.
+function chatRateRow(id) {
+  const row = document.createElement("div");
+  row.className = "chat-rate";
+  row.innerHTML = `<span>Helpful?</span><button type="button" data-r="up" aria-label="Helpful">👍</button><button type="button" data-r="down" aria-label="Not helpful">👎</button>`;
+  row.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-r]");
+    if (!b) return;
+    if (b.dataset.r === "up") { chatFeedback({ id, rating: "up" }); row.innerHTML = "<span>Thanks!</span>"; return; }
+    row.innerHTML = `<textarea maxlength="1000" rows="2" placeholder="What was wrong? (optional)"></textarea><button type="button" data-send>Send</button>`;
+    row.querySelector("textarea").focus();
+    row.querySelector("[data-send]").addEventListener("click", () => {
+      chatFeedback({ id, rating: "down", comment: row.querySelector("textarea").value });
+      row.innerHTML = "<span>Thanks, that helps us improve it.</span>";
+    });
+  });
+  chatEls.log.appendChild(row);
+}
+// A conditions report the AI put together from what the rider said. Only sent
+// to the report Worker (same as "Report actual conditions") if they tap Send.
+function chatReportCard(rep, id) {
+  const sp = SPOTS.find((x) => x.id === rep.spot);
+  const fs = forecast?.spots?.find((x) => x.id === rep.spot);
+  const fh = fs?.hours?.find((h) => h.time === `${rep.date}T${rep.time}`);
+  const H = Number(rep.time.slice(0, 2));
+  const when = `${new Date(rep.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}, ${H % 12 || 12}${H < 12 ? "am" : "pm"}`;
+  const card = document.createElement("div");
+  card.className = "chat-report";
+  card.innerHTML = `<b>Conditions report</b><br>${chatEscape(sp?.name ?? rep.spot)} · ${when}<br>Wind: ${rep.wind_dir ? rep.wind_dir + " " : ""}${rep.actual_speed}kt${rep.actual_gust != null ? `, gusting ${rep.actual_gust}kt` : ""}${fh ? ` (forecast said ${fh.speed_kt}kt ${fh.direction_label ?? ""})` : ""}<div class="row"><button type="button" class="send">Send report</button><button type="button" class="no">No thanks</button></div>`;
+  card.querySelector(".no").addEventListener("click", () => { card.innerHTML = "No problem, nothing was sent."; });
+  card.querySelector(".send").addEventListener("click", async (e) => {
+    e.target.disabled = true;
+    try {
+      const r = await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ spot: rep.spot, date: rep.date, time: rep.time, forecast_speed: fh?.speed_kt ?? null, forecast_dir: fh?.direction_label ?? null, actual_speed: rep.actual_speed, actual_gust: rep.actual_gust, wind_dir: rep.wind_dir }) });
+      if (!r.ok) throw new Error(String(r.status));
+      chatFeedback({ id, report_sent: true });
+      card.innerHTML = "✅ Report sent. Thanks, it helps tune the forecast.";
+    } catch {
+      card.innerHTML = "Couldn't send the report just now. You can use \"Report actual conditions\" on any hour of that spot instead.";
+    }
+  });
+  chatEls.log.appendChild(card);
+  chatEls.log.scrollTop = chatEls.log.scrollHeight;
+}
 const chatEls = {
   fab: document.getElementById("chatFab"), panel: document.getElementById("chatPanel"),
   log: document.getElementById("chatLog"), form: document.getElementById("chatForm"),
@@ -1633,7 +1691,7 @@ function chatAccepted() { try { return localStorage.getItem(CHAT_ACCEPT_KEY) ===
 function chatIntro() {
   chatEls.log.innerHTML = "";
   if (!chatAccepted()) {
-    const n = chatAdd("note", `<b>Before you ask:</b> Wind Guru AI is an AI, not Guillermo. It reads the same forecast and Environment Canada stations as this page, and it can be wrong. It can never tell you a spot is safe for you. You ride at your own risk, as in the <a href="#disclaimerFull" data-chat-anchor="disclaimerFull">disclaimer</a>.<br><br><b>It costs us to run.</b> Every answer is paid for, so if it helps you, please <a href="https://buy.stripe.com/00wfZg2P27G82ry10k1wY00" target="_blank" rel="noopener">buy us a coffee ☕</a> to keep it going. If it stops answering, we have reached this month's limit and it will be back on the 1st.<div style="margin-top:8px;"><button type="button" id="chatAccept" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer;">I understand</button></div>`);
+    const n = chatAdd("note", `<b>Before you ask:</b> Wind Guru AI is an AI, not Guillermo. It reads the same forecast and Environment Canada stations as this page, and it can be wrong. It can never tell you a spot is safe for you. You ride at your own risk, as in the <a href="#disclaimerFull" data-chat-anchor="disclaimerFull">disclaimer</a>.<br><br>Questions, answers and any feedback you send are kept for up to 90 days, without your name or IP address, to improve Wind Guru AI. Please don't include personal details.<br><br><b>It costs us to run.</b> Every answer is paid for, so if it helps you, please <a href="https://buy.stripe.com/00wfZg2P27G82ry10k1wY00" target="_blank" rel="noopener">buy us a coffee ☕</a> to keep it going. If it stops answering, we have reached this month's limit and it will be back on the 1st.<div style="margin-top:8px;"><button type="button" id="chatAccept" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer;">I understand</button></div>`);
     chatEls.input.disabled = chatEls.send.disabled = true;
     n.querySelector("#chatAccept").addEventListener("click", () => {
       try { localStorage.setItem(CHAT_ACCEPT_KEY, CHAT_ACCEPT_VERSION); } catch {}
@@ -1671,7 +1729,7 @@ async function chatAsk(q) {
   let hist = chatHistory.slice(-6);
   while (hist.length && hist[0].role !== "user") hist = hist.slice(1);
   try {
-    const r = await fetch(CHAT_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [...hist, { role: "user", content: q }] }) });
+    const r = await fetch(CHAT_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [...hist, { role: "user", content: q }], conversation: chatConvId }) });
     const data = await r.json().catch(() => ({}));
     typing.remove();
     if (!r.ok || !data.answer) {
@@ -1680,6 +1738,9 @@ async function chatAsk(q) {
     } else {
       chatHistory.push({ role: "user", content: q }, { role: "assistant", content: data.answer });
       chatAdd("bot", chatRender(data.answer));
+      if (data.report) chatReportCard(data.report, data.id);
+      if (data.id) chatRateRow(data.id);
+      chatEls.log.scrollTop = chatEls.log.scrollHeight;
       if (data.remaining_today != null && data.remaining_today <= 3) chatEls.foot.innerHTML = `${data.remaining_today} question${data.remaining_today === 1 ? "" : "s"} left today. AI answers can be wrong. <a href="${CHAT_COFFEE_URL}" target="_blank" rel="noopener">Buy us a coffee ☕</a>`;
     }
   } catch {

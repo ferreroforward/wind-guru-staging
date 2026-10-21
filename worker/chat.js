@@ -18,6 +18,16 @@
 //  - KV namespace bound as CHAT_KV (Settings > Bindings > KV namespace)
 //  - Optional plain vars to override the defaults below: MODEL,
 //    MONTHLY_BUDGET_USD, DAILY_LIMIT, DAILY_GLOBAL_LIMIT, ALLOWED_ORIGIN.
+//  - Secret ADMIN_PASSWORD for the feedback page (GET /admin, browser login,
+//    any user name). Without it the page stays closed.
+//
+// Feedback (Oct 2026): every question and answer is kept in KV for 90 days
+// with a random conversation id from the page, never the IP address or a
+// name (log:<id>). Thumbs up or down and an optional comment go to
+// POST /feedback (fb:<id>). When a rider says the forecast was wrong, the
+// model asks for spot, time and wind and proposes a conditions report
+// (propose_conditions_report); the page shows it and only sends it to the
+// report Worker if the rider taps Send.
 
 const SITE_URL = "https://ferreroforward.github.io/wind-guru-staging/"; // STAGING VALUE
 const DEFAULTS = {
@@ -32,6 +42,52 @@ const DEFAULTS = {
 // mid sentence (Oct 20). Medium effort is the documented starting point for
 // chat; 4000 leaves room for thinking plus a short answer.
 const MAX_TOKENS = 4000;
+const KEEP_DAYS = 90;
+const FEEDBACK_PER_DAY = 30;
+const SPOT_IDS = [
+  "squamish-spit", "porteau-cove", "jericho-spanish-banks", "garry-point",
+  "boundary-bay", "white-rock-east", "crescent-beach", "tsawwassen-south",
+  "erwin-park", "dundarave-pier", "ambleside", "cates-park",
+];
+
+const REPORT_TOOL = {
+  name: "propose_conditions_report",
+  description: "Propose a conditions report for the rider to confirm. Use it when a rider tells you what the wind actually was at one of our spots (for example after saying the forecast or the day was not good) and you know the spot, the date, the hour and the wind speed they got. The page shows the report to the rider, who decides whether to send it; nothing is sent by this call. Never invent numbers the rider did not give.",
+  input_schema: {
+    type: "object",
+    properties: {
+      spot: { type: "string", enum: SPOT_IDS, description: "Spot id" },
+      date: { type: "string", description: "YYYY-MM-DD, Pacific time" },
+      time: { type: "string", description: "HH:00, 24 hour Pacific time, the hour they rode or watched" },
+      actual_speed_kt: { type: "number", description: "Average wind they got, knots" },
+      actual_gust_kt: { type: "number", description: "Gusts in knots, only if they said" },
+      wind_dir: { type: "string", enum: ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"], description: "Where the wind blew from, only if they said" },
+    },
+    required: ["spot", "date", "time", "actual_speed_kt"],
+  },
+};
+
+function validReport(x, today) {
+  if (!x || !SPOT_IDS.includes(x.spot)) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(x.date) || !/^\d{2}:\d{2}$/.test(x.time)) return null;
+  const days = (Date.parse(`${today}T12:00:00Z`) - Date.parse(`${x.date}T12:00:00Z`)) / 86400000;
+  if (!(days >= 0 && days <= 30)) return null;
+  const num = (v, max) => (typeof v === "number" && isFinite(v) && v >= 0 && v <= max ? Math.round(v * 10) / 10 : null);
+  const speed = num(x.actual_speed_kt, 80);
+  if (speed == null) return null;
+  return {
+    spot: x.spot, date: x.date, time: x.time, actual_speed: speed,
+    actual_gust: num(x.actual_gust_kt, 90),
+    wind_dir: DIR16_LIST.includes(x.wind_dir) ? x.wind_dir : null,
+  };
+}
+const DIR16_LIST = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+// Newest first when KV lists keys in order.
+function newId() {
+  const inv = String(9999999999999 - Date.now()).padStart(13, "0");
+  const rnd = [...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `${inv}-${rnd}`;
+}
 const EFFORT = "medium";
 
 // USD per million tokens (platform.claude.com pricing, Oct 2026).
@@ -72,7 +128,8 @@ How you answer:
 5. Never recommend Squamish on an outflow (wind with north in it). Say clearly it is an outflow, not an inflow, and that riders do not launch on it. For Squamish later today, use the go or no go checklist in the knowledge.
 6. Mention a spot's level (advanced, expert) and its port rules or hazards when you recommend it.
 7. Style: wind in knots, distances in km, temperatures in Celsius, tides and waves in feet, times like 1pm or 3:30pm. Never use hyphens or dashes in your writing: write "go or no go", "12 to 15kt", "south side". Plain words, short, easy to read on a phone: usually under 110 words, no headings, no tables. Use **bold** sparingly for the spot and the time. Short lines starting with "• " are fine for comparing two or three spots.
-8. When the answer is about whether or where to go, strong wind, a warning, or an advanced spot, end with this line exactly: "Use your own judgment. [Read the disclaimer](#disclaimerFull)"`;
+8. If someone says the forecast, an answer or the day was not good or was wrong, don't argue. Thank them and ask briefly which spot, what time, and what wind they actually got (speed, gusts and direction if they know). Once you have the spot, the hour and the wind speed, call propose_conditions_report; the page shows it and the rider decides whether to send it. Tell them it helps tune the forecast.
+9. When the answer is about whether or where to go, strong wind, a warning, or an advanced spot, end with this line exactly: "Use your own judgment. [Read the disclaimer](#disclaimerFull)"`;
 
 function cfg(env, key) {
   const v = env[key];
@@ -83,7 +140,7 @@ function cfg(env, key) {
 function corsHeaders(env) {
   return {
     "Access-Control-Allow-Origin": cfg(env, "ALLOWED_ORIGIN"),
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Vary": "Origin",
   };
@@ -267,11 +324,77 @@ function validMessages(m) {
   return out;
 }
 
+// ---- feedback ----
+async function feedback(request, env, body) {
+  const id = typeof body?.id === "string" && /^\d{13}-[0-9a-f]{8}$/.test(body.id) ? body.id : null;
+  const rating = body?.rating === "up" || body?.rating === "down" ? body.rating : null;
+  const comment = typeof body?.comment === "string" ? body.comment.trim().slice(0, 1000) : "";
+  const sent = body?.report_sent === true;
+  if (!id || (!rating && !comment && !sent)) return json({ error: "Invalid feedback" }, 400, env);
+  const now = pacificParts();
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  const visitor = (await sha256Hex(`fb|${ip}|${env.VISITOR_SALT || "wind-guru"}`)).slice(0, 20);
+  const fvKey = `fv:${now.date}:${visitor}`;
+  const n = Number(await env.CHAT_KV.get(fvKey)) || 0;
+  if (n >= FEEDBACK_PER_DAY) return json({ error: "Thanks, that's plenty of feedback for today." }, 429, env);
+  const prev = (await env.CHAT_KV.get(`fb:${id}`, "json")) || {};
+  const entry = { ...prev, t: new Date().toISOString(), rating: rating || prev.rating || null, comment: comment || prev.comment || "", report_sent: sent || prev.report_sent || false };
+  await Promise.all([
+    env.CHAT_KV.put(`fb:${id}`, JSON.stringify(entry), { expirationTtl: KEEP_DAYS * 86400 }),
+    env.CHAT_KV.put(fvKey, String(n + 1), { expirationTtl: 2 * 86400 }),
+  ]);
+  return json({ ok: true }, 200, env);
+}
+
+// ---- feedback page for Guillermo (GET /admin, browser login) ----
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+async function safeEqual(a, b) {
+  const [x, y] = await Promise.all([sha256Hex(a), sha256Hex(b)]);
+  let d = 0;
+  for (let i = 0; i < x.length; i++) d |= x.charCodeAt(i) ^ y.charCodeAt(i);
+  return d === 0;
+}
+async function adminPage(request, env) {
+  const html = (body, status = 200, extra = {}) => new Response(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Wind Guru AI feedback</title><style>body{font-family:system-ui,sans-serif;margin:0;padding:16px;background:#f4f6fb;color:#1b2438}h1{font-size:1.3rem}.card{background:#fff;border:1px solid #dbe1ee;border-radius:12px;padding:12px 14px;margin:10px 0}.meta{color:#5c6685;font-size:.8rem}.q{font-weight:600;margin:6px 0}.a{white-space:pre-wrap;font-size:.9rem;color:#333}.down{border-color:#c93b56}.up{border-color:#189863}.fb{margin-top:8px;padding:8px;border-radius:8px;background:#fbf0da}.tabs a{margin-right:12px}details summary{cursor:pointer;color:#2f7fe0}</style></head><body>${body}</body></html>`, { status, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", ...extra } });
+  if (!env.ADMIN_PASSWORD || !env.CHAT_KV) return html("<p>The feedback page is closed: add an ADMIN_PASSWORD secret to this Worker in Cloudflare.</p>", 503);
+  const auth = request.headers.get("Authorization") || "";
+  let ok = false;
+  if (auth.startsWith("Basic ")) {
+    try { const pass = atob(auth.slice(6)).split(":").slice(1).join(":"); ok = await safeEqual(pass, env.ADMIN_PASSWORD); } catch {}
+  }
+  if (!ok) return html("<p>Log in to see the feedback.</p>", 401, { "WWW-Authenticate": 'Basic realm="Wind Guru AI feedback", charset="UTF-8"' });
+
+  const view = new URL(request.url).searchParams.get("view") || "all";
+  const [logs, fbs] = await Promise.all([
+    env.CHAT_KV.list({ prefix: "log:", limit: 300 }),
+    env.CHAT_KV.list({ prefix: "fb:", limit: 300 }),
+  ]);
+  const fbIds = new Set(fbs.keys.map((k) => k.name.slice(3)));
+  let ids = logs.keys.map((k) => k.name.slice(4));
+  if (view === "feedback") ids = ids.filter((i) => fbIds.has(i));
+  ids = ids.slice(0, 150);
+  const entries = await Promise.all(ids.map(async (i) => {
+    const [l, f] = await Promise.all([env.CHAT_KV.get(`log:${i}`, "json"), fbIds.has(i) ? env.CHAT_KV.get(`fb:${i}`, "json") : null]);
+    return { i, l, f };
+  }));
+  const fmt = (t) => new Date(t).toLocaleString("en-CA", { timeZone: "America/Vancouver", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const downs = [...fbIds].length;
+  const cards = entries.filter((e) => e.l).map(({ l, f }) => {
+    const cls = f?.rating === "down" ? "down" : f?.rating === "up" ? "up" : "";
+    const rep = l.report ? `<div class="fb">Proposed report: ${esc(l.report.spot)} ${esc(l.report.date)} ${esc(l.report.time)}, ${esc(l.report.wind_dir || "")} ${esc(l.report.actual_speed)}kt${l.report.actual_gust ? " gusting " + esc(l.report.actual_gust) : ""}${f?.report_sent ? " · <b>sent by the rider</b>" : ""}</div>` : "";
+    const fb = f ? `<div class="fb">${f.rating === "down" ? "👎" : f.rating === "up" ? "👍" : ""} ${esc(f.comment)}</div>` : "";
+    return `<div class="card ${cls}"><div class="meta">${esc(fmt(l.t))} · ${esc(l.site)} · conversation ${esc((l.conv || "?").slice(0, 6))}, question ${esc(l.turn)}</div><div class="q">${esc(l.q)}</div><details><summary>Answer</summary><div class="a">${esc(l.a)}</div></details>${rep}${fb}</div>`;
+  }).join("");
+  return html(`<h1>Wind Guru AI feedback</h1><p class="meta">Kept for ${KEEP_DAYS} days. ${logs.keys.length}${logs.list_complete ? "" : "+"} questions, ${downs} with feedback.</p><p class="tabs"><a href="?view=all">All questions</a><a href="?view=feedback">Only with feedback</a></p>${cards || "<p>Nothing yet.</p>"}`);
+}
+
 export default {
   // Exposed only for tests; Cloudflare ignores extra keys on the default export.
-  _test: { parseEcPast24, obsText, validMessages, costUsd, jscaText, terminalText },
+  _test: { parseEcPast24, obsText, validMessages, costUsd, jscaText, terminalText, validReport, newId },
   async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(env) });
+    const path = new URL(request.url).pathname.replace(/\/+$/, "");
+    if (path === "/admin" && request.method === "GET") return adminPage(request, env);
     if (request.method !== "POST") return json({ error: "POST only" }, 405, env);
     const origin = request.headers.get("Origin");
     if (origin && origin !== cfg(env, "ALLOWED_ORIGIN")) return json({ error: "Not allowed" }, 403, env);
@@ -279,6 +402,7 @@ export default {
 
     let body;
     try { body = await request.json(); } catch { return json({ error: "Invalid JSON" }, 400, env); }
+    if (path === "/feedback") return feedback(request, env, body);
     const messages = validMessages(body?.messages);
     if (!messages) return json({ error: "Please keep questions under 500 characters." , code: "invalid" }, 400, env);
 
@@ -315,13 +439,14 @@ export default {
       model,
       max_tokens: MAX_TOKENS,
       output_config: { effort: EFFORT },
+      tools: [REPORT_TOOL],
       system: [
         { type: "text", text: `${RULES}\n\n# Knowledge\n\n${knowledge}`, cache_control: { type: "ephemeral", ttl: "1h" } },
         { type: "text", text: `# Forecast snapshot\n\n${live.text}`, cache_control: { type: "ephemeral", ttl: "1h" } },
       ],
       messages: [
         ...turns,
-        { role: "user", content: `Now: ${now.weekday}, ${now.time} Pacific time.\n\nLive Environment Canada readings, newest first (knots, g = gust):\n${obs}\n\nQuestion: ${question}` },
+        { role: "user", content: `Now: ${now.weekday} (${now.date}), ${now.time} Pacific time.\n\nLive Environment Canada readings, newest first (knots, g = gust):\n${obs}\n\nQuestion: ${question}` },
       ],
     };
 
@@ -350,6 +475,11 @@ export default {
       const cut = Math.max(answer.lastIndexOf(". "), answer.lastIndexOf(".\n"), answer.lastIndexOf("\n"));
       if (cut > 40) answer = answer.slice(0, cut + 1).trim();
     }
+    const toolCall = (data.content || []).find((b) => b.type === "tool_use" && b.name === REPORT_TOOL.name);
+    const report = toolCall ? validReport(toolCall.input, now.date) : null;
+    if (report && !answer) answer = "Thanks, that helps. Here's the report, check it and tap Send if it looks right.";
+    const id = newId();
+    const convId = typeof body?.conversation === "string" && /^[a-z0-9]{6,32}$/i.test(body.conversation) ? body.conversation : null;
     const usd = costUsd(model, data.usage || {});
     month.usd = Math.round((month.usd + usd) * 1e6) / 1e6;
     month.n = (month.n || 0) + 1;
@@ -357,7 +487,8 @@ export default {
     ctx.waitUntil(Promise.all([
       env.CHAT_KV.put(vKey, String(vCount + 1), { expirationTtl: 2 * 86400 }),
       env.CHAT_KV.put(mKey, JSON.stringify(month), { expirationTtl: 70 * 86400 }),
+      env.CHAT_KV.put(`log:${id}`, JSON.stringify({ t: new Date().toISOString(), conv: convId, turn: Math.ceil(messages.length / 2), q: question, a: answer, report, site: site.includes("staging") ? "staging" : "production" }), { expirationTtl: KEEP_DAYS * 86400 }),
     ]));
-    return json({ answer: answer || "Sorry, I don't have an answer for that.", remaining_today: dailyLimit - vCount - 1 }, 200, env);
+    return json({ answer: answer || "Sorry, I don't have an answer for that.", id, report, remaining_today: dailyLimit - vCount - 1 }, 200, env);
   },
 };

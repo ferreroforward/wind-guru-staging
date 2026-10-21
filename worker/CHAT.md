@@ -32,4 +32,12 @@ When the Anthropic limit is reached, every call fails until the 1st of next mont
 - Questions up to 500 characters, the last 6 turns of the conversation only.
 - Only answers wind, weather, tides, spots and the site; never says a spot is safe; never recommends Steveston or Squamish on an outflow.
 - Requests are only accepted from ferreroforward.github.io.
-- Nothing is logged: questions and answers are not stored anywhere.
+- Questions and answers are kept in KV for 90 days with a random conversation id from the page (no IP address, no name), and so is any feedback (thumbs up or down, comment). The notice and the disclaimer say so.
+
+## Feedback page
+
+Add a second secret on the worker: `ADMIN_PASSWORD` (Settings > Variables and Secrets > Add > Secret). Then open `https://<worker>.guillermo-ferrero.workers.dev/admin`; the browser asks for a user name (anything) and that password. It lists the latest questions, newest first, with the answers, the ratings, comments and any conditions report the AI proposed. "Only with feedback" shows the ones with a rating or a comment.
+
+## Conditions reports from the chat
+
+When a rider says the forecast was wrong, the AI asks for spot, time and wind, then proposes a report (tool propose_conditions_report). The page shows it as a card; only if the rider taps Send does it go to the report Worker, exactly like "Report actual conditions".
