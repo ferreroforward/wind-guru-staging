@@ -1,6 +1,6 @@
 # Wind Guru knowledge (reviewed and approved by Guillermo)
 
-This file is what Wind Guru AI knows beyond the live numbers. Guillermo edits it; nothing goes in without his approval. Last reviewed: DRAFT, not yet approved.
+This file is what Wind Guru AI knows beyond the live numbers. Guillermo edits it; nothing goes in without his approval. Last reviewed: approved by Guillermo on Oct 21 2026.
 
 ## The area and the spots
 

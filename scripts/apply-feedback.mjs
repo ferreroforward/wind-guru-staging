@@ -208,10 +208,17 @@ async function main() {
   // water well off the beach (W 12 to 14 on Oct 20 at 7am to 8am while the
   // beach read under 1kt), and those checks had pushed its multiplier to
   // 1.17. From Oct 2026 Jericho is checked at the club's beach station.
-  const RETIRED_LIVE_STATIONS = { "jericho-spanish-banks": ["English Bay buoy"] };
+  // Also left out: the Squamish shipping terminal sensor. It stands in for the
+  // Spit meter on the page while the meter is off, but it sits at the head of
+  // the Sound, not on the Spit, so it must not tune the Spit forecast (Oct 21:
+  // forecast thermal 10kt, terminal S 3).
+  const RETIRED_LIVE_STATIONS = {
+    "jericho-spanish-banks": ["English Bay buoy"],
+    "squamish-spit": ["Squamish terminal sensor (Kiteloop)"],
+  };
   const allLive = await loadLiveVerifications();
   const liveEntries = allLive.filter((e) => !(RETIRED_LIVE_STATIONS[e.spot] || []).includes(e.station));
-  if (allLive.length !== liveEntries.length) console.log(`Left out ${allLive.length - liveEntries.length} live check(s) from retired stations.`);
+  if (allLive.length !== liveEntries.length) console.log(`Left out ${allLive.length - liveEntries.length} live check(s) from stations that don't stand for their spot.`);
   console.log(`Found ${liveEntries.length} logged live-verification mismatch(es).`);
 
   // Rider reports don't capture which wind regime was in effect (the issue

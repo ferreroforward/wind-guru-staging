@@ -1598,8 +1598,8 @@ document.getElementById("disclaimerFullText").innerHTML =
 if (!disclaimerAccepted()) showDisclaimer();
 
 // ---- Wind Guru AI chat (Oct 2026) ----
-// worker/chat.js on Cloudflare. Empty string = chat hidden (production until
-// Guillermo has tested it on staging).
+// worker/chat.js on Cloudflare (production worker wind-guru-chat; staging
+// overrides this with wind-guru-chat-staging). Empty string = chat hidden.
 const CHAT_URL = "https://wind-guru-chat-staging.guillermo-ferrero.workers.dev"; // STAGING VALUE
 const CHAT_ACCEPT_KEY = "windGuruChatAccepted";
 const CHAT_COFFEE_URL = "https://buy.stripe.com/00wfZg2P27G82ry10k1wY00";
