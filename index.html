@@ -137,6 +137,16 @@
   #globalTip .report-trigger{display:block;margin-top:7px;padding:0;color:#8fc4ff;}
 
   /* Wind Guru AI chat (Oct 2026) */
+  .ask-card{background:linear-gradient(135deg,#eef4ff,#f7f2ff);border:1.5px solid var(--accent);box-shadow:var(--shadow);border-radius:14px;padding:14px 18px;margin:16px 0;}
+  .ask-eyebrow{font-size:0.78rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;}
+  .ask-eyebrow .ai-tag{font-size:0.7rem;font-weight:700;color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:1px 7px;margin-left:6px;letter-spacing:0;text-transform:none;background:var(--panel);}
+  .ask-row{display:flex;gap:8px;}
+  .ask-row input{flex:1;min-width:0;border:1px solid var(--border);border-radius:10px;padding:11px 12px;font:inherit;font-size:16px;background:var(--panel);color:var(--text);}
+  .ask-row button{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:0 18px;font-weight:700;font-size:1rem;cursor:pointer;}
+  .ask-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+  .ask-chips button{background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:16px;padding:6px 11px;font-size:0.86rem;cursor:pointer;}
+  .ask-note{font-size:0.76rem;color:var(--muted);margin-top:8px;}
+  .chat-fab.tucked{display:none !important;}
   .chat-fab{position:fixed;right:16px;bottom:16px;z-index:1050;background:var(--accent);color:#fff;border:none;border-radius:24px;padding:12px 16px;font-size:0.95rem;font-weight:700;box-shadow:0 6px 18px rgba(27,36,56,0.25);cursor:pointer;}
   .chat-panel{position:fixed;right:16px;bottom:16px;z-index:1060;width:380px;max-width:calc(100vw - 32px);height:560px;max-height:calc(100vh - 32px);background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:16px;box-shadow:0 12px 32px rgba(27,36,56,0.3);display:flex;flex-direction:column;overflow:hidden;}
   .chat-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--panel2);}
@@ -260,6 +270,21 @@
   <div class="windiest-card" id="windiestCard" style="display:none;">
     <div class="windiest-eyebrow">💨 Windiest good bet, <span id="windiestWhen"></span></div>
     <div class="windiest-body" id="windiestBody"></div>
+  </div>
+  <!-- Ask box near the top (Oct 2026): opens the Wind Guru AI panel and sends
+       the question. The floating button only shows once this box is scrolled away. -->
+  <div class="ask-card" id="askCard" style="display:none;">
+    <div class="ask-eyebrow">💬 Ask Wind Guru AI<span class="ai-tag">AI</span></div>
+    <form class="ask-row" id="askForm">
+      <input id="askInput" maxlength="500" placeholder="Where should I ride today?" aria-label="Ask Wind Guru AI">
+      <button type="submit">Ask</button>
+    </form>
+    <div class="ask-chips" id="askChips">
+      <button type="button">Where is best now?</button>
+      <button type="button">Should I go to Squamish today?</button>
+      <button type="button">Is Porteau working?</button>
+    </div>
+    <div class="ask-note">Answers from this page's forecast and live stations. AI can be wrong.</div>
   </div>
   <div class="meta-row">
     <span id="genLabel">Loading forecast…</span>
@@ -1697,6 +1722,7 @@ function chatIntro() {
       try { localStorage.setItem(CHAT_ACCEPT_KEY, CHAT_ACCEPT_VERSION); } catch {}
       chatEls.input.disabled = chatEls.send.disabled = false;
       chatIntro();
+      if (chatPending) { const q = chatPending; chatPending = null; chatAsk(q); }
     });
     return;
   }
@@ -1714,6 +1740,7 @@ function chatIntro() {
   }
   chatEls.input.focus();
 }
+let chatPending = null; // a question typed in the top box before the notice was accepted
 function chatOpen() { chatEls.panel.style.display = "flex"; chatEls.fab.style.display = "none"; chatIntro(); }
 function chatClose() { chatEls.panel.style.display = "none"; chatEls.fab.style.display = ""; }
 async function chatAsk(q) {
@@ -1751,6 +1778,22 @@ async function chatAsk(q) {
 }
 if (CHAT_URL) {
   chatEls.fab.style.display = "";
+  // Top ask box: same chat, opened with the question already sent.
+  const askCard = document.getElementById("askCard");
+  const askInput = document.getElementById("askInput");
+  askCard.style.display = "";
+  const askFromTop = (q) => {
+    q = (q || "").trim();
+    if (!q) { chatOpen(); return; }
+    askInput.value = "";
+    chatOpen();
+    if (chatAccepted()) chatAsk(q); else chatPending = q;
+  };
+  document.getElementById("askForm").addEventListener("submit", (e) => { e.preventDefault(); askFromTop(askInput.value); });
+  document.getElementById("askChips").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) askFromTop(b.textContent); });
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(([en]) => chatEls.fab.classList.toggle("tucked", en.isIntersecting)).observe(askCard);
+  }
   chatEls.fab.addEventListener("click", chatOpen);
   document.getElementById("chatClose").addEventListener("click", chatClose);
   chatEls.form.addEventListener("submit", (e) => { e.preventDefault(); chatAsk(chatEls.input.value); });
