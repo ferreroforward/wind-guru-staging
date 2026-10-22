@@ -1564,6 +1564,59 @@ export function tideForHour(levels, time) {
 // reading, or at least two models independently at strength). A missing
 // tide feed doesn't block the flag, but the window says so.
 // ---------------------------------------------------------------------------
+
+// ---- Daylight (Oct 2026) ----
+// Riding day = first light to last light (civil twilight, sun 6 degrees below
+// the horizon: about 30 minutes before sunrise and after sunset), per
+// Guillermo. An hour counts when at least 30 minutes of it are inside that
+// window, so with last light at 6:41pm the 6pm hour counts and 7pm doesn't.
+// Dark hours are hidden on the page, never recommended and never part of an
+// epic window. Sunrise equation (NOAA style), good to a couple of minutes.
+const RAD = Math.PI / 180;
+function sunEventsUtcMs(dateStr, lat, lon, altDeg) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const jd = Date.UTC(y, m - 1, d, 12) / 86400000 + 2440587.5;
+  const n = Math.round(jd - 2451545.0 + 0.0008);
+  const jStar = n - lon / 360;
+  const M = (357.5291 + 0.98560028 * jStar) % 360;
+  const C = 1.9148 * Math.sin(M * RAD) + 0.02 * Math.sin(2 * M * RAD) + 0.0003 * Math.sin(3 * M * RAD);
+  const lam = (M + C + 180 + 102.9372) % 360;
+  const jTransit = 2451545.0 + jStar + 0.0053 * Math.sin(M * RAD) - 0.0069 * Math.sin(2 * lam * RAD);
+  const sinDec = Math.sin(lam * RAD) * Math.sin(23.4397 * RAD);
+  const cosDec = Math.cos(Math.asin(sinDec));
+  const cosW = (Math.sin(altDeg * RAD) - Math.sin(lat * RAD) * sinDec) / (Math.cos(lat * RAD) * cosDec);
+  const w = Math.acos(Math.max(-1, Math.min(1, cosW))) / RAD;
+  const toMs = (j) => (j - 2440587.5) * 86400000;
+  return { rise: toMs(jTransit - w / 360), set: toMs(jTransit + w / 360) };
+}
+const pacificClock = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+function pacificMinutes(ms) {
+  const p = Object.fromEntries(pacificClock.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+  return Number(p.hour) * 60 + Number(p.minute);
+}
+function clockLabel(min) {
+  const h = Math.floor(min / 60), m = min % 60;
+  return `${h % 12 || 12}${m ? ":" + String(m).padStart(2, "0") : ""}${h < 12 ? "am" : "pm"}`;
+}
+const daylightCache = new Map();
+// { firstMin, lastMin, firstLabel, lastLabel } in Pacific minutes of the day.
+export function daylightWindow(dateStr, lat, lon) {
+  const key = `${dateStr}|${lat.toFixed(1)}|${lon.toFixed(1)}`;
+  if (!daylightCache.has(key)) {
+    const c = sunEventsUtcMs(dateStr, lat, lon, -6);
+    const firstMin = pacificMinutes(c.rise), lastMin = pacificMinutes(c.set);
+    daylightCache.set(key, { firstMin, lastMin, firstLabel: clockLabel(firstMin), lastLabel: clockLabel(lastMin) });
+  }
+  return daylightCache.get(key);
+}
+// time: "YYYY-MM-DDTHH:00" Pacific (the forecast hour's own clock).
+export function isDaylightHour(time, lat, lon) {
+  const w = daylightWindow(time.slice(0, 10), lat, lon);
+  const start = Number(time.slice(11, 13)) * 60;
+  const overlap = Math.min(start + 60, w.lastMin) - Math.max(start, w.firstMin);
+  return overlap >= 30;
+}
+
 export function flagEpicHours(spot, hours) {
   const sig = spot.epicSignature;
   if (!sig || !Array.isArray(hours)) return [];
@@ -1577,7 +1630,8 @@ export function flagEpicHours(spot, hours) {
     const supported = h.marine_anchored || h.live_reference_triggered || h.mos_used || modelsAtStrength >= 2;
     const tideKnown = !!(h.tide && h.tide.trend);
     const tideOk = !sig.tide || !tideKnown || h.tide.trend === sig.tide;
-    return inWin(hr) && dirOk && windOk && supported && tideOk ? { tideKnown } : null;
+    const light = spot.lat == null || isDaylightHour(h.time, spot.lat, spot.lon);
+    return light && inWin(hr) && dirOk && windOk && supported && tideOk ? { tideKnown } : null;
   });
 
   const windows = [];

@@ -7,7 +7,7 @@
 // for today and the next two days, plus the EC marine forecast, today's
 // take and the track record. The worker adds live station readings on top.
 
-import { probabilityInRange } from "../assets/rules.js";
+import { probabilityInRange, daylightWindow, isDaylightHour } from "../assets/rules.js";
 
 const LEGEND = "Each hour: time, direction and speed (knots, g = gust), odds of 12kt or more, regime, waves, tide height in ft with r rising or f falling. OUTFLOW NOT RIDDEN = Squamish outflow, never recommend. OFF DIR = direction does not work at that spot.";
 
@@ -46,15 +46,18 @@ function hourLine(h) {
 export function buildGuruLive(forecast, spotConfigs, now = new Date()) {
   const days = [pacificDate(now, 0), pacificDate(now, 1), pacificDate(now, 2)];
   // Today and tomorrow hourly through the riding day, the third day every 3 hours.
-  const wanted = (h) => {
+  // Riding hours only (first light to last light, rules.js isDaylightHour).
+  const wanted = (h, spot) => {
     const d = h.time.slice(0, 10), n = Number(h.time.slice(11, 13));
-    if (d === days[0] || d === days[1]) return n >= 6 && n <= 20;
+    if (spot.lat != null && !isDaylightHour(h.time, spot.lat, spot.lon)) return false;
+    if (d === days[0] || d === days[1]) return true;
     if (d === days[2]) return n >= 9 && n <= 18 && n % 3 === 0;
     return false;
   };
   const out = [];
   out.push(`Forecast run: ${forecast.generated_at_label} (the page refreshes this a few times a day).`);
   out.push(LEGEND);
+  out.push("Riding light (first light to last light, Vancouver): " + days.map((d) => { const w = daylightWindow(d, 49.28, -123.12); return `${dayLabel(d)} ${w.firstLabel} to ${w.lastLabel}`; }).join("; ") + ". Hours outside that are dark and not listed; never suggest riding then.");
 
   const takes = forecast.daily_takes || {};
   for (const d of days.slice(0, 2)) {
@@ -81,7 +84,7 @@ export function buildGuruLive(forecast, spotConfigs, now = new Date()) {
     if (tides.length) out.push(`Tides (${spot.tide_station}): ${tides.map((t) => `${t.date === days[0] ? "" : dayLabel(t.date).split(",")[0] + " "}${t.type} ${clock(t.time)} ${t.height_ft}ft`).join(", ")}`);
     for (const w of spot.epic_windows || []) out.push(`Possible epic window: ${w.start} to ${w.end}, up to ${w.peak_kt}kt`);
     let cur = null;
-    for (const h of (spot.hours || []).filter(wanted)) {
+    for (const h of (spot.hours || []).filter((h) => wanted(h, spot))) {
       const d = h.time.slice(0, 10);
       if (d !== cur) { cur = d; out.push(`${dayLabel(d)}:`); }
       out.push(hourLine(h));

@@ -225,6 +225,7 @@
   .links-list a:hover{text-decoration:underline;}
   .about{background:var(--panel);border:1px solid var(--border);box-shadow:var(--shadow);border-radius:14px;padding:18px 20px;font-size:0.95rem;color:var(--muted);line-height:1.65;margin-top:30px;}
   .about b{color:var(--text);}
+  .daylight-note{font-size:0.82rem;color:var(--muted);margin-top:8px;}
   .support{background:var(--panel);border:1px solid var(--border);box-shadow:var(--shadow);border-radius:14px;padding:18px 20px;margin-top:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
   .support-text{font-size:0.95rem;color:var(--muted);line-height:1.55;flex:1 1 320px;}
   .support-text b{color:var(--text);}
@@ -235,6 +236,8 @@
   .support-sub a{color:var(--accent);}
   @media (max-width:600px){
     .support{flex-direction:column;align-items:flex-start;padding:16px;}
+    /* In a column the 320px flex basis became a 320px tall text box (empty gap on phones, Oct 22). */
+    .support-text{flex:0 0 auto;}
     .support-btn{width:100%;text-align:center;box-sizing:border-box;}
     .support-actions{width:100%;}
   }
@@ -308,6 +311,7 @@
     <div class="control-group">
       <label>Day</label>
       <div class="day-tabs" id="dayTabs"></div>
+      <div class="daylight-note" id="daylightNote"></div>
     </div>
   </div>
 
@@ -488,7 +492,7 @@ const ASSET_VERSION = await fetch("data/version.json", { cache: "no-store" })
   .then(r => (r.ok ? r.json() : null)).then(v => v?.version).catch(() => null)
   ?? String(Math.floor(Date.now() / 600000));
 const { SPOTS, inSector, WEBCAMS } = await import(`./assets/spots.js?v=${ASSET_VERSION}`);
-const { probabilityInRange, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, referenceStationSpeeds, dropModels, buildMosUrl, reshapeMos, applyMos, currentPacificHourString, swellForHours } = await import(`./assets/rules.js?v=${ASSET_VERSION}`);
+const { probabilityInRange, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, referenceStationSpeeds, dropModels, buildMosUrl, reshapeMos, applyMos, currentPacificHourString, swellForHours, daylightWindow, isDaylightHour } = await import(`./assets/rules.js?v=${ASSET_VERSION}`);
 
 let forecast = null; // loaded forecast.json shape
 let selectedDayIndex = 0;
@@ -588,13 +592,22 @@ function renderDayTabs() {
     btn.addEventListener("click", () => { selectedDayIndex = i; renderAll(); });
     dayTabsEl.appendChild(btn);
   });
+  const date = dates[selectedDayIndex];
+  const note = document.getElementById("daylightNote");
+  if (note && date) {
+    const w = daylightWindow(date, 49.28, -123.12); // Vancouver; the spots differ by a minute or two
+    note.textContent = `☀️ First light ${w.firstLabel}, last light ${w.lastLabel}. Hours in the dark are left out.`;
+  }
 }
 
 function hoursForSelectedDay(spot) {
   const dates = dayBuckets();
   const date = dates[selectedDayIndex];
   if (!date) return [];
-  return spot.hours.filter(h => h.time.slice(0, 10) === date && h.time.slice(11,13) >= "06" && h.time.slice(11,13) <= "20");
+  // Riding hours only: first light to last light (rules.js isDaylightHour,
+  // Oct 2026). Dark hours are hidden everywhere this list feeds: the hour
+  // strips, best bets, the windiest pick and the map.
+  return spot.hours.filter(h => h.time.slice(0, 10) === date && isDaylightHour(h.time, spot.lat, spot.lon));
 }
 
 function tierClass(pct) {
