@@ -4,7 +4,7 @@ A separate Cloudflare Worker from the report relay. It answers questions from th
 
 - `data/guru-knowledge.md`: the knowledge Guillermo approves (spot rules, Squamish checklist, forecast habits, how to read the page).
 - `data/guru-live.json`: a small forecast snapshot written by every forecast run (`scripts/guru-live.mjs`).
-- Environment Canada past 24 hour readings for Pam Rocks, Squamish Airport, Pemberton, Point Atkinson, English Bay buoy, Sand Heads, Ferry Terminal and Vancouver Airport, fetched by the Worker and kept 10 minutes in KV.
+- Environment Canada past 24 hour readings for Pam Rocks, Squamish Airport, Pemberton, Point Atkinson, English Bay buoy, Halibut Bank buoy, Sand Heads, Ferry Terminal and Vancouver Airport, plus the Jericho Sailing Centre beach station and the Squamish terminal sensor (Kiteloop), fetched by the Worker and kept 10 minutes in KV.
 
 The browser never sees the API key or calls Anthropic directly.
 
@@ -41,3 +41,7 @@ Add a second secret on the worker: `ADMIN_PASSWORD` (Settings > Variables and Se
 ## Conditions reports from the chat
 
 When a rider says the forecast was wrong, the AI asks for spot, time and wind, then proposes a report (tool propose_conditions_report). The page shows it as a card; only if the rider taps Send does it go to the report Worker, exactly like "Report actual conditions".
+
+## Latest station readings for the page (GET /obs)
+
+`GET /obs` returns the newest reading from each station above (direction, knots, gust, time), from the same 10 minute KV cache the chat uses. No AI call, no cost. The page calls it when it opens, every 10 minutes while the tab is visible, and on Refresh live, so the station board is never more than about 10 minutes old instead of waiting for the next forecast run.

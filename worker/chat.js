@@ -106,6 +106,7 @@ const EC_STATIONS = [
   { code: "wvf", name: "Sand Heads" },
   { code: "vtf", name: "Tsawwassen Ferry Terminal" },
   { code: "yvr", name: "Vancouver Airport" },
+  { code: "46146", name: "Halibut Bank buoy" },
 ];
 const OBS_MAX_AGE_MS = 10 * 60 * 1000;
 const OBS_HOURS = 12;
@@ -272,30 +273,93 @@ function terminalText(json) {
 }
 const DIR16 = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
 
-async function getObservations(env) {
+// ---- Latest reading per station, for the page's station board (GET /obs) ----
+// Pacific wall clock to epoch ms (DST handled by asking Intl for the offset).
+function pacificMs(y, mo, d, H, M) {
+  const guess = Date.UTC(y, mo - 1, d, H, M);
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "America/Vancouver", hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric" })
+    .formatToParts(new Date(guess)).map((x) => [x.type, Number(x.value)]));
+  const wall = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute);
+  return guess - (wall - guess);
+}
+// EC rows give only "HH:MM" (Pacific, newest first, last 24 hours).
+function ecLatest(rows) {
+  const o = (rows || []).find((r) => r.dir != null);
+  if (!o) return null;
+  const [y, mo, d] = pacificParts().date.split("-").map(Number);
+  const [H, M] = o.time.split(":").map(Number);
+  let at = pacificMs(y, mo, d, H, M);
+  if (at > Date.now() + 5 * 60000) at -= 86400000; // reading from yesterday evening
+  return { at, dir: o.dir, kt: o.kt, gust: o.gust ?? null, temp: o.temp ?? null };
+}
+// Jericho file: "10/22/26 8:30a", half hour average and gust in knots, newest last.
+function jscaLatest(txt) {
+  let last = null;
+  for (const line of txt.split(/\r?\n/)) {
+    const c = line.trim().split(/\s+/);
+    const dm = c[0]?.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/), tm = c[1]?.match(/^(\d{1,2}):(\d{2})([ap])$/);
+    if (c.length < 16 || !dm || !tm) continue;
+    const kt = parseFloat(c[7]), gust = parseFloat(c[10]);
+    if (!isFinite(kt)) continue;
+    const H = (Number(tm[1]) % 12) + (tm[3] === "p" ? 12 : 0);
+    last = { at: pacificMs(2000 + Number(dm[3]), Number(dm[1]), Number(dm[2]), H, Number(tm[2])), dir: kt === 0 && c[8] === "---" ? "calm" : (c[8] === "---" ? null : c[8]), kt, gust: isFinite(gust) ? gust : null, temp: null };
+  }
+  return last;
+}
+// Kiteloop terminal sensor: 5 minute samples in km/h, newest last.
+function terminalLatest(json) {
+  const s = (json?.series || []).filter((x) => isFinite(x.avgKph));
+  const x = s[s.length - 1];
+  if (!x) return null;
+  const kt = (k) => (isFinite(k) ? Math.round(k * 0.539957 * 10) / 10 : null);
+  const d = x.windDirDeg;
+  return { at: Number(x.t) || Date.parse(x.time), dir: isFinite(d) ? DIR16[Math.round(((d % 360) + 360) % 360 / 22.5) % 16] : null, kt: kt(x.avgKph), gust: kt(x.gustKph), temp: null };
+}
+
+// Fetches every station at most once per 10 minutes (shared by the chat and
+// the page's board, kept in KV). Returns { at, text, stations }.
+async function getObsData(env) {
   const cached = await env.CHAT_KV.get("obs", "json");
-  if (cached && Date.now() - cached.at < OBS_MAX_AGE_MS) return cached.text;
+  if (cached?.stations && Date.now() - cached.at < OBS_MAX_AGE_MS) return cached;
   const byCode = {};
   const extra = [];
+  const latest = {};
   const UA = { headers: { "User-Agent": "wind-guru-chat/1.0" } };
   await Promise.all([
     ...EC_STATIONS.map(async (st) => {
       try {
         const r = await fetch(`https://weather.gc.ca/past_conditions/index_e.html?station=${st.code}`, UA);
-        if (r.ok) byCode[st.code] = parseEcPast24(await r.text());
+        if (r.ok) { byCode[st.code] = parseEcPast24(await r.text()); latest[st.code] = ecLatest(byCode[st.code]); }
       } catch { /* station missing is reported in the text */ }
     }),
     (async () => {
-      try { const r = await fetch("https://jsca.bc.ca/main/downld02.txt", UA); if (r.ok) extra[0] = jscaText(await r.text()); } catch {}
+      try { const r = await fetch("https://jsca.bc.ca/main/downld02.txt", UA); if (r.ok) { const t = await r.text(); extra[0] = jscaText(t); latest.jsca = jscaLatest(t); } } catch {}
     })(),
     (async () => {
-      try { const r = await fetch("https://kiteloop.vercel.app/api/spit-wind-nowcast", UA); if (r.ok) extra[1] = terminalText(await r.json()); } catch {}
+      try { const r = await fetch("https://kiteloop.vercel.app/api/spit-wind-nowcast", UA); if (r.ok) { const j = await r.json(); extra[1] = terminalText(j); latest.kiteloop = terminalLatest(j); } } catch {}
     })(),
   ]);
   const text = [obsText(byCode), extra[0] || "Jericho Sailing Centre beach station: no reading available", extra[1] || "Squamish shipping terminal sensor: no reading available"].join("\n");
+  const names = { ...Object.fromEntries(EC_STATIONS.map((s) => [s.code, s.name])), jsca: "Jericho Sailing Centre (beach)", kiteloop: "Squamish terminal sensor (Kiteloop)" };
+  const stations = Object.entries(latest).filter(([, v]) => v && isFinite(v.at)).map(([code, v]) => ({ code, name: names[code], ...v }));
   const fetched = Object.keys(byCode).length + (extra[0] ? 1 : 0) + (extra[1] ? 1 : 0);
-  if (fetched) await env.CHAT_KV.put("obs", JSON.stringify({ at: Date.now(), text }), { expirationTtl: 3600 });
-  return fetched ? text : (cached?.text ?? "Live station readings are not available right now.");
+  if (!fetched) return cached?.text ? cached : { at: Date.now(), text: "Live station readings are not available right now.", stations: [] };
+  const out = { at: Date.now(), text, stations };
+  await env.CHAT_KV.put("obs", JSON.stringify(out), { expirationTtl: 3600 });
+  return out;
+}
+async function getObservations(env) {
+  return (await getObsData(env)).text;
+}
+
+// GET /obs: the latest reading from each station for the page's board. No AI,
+// no cost; same 10 minute KV cache as the chat.
+async function obsRoute(env) {
+  if (!env.CHAT_KV) return json({ error: "not set up" }, 503, env);
+  const o = await getObsData(env);
+  return new Response(JSON.stringify({ at: o.at, stations: o.stations || [] }), {
+    headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=60", ...corsHeaders(env) },
+  });
 }
 
 async function getText(url) {
@@ -396,6 +460,7 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(env) });
     const path = new URL(request.url).pathname.replace(/\/+$/, "");
     if (path === "/admin" && request.method === "GET") return adminPage(request, env);
+    if (path === "/obs" && request.method === "GET") return obsRoute(env);
     if (request.method !== "POST") return json({ error: "POST only" }, 405, env);
     const origin = request.headers.get("Origin");
     if (origin && origin !== cfg(env, "ALLOWED_ORIGIN")) return json({ error: "Not allowed" }, 403, env);

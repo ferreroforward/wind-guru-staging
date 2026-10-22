@@ -425,6 +425,7 @@
   <div id="obsSection" style="display:none;">
     <h2 class="section">Live surface conditions around the region</h2>
     <div class="obs-note">Real-time station readings, not a forecast — includes our own spot stations plus the wider regional picture from <a href="https://wtfbc.ca/swob.php" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">wtfbc.ca</a>. Jericho beach readings come from the <a href="https://jsca.bc.ca/services/weather/" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">Jericho Sailing Centre</a> station, and the Squamish terminal sensor from <a href="https://kiteloop.vercel.app/" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">Kiteloop</a>.</div>
+    <div class="obs-note" id="obsFresh" style="margin-top:0;"></div>
     <div class="obs-grid" id="obsGrid"></div>
     <div id="camBlock" style="display:none;">
       <h3 class="cam-head">📷 Webcams</h3>
@@ -1240,10 +1241,13 @@ function renderMap() {
 
 // "Live surface conditions" board: real observed readings (not forecast) —
 // our own already-integrated live stations plus wtfbc.ca's wider regional
-// board (see generate.mjs's surface_observations). Server-side snapshot
-// only, same as the marine bulletin/MSLP data — wtfbc.ca doesn't offer CORS
-// for a browser fetch, so this section is simply absent on the "Refresh
-// live" client-side fallback path.
+// board (see generate.mjs's surface_observations). The snapshot's readings
+// are as old as the last forecast run, so since Oct 22 2026 the page also
+// asks the chat worker's GET /obs (the same stations it reads for the AI,
+// at most 10 minutes old, no AI involved) when it opens, every 10 minutes
+// while the tab is visible, and on "Refresh live". A newer worker reading
+// replaces the snapshot's for that card; wtfbc.ca only stations stay as the
+// snapshot has them.
 // Webcam link cards (WEBCAMS in spots.js, Oct 2026). Shown even when the
 // station readings are missing. Returns how many were drawn.
 function renderWebcams() {
@@ -1276,10 +1280,63 @@ setInterval(() => {
   document.querySelectorAll("img.cam-thumb[data-src]").forEach(img => { img.src = camSrc(img.dataset.src); });
 }, 120000);
 
+// Board card name (from generate.mjs) to the chat worker's station code.
+const OBS_CODES = {
+  "Squamish terminal sensor (Kiteloop)": "kiteloop",
+  "Pam Rocks (Howe Sound entrance)": "was",
+  "Jericho Sailing Centre (beach)": "jsca",
+  "Sand Heads": "wvf",
+  "Tsawwassen Ferry Terminal": "vtf",
+  "Point Atkinson": "wsb",
+  "Halibut Bank Buoy": "46146",
+  "English Bay buoy": "46304",
+  "Vancouver International": "yvr",
+  "Squamish Airport": "wsk",
+};
+let liveObs = null; // { fetchedAt, byCode } from GET /obs
+function clockLabel(ms) {
+  return new Date(ms).toLocaleTimeString("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", minute: "2-digit" }).replace(" AM", "am").replace(" PM", "pm");
+}
+function mergeLiveStation(s) {
+  const live = liveObs?.byCode?.[OBS_CODES[s.name]];
+  if (!live || !isFinite(live.at)) return s;
+  // Snapshot reading time, when the run recorded its age.
+  const snapAt = s.observed_age_min != null && forecast?.generated_at ? Date.parse(forecast.generated_at) - s.observed_age_min * 60000 : null;
+  if (snapAt != null && live.at <= snapAt) return s;
+  const mins = Math.max(0, Math.round((Date.now() - live.at) / 60000));
+  return {
+    ...s,
+    direction_label: live.dir,
+    speed_kt: live.kt,
+    gust_kt: live.gust,
+    temp_c: live.temp ?? s.temp_c,
+    observed_local_time: `${clockLabel(live.at)} (${mins < 1 ? "just now" : mins < 120 ? `${mins} min ago` : `${Math.round(mins / 60)}h ago`})`,
+  };
+}
+let obsFetching = false;
+async function refreshStations() {
+  if (obsFetching) return;
+  obsFetching = true;
+  try {
+    const r = await fetch(`${CHAT_URL}/obs`);
+    if (!r.ok) return;
+    const j = await r.json();
+    liveObs = { fetchedAt: Date.now(), byCode: Object.fromEntries((j.stations || []).map(x => [x.code, x])) };
+    if (forecast) renderSurfaceObservations();
+  } catch { /* the snapshot's readings stay */ }
+  finally { obsFetching = false; }
+}
+setInterval(() => { if (!document.hidden) refreshStations(); }, 10 * 60000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && (!liveObs || Date.now() - liveObs.fetchedAt > 5 * 60000)) refreshStations();
+});
+
 function renderSurfaceObservations() {
   const section = document.getElementById("obsSection");
   const grid = document.getElementById("obsGrid");
-  const stations = forecast.surface_observations?.stations || [];
+  const stations = (forecast.surface_observations?.stations || []).map(mergeLiveStation);
+  const fresh = document.getElementById("obsFresh");
+  if (fresh) fresh.textContent = liveObs ? `Station readings checked at ${clockLabel(liveObs.fetchedAt)}. They update when you open the page, every 10 minutes while it's open, and when you tap Refresh live.` : "";
   const cams = renderWebcams();
   if (!stations.length && !cams) { section.style.display = "none"; return; }
   section.style.display = "block";
@@ -1488,6 +1545,7 @@ async function loadStatic() {
     const res = await fetch("data/forecast.json", { cache: "no-store" });
     if (!res.ok) throw new Error("no snapshot yet");
     forecast = await res.json();
+    refreshStations(); // fetched alongside, drawn when it lands
     syncSelectedDayToToday();
     renderAll();
   } catch (err) {
@@ -1598,7 +1656,37 @@ presetsEl.querySelectorAll("button").forEach(btn => {
     renderAll();
   });
 });
-refreshBtn.addEventListener("click", loadLive);
+// "Refresh live" (Oct 22 2026): reload the latest full forecast snapshot (a
+// newer server run may have landed) and the latest station readings. The
+// browser only forecast (loadLive) is now just the fallback when there is
+// no snapshot, since it skips rider feedback, the Pam Rocks nowcast and the
+// pressure check.
+async function refreshAll() {
+  refreshBtn.disabled = true;
+  refreshBtn.textContent = "Refreshing…";
+  try {
+    const res = await fetch("data/forecast.json", { cache: "no-store" });
+    if (res.ok) {
+      const dayBefore = forecast ? dayBuckets()[selectedDayIndex] : null;
+      forecast = await res.json();
+      const idx = dayBefore ? dayBuckets().indexOf(dayBefore) : -1;
+      if (idx !== -1) selectedDayIndex = idx;
+      const obs = refreshStations();
+      renderAll();
+      await obs;
+    } else {
+      await refreshStations();
+      await loadLive();
+    }
+  } catch (err) {
+    genLabel.textContent = "Refresh failed. Check your connection.";
+    console.error(err);
+  } finally {
+    refreshBtn.disabled = false;
+    refreshBtn.textContent = "Refresh live";
+  }
+}
+refreshBtn.addEventListener("click", refreshAll);
 
 // App version (which commit is actually deployed), separate from the
 // forecast-freshness badge above — see .github/workflows/stamp-version.yml.
