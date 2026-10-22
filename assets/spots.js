@@ -458,8 +458,11 @@ export const SPOTS = [
     level: "beginner-friendly",
     // Good on E/SE/S, excellent on SW/W — one continuous arc from E through
     // W covers all of it (the engine doesn't grade "good" vs "excellent",
-    // see direction_note for that texture).
-    favorable_deg: [[90, 270]],
+    // see direction_note for that texture). Oct 22 2026, per Guillermo: a
+    // WNW wraps around the peninsula and is sometimes very good, so the arc
+    // now runs through WNW (to 304, the edge of WNW); a stronger NW is still
+    // a local judgment call (direction_note).
+    favorable_deg: [[90, 304]],
     // City of White Rock's East Beach weather station (the sensor behind
     // whiterockcity.ca's waterfront page), in knots. Replaces the White Rock
     // METAR (CWWK), which read a maximum of 6kt in six weeks. Per Guillermo.
@@ -473,7 +476,7 @@ export const SPOTS = [
       note: "Shallow bay warms fast and drives a modest SW-W afternoon sea breeze on its own, on top of whatever synoptic southerly is already blowing."
     },
     outflow: { enabled: false },
-    direction_note: "Good on E, SE, or S; excellent on SW or W. Per Van Kiteboard OSR Group chat, SE specifically tends to run gustier and choppier here than a clean SW/W day, and is a more dangerous kite launch at high tide — treat \"good on SE\" as more marginal than \"excellent on SW/W,\" not equivalent. A strong NW forecast can also work here — it wraps around near 49.023707, -122.870935 and produces excellent side-shore conditions that a simple \"NW is offshore\" read would miss. Local judgment call, not modeled.",
+    direction_note: "Good on E, SE, or S; excellent on SW or W. Per Van Kiteboard OSR Group chat, SE specifically tends to run gustier and choppier here than a clean SW/W day, and is a more dangerous kite launch at high tide — treat \"good on SE\" as more marginal than \"excellent on SW/W,\" not equivalent. A WNW works too: it wraps around the peninsula and is sometimes very good (Guillermo, Oct 2026), so WNW hours count as rideable. A strong NW forecast can also work here — it wraps around near 49.023707, -122.870935 and produces excellent side-shore conditions that a simple \"NW is offshore\" read would miss. Local judgment call, not modeled.",
     tide_note: "Kiting needs a tide under ~12ft — above that it's nearly impossible to launch. No problem for winging, parawinging, or windsurfing at any tide. Low tide isn't a concern either, just a longer walk to the water."
   },
   {

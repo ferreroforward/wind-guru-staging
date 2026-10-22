@@ -32,7 +32,7 @@ Wind in knots, distances in km, temperatures in Celsius, tides and waves in feet
 
 **Boundary Bay (Centennial Beach).** Beginner friendly. Kite, wing foil, windsurf. Works NE to S (45 to 180 degrees). Foil sports need a tide of about 10ft or more; kiting and windsurfing work at any tide. No live station.
 
-**White Rock East Beach.** Beginner friendly. Kite, wing foil, windsurf. Works E to W through south (90 to 270 degrees). Kiting needs a tide under about 12ft (above that it is nearly impossible to launch); winging, parawinging and windsurfing work at any tide. The city weather station has been offline.
+**White Rock East Beach.** Beginner friendly. Kite, wing foil, windsurf. Works E through south to WNW (90 to about 305 degrees): a WNW wraps around the peninsula and is sometimes very good (Guillermo, Oct 22 2026); a strong NW can also wrap in, a local judgment call. Kiting needs a tide under about 12ft (above that it is nearly impossible to launch); winging, parawinging and windsurfing work at any tide. The city weather station has been offline.
 
 **Crescent Beach.** Beginner friendly. Kite, wing foil, windsurf. Works SW to W (210 to 280) and on a N (345 to 10). Same kite tide limit as White Rock East (under about 12ft).
 
