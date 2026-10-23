@@ -25,6 +25,23 @@ const OWNER = "ferreroforward";
 const REPO = "wind-guru-staging"; // STAGING VALUE
 
 const MIN_SAMPLES = 2; // don't adjust a spot on a single report
+// Rider reports only start moving a spot's multiplier once there are at least
+// MIN_RIDER_REPORTS of them, sent on at least MIN_RIDER_DAYS different days
+// (Oct 22 2026, Guillermo agreed). Before that they still count toward the
+// accuracy badge and the direction tally, just not the multiplier. Why: two
+// Jericho reports (Oct 9 and Oct 13) set a 0.85 cut that took about 2kt off
+// a 15 to 17kt afternoon on Oct 22 (scored against the beach station). A
+// report labelled "test" on GitHub is always left out; closing an issue also
+// retires it, as before.
+const MIN_RIDER_REPORTS = 5;
+const MIN_RIDER_DAYS = 2;
+// Automatic live station checks only count when the forecast or the reading
+// was at least this strong, the riding range (Oct 22 2026, Guillermo agreed).
+// A light hour is a huge miss on paper (Jericho Oct 22 8am: forecast 8.1,
+// beach calm, ratio 0) and one of those dragged Jericho's whole day
+// multiplier down, afternoon included. Hours that matter for riding still
+// count both ways, e.g. forecast 3 and the beach reading 10.
+const LIVE_CHECK_MIN_KT = 10;
 const MAX_REPORTS_PER_SPOT = 20; // weight toward recent reports
 // These are the FULL-STRENGTH bounds — how far the multiplier is allowed to
 // move once there's enough data to trust it completely. A spot with only a
@@ -236,7 +253,12 @@ async function main() {
   // ACCURACY_TOLERANCE_KT above for why this needs its own pool).
   const accuracyPoints = [];
   const directionPoints = {}; // spot -> [{ match }]
+  const bySpotRider = {}; // spot -> rider report points, checked against MIN_RIDER_REPORTS below
   for (const issue of issues) {
+    if ((issue.labels || []).some((l) => /^test$/i.test(typeof l === "string" ? l : l?.name || ""))) {
+      console.log(`  Skipping issue #${issue.number}: labelled test.`);
+      continue;
+    }
     const body = issue.body || "";
     const spot = extractField(body, "Spot");
     const forecasted = parseFloat(extractField(body, "Forecasted speed (kt)"));
@@ -266,11 +288,20 @@ async function main() {
       continue;
     }
     if (!onOrAfter(issue.created_at, SPOT_SINCE[spot])) continue;
-    (bySpotGeneral[spot] ||= []).push({ date: issue.created_at, forecasted, actual, ratio, source: "rider-report", gust: isFinite(gust) ? gust : null });
+    (bySpotRider[spot] ||= []).push({ date: issue.created_at, forecasted, actual, ratio, source: "rider-report", gust: isFinite(gust) ? gust : null });
     accuracyPoints.push({ forecasted, actual });
+  }
+  for (const [spot, pts] of Object.entries(bySpotRider)) {
+    const days = new Set(pts.map((p) => new Date(p.date).toLocaleDateString("en-CA", { timeZone: "America/Vancouver" }))).size;
+    if (pts.length >= MIN_RIDER_REPORTS && days >= MIN_RIDER_DAYS) {
+      (bySpotGeneral[spot] ||= []).push(...pts);
+    } else {
+      console.log(`  ${spot}: ${pts.length} rider report(s) on ${days} day(s), below ${MIN_RIDER_REPORTS} reports on ${MIN_RIDER_DAYS} days, so they don't move the multiplier yet.`);
+    }
   }
   for (const e of liveEntries) {
     if (!e.spot || !isFinite(e.forecasted) || !isFinite(e.actual) || e.forecasted <= 0) continue;
+    if (Math.max(e.forecasted, e.actual) < LIVE_CHECK_MIN_KT) continue;
     const when = e.checked_at || e.time;
     if (!onOrAfter(when, LIVE_STATION_EPOCH) || !onOrAfter(when, SPOT_SINCE[e.spot])) continue;
     const point = { date: e.checked_at || e.time, forecasted: e.forecasted, actual: e.actual, ratio: e.ratio ?? (e.actual / e.forecasted), source: "live-station" };
@@ -333,6 +364,9 @@ async function main() {
   const out = {
     generated_at: new Date().toISOString(),
     min_samples: MIN_SAMPLES,
+    min_rider_reports: MIN_RIDER_REPORTS,
+    min_rider_days: MIN_RIDER_DAYS,
+    live_check_min_kt: LIVE_CHECK_MIN_KT,
     spots: overrides,
     accuracy,
     direction,
