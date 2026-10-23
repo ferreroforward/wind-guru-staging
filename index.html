@@ -163,6 +163,10 @@
   #alertsStations .row{border:1px solid var(--border);border-radius:12px;padding:8px;gap:6px;position:relative;padding-right:36px;}
   #alertsStations .row select{flex:1 1 140px;min-width:0;}
   #alertsStations .row .x{position:absolute;top:6px;right:4px;}
+  .alerts-card .dir-chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center;flex:1 1 100%;}
+  .alerts-card .dir-chips .lbl{font-size:0.8rem;color:var(--muted);margin-right:2px;}
+  .alerts-card button.dchip{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:14px;padding:5px 10px;font-size:0.85rem;font-weight:600;min-width:42px;}
+  .alerts-card button.dchip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;}
   .chat-fab.tucked{display:none !important;}
   .chat-fab{position:fixed;right:16px;bottom:16px;z-index:1050;background:var(--accent);color:#fff;border:none;border-radius:24px;padding:12px 16px;font-size:0.95rem;font-weight:700;box-shadow:0 6px 18px rgba(27,36,56,0.25);cursor:pointer;}
   .chat-panel{position:fixed;right:16px;bottom:16px;z-index:1060;width:380px;max-width:calc(100vw - 32px);height:560px;max-height:calc(100vh - 32px);background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:16px;box-shadow:0 12px 32px rgba(27,36,56,0.3);display:flex;flex-direction:column;overflow:hidden;}
@@ -1995,9 +1999,11 @@ if (CHAT_URL) {
     row.className = "row";
     row.innerHTML = `<select data-k="code" aria-label="Station">${STATIONS.map(([c, n]) => `<option value="${c}"${c === code ? " selected" : ""}>${n}</option>`).join("")}</select>` +
       `<select data-k="min" aria-label="Wind speed">${SPEEDS.map(v => `<option value="${v}"${v === min ? " selected" : ""}>${v}kt or more</option>`).join("")}</select>` +
-      `<select data-k="dir" aria-label="Direction"><option value="any">any direction</option>${["N", "NE", "E", "SE", "S", "SW", "W", "NW"].map(d => `<option value="${d}">from the ${d}</option>`).join("")}</select>` +
+      `<div class="dir-chips" role="group" aria-label="Wind from"><span class="lbl">From (none = any):</span>${["N", "NE", "E", "SE", "S", "SW", "W", "NW"].map(d => `<button type="button" class="dchip" data-d="${d}" aria-pressed="false">${d}</button>`).join("")}</div>` +
       `<button type="button" class="x" aria-label="Remove">✕</button>`;
     row.querySelector(".x").addEventListener("click", () => row.remove());
+    // Several directions can be picked; none picked means any direction.
+    row.querySelectorAll(".dchip").forEach(b => b.addEventListener("click", () => b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") === "true" ? "false" : "true")));
     list.appendChild(row);
   };
   document.getElementById("alertsAddStation").addEventListener("click", () => addRow("jsca", 20));
@@ -2014,7 +2020,7 @@ if (CHAT_URL) {
     e.preventDefault();
     const status = document.getElementById("alertsStatus");
     const btn = document.getElementById("alertsSubmit");
-    const rules = [...list.children].map(r => ({ type: "station", code: r.querySelector('[data-k="code"]').value, min: Number(r.querySelector('[data-k="min"]').value), dir: r.querySelector('[data-k="dir"]').value }));
+    const rules = [...list.children].map(r => ({ type: "station", code: r.querySelector('[data-k="code"]').value, min: Number(r.querySelector('[data-k="min"]').value), dirs: [...r.querySelectorAll('.dchip[aria-pressed="true"]')].map(b => b.dataset.d) }));
     if (document.getElementById("alertsPorteau").checked) rules.push({ type: "porteau" });
     if (document.getElementById("alertsSquamish").checked) rules.push({ type: "squamish" });
     if (document.getElementById("alertsForecastOn").checked) rules.push({ type: "forecast", spot: document.getElementById("alertsSpot").value, min: Number(document.getElementById("alertsMin").value), pct: Number(document.getElementById("alertsPct").value) });

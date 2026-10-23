@@ -526,6 +526,8 @@ function hasNorth(dir) { return typeof dir === "string" && dir !== "calm" && dir
 function hasSouth(dir) { return typeof dir === "string" && dir !== "calm" && dir.includes("S"); }
 function dirOk(dir, want) {
   if (!dir || dir === "calm") return false;
+  // Several directions picked (Oct 23 2026): any one of them matches; none = any.
+  if (Array.isArray(want)) return !want.length || want.some((w) => dirOk(dir, w));
   if (want === "north") return hasNorth(dir);
   if (want === "south") return hasSouth(dir);
   if (want in DIR_SECTORS) {
@@ -546,7 +548,12 @@ function validRules(list) {
     if (r.type === "station") {
       const min = Number(r.min);
       if (!ALERT_STATIONS.includes(r.code) || !Number.isInteger(min) || min < 5 || min > 40) return null;
-      out.push({ type: "station", code: r.code, min, dir: ["north", "south", ...Object.keys(DIR_SECTORS)].includes(r.dir) ? r.dir : "any" });
+      // dirs: the compass sectors picked on the page (none = any direction).
+      // An older single "dir" is still understood.
+      const raw = Array.isArray(r.dirs) ? r.dirs : r.dir && r.dir !== "any" ? [r.dir] : [];
+      const dirs = Object.keys(DIR_SECTORS).filter((d) => raw.includes(d));
+      if (raw.includes("north") || raw.includes("south")) dirs.push(raw.includes("north") ? "north" : "south");
+      out.push({ type: "station", code: r.code, min, dir: dirs });
     } else if (r.type === "porteau" || r.type === "squamish") {
       out.push({ type: r.type });
     } else if (r.type === "forecast") {
@@ -566,7 +573,8 @@ const SPOT_NAMES = {
 };
 function ruleText(r) {
   if (r.type === "station") {
-    const dirText = r.dir === "north" ? " from a northerly direction" : r.dir === "south" ? " from a southerly direction" : r.dir in DIR_SECTORS ? ` from the ${r.dir}` : "";
+    const ds = (Array.isArray(r.dir) ? r.dir : r.dir && r.dir !== "any" ? [r.dir] : []).map((d) => (d === "north" ? "north" : d === "south" ? "south" : d));
+    const dirText = ds.length ? ` from the ${ds.length === 1 ? ds[0] : ds.slice(0, -1).join(", ") + " or " + ds[ds.length - 1]}` : "";
     return `${r.code === "all" ? "Any station" : STATION_NAMES[r.code]} reads ${r.min}kt or more${dirText}`;
   }
   if (r.type === "porteau") return "Porteau outflow: Pam Rocks 22kt or more from the north";
