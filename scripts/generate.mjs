@@ -10,6 +10,7 @@ import path from "node:path";
 
 import { buildGuruLive } from "./guru-live.mjs";
 import { buildAlertsForecast } from "./alerts-forecast.mjs";
+import { fetchWaves, attachWaves } from "./waves.mjs";
 import { fetchJscaRows, fetchKiteloopRows, halfHourly, latestObservation, appendHistory, JSCA_HISTORY_META, jscaRow, TERMINAL_HISTORY_META, terminalRow } from "./extra-stations.mjs";
 import { SPOTS, PRESSURE_REFERENCE, degToLabel, DEG_LABELS, WEBCAMS } from "../assets/spots.js";
 import { MODELS, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, rowsToPressureMap, rowsToSpeedMap, currentPacificHourString, explainMismatch, parseMarineWindText, marineAnchorForHour, parseEcIssued, dropModels, tideForHour, flagEpicHours, buildMosUrl, reshapeMos, applyMos, swellForHours, thermalInputs, applyThermalModel } from "../assets/rules.js";
@@ -949,6 +950,15 @@ async function main() {
 
   const nowHourStr = currentPacificHourString(startedAt);
 
+  // Wave model for the Foil assist pick (scripts/waves.mjs), fetched once.
+  let waves = {};
+  try {
+    waves = await fetchWaves(startedAt);
+    console.log(`[waves] SalishSeaCast waves for ${Object.keys(waves).length} spot(s).`);
+  } catch (err) {
+    console.log(`[waves] fetch failed: ${err.message}`);
+  }
+
   // Fetched once, shared by every spot that uses it (pamRocksAware and/or
   // pamRocksTrigger — see rules.js) — a live nowcast only ever applies to
   // whichever hour is "right now," so there's no point fetching it per spot.
@@ -1099,6 +1109,8 @@ async function main() {
     if (tideLevels) for (const h of hours) h.tide = tideForHour(tideLevels, h.time);
     // Swell index per hour (needs the tide trend above).
     swellForHours(spot, hours);
+    // Waves for Foil assist (model, or the leftover swell estimate at Porteau).
+    attachWaves(spot.id, hours, waves);
     const epicWindows = flagEpicHours(spot, hours);
     if (epicWindows.length) console.log(`  [epic:${spot.id}] ${epicWindows.map(w => `${w.date} ${w.start}-${w.end} peak ${w.peak_kt}kt`).join("; ")}`);
 

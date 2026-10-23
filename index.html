@@ -348,6 +348,7 @@
         <button data-lo="12" class="active" aria-pressed="true">12+ Sweet spot</button>
         <button data-lo="18" aria-pressed="false">18+ Powered</button>
         <button data-lo="25" aria-pressed="false">25+ Full send</button>
+        <button data-mode="foil" aria-pressed="false" title="Waves, not wind: for foil assist boards">🌊 Foil assist</button>
       </div>
     </div>
     <div class="control-group">
@@ -558,11 +559,42 @@ function syncSelectedDayToToday() {
   if (idx !== -1) selectedDayIndex = idx;
 }
 let minKt = 12;
+// Foil assist pick (Oct 2026): ranks spots and hours by waves from the
+// SalishSeaCast wave model (h.waves, see scripts/waves.mjs) instead of wind
+// odds. Guillermo: 2ft is rideable for most people, 3 to 4ft is ideal.
+// waveScore maps feet onto the page's 0 to 100 colour scale: 2ft = 45
+// (yellow, listed), 3ft = 65 (green), 4ft = 88.
+let foilMode = false;
+function waveScore(h) {
+  const ft = h?.waves?.ft;
+  if (ft == null) return 0;
+  if (ft <= 1) return Math.round(ft * 5);
+  if (ft <= 2) return Math.round(5 + (ft - 1) * 40);
+  if (ft <= 3) return Math.round(45 + (ft - 2) * 20);
+  if (ft <= 4) return Math.round(65 + (ft - 3) * 23);
+  return Math.min(95, Math.round(88 + (ft - 4) * 7));
+}
+// The page's score for an hour: wind odds for the chosen range, or the wave
+// score in Foil assist.
+function hourOdds(h) {
+  if (foilMode) return { probability: waveScore(h), confidence: h.waves?.source === "model" ? 70 : 50 };
+  return probabilityInRange(h, minKt);
+}
+function waveText(h) {
+  const w = h?.waves;
+  if (!w) return "no wave data";
+  return `${w.ft}ft${w.period_s ? `, ${Math.round(w.period_s)}s` : ""}${w.source === "estimate" ? " (estimate)" : ""}`;
+}
+function windInfo(h) {
+  return h.speed_kt != null ? `wind ${h.direction_label ?? ""} ${Math.round(h.speed_kt)}kt` : "wind n/a";
+}
+const VERY_WINDY_KT = 20;
 
 // Every quick-pick button is a minimum, not a closed range — "12+ Sweet
 // spot" means "will it hit at least 12kt," and more wind than that only
 // helps the odds, never hurts them (see probabilityInRange() in rules.js).
 function rangeLabel() {
+  if (foilMode) return "foil assist (2ft and up)";
   return `${minKt}kt+`;
 }
 
@@ -695,11 +727,13 @@ function windTerm(kt) {
 function bestWindowForSpot(spot) {
   const hours = hoursForSelectedDay(spot);
   let best = null, bestAny = null;
+  if (foilMode && !hours.some(h => h.waves)) return null; // no wave data here (Squamish, Cates)
   for (const h of hours) {
-    const { probability, confidence } = probabilityInRange(h, minKt);
-    const score = scoreHour(probability, confidence, h.speed_kt);
+    const { probability, confidence } = hourOdds(h);
+    const score = scoreHour(probability, confidence, foilMode ? (h.waves?.ft ?? 0) * 6 : h.speed_kt);
     if (!bestAny || score > bestAny.score) bestAny = { hour: h, probability, confidence, score };
-    if (h.favorable_direction !== false && (!best || score > best.score)) {
+    // Wind direction doesn't matter for foil assist.
+    if ((foilMode || h.favorable_direction !== false) && (!best || score > best.score)) {
       best = { hour: h, probability, confidence, score };
     }
   }
@@ -738,7 +772,21 @@ function hourLabel(hourNum) {
 // light confidence floor (CONFIDENCE_FLOOR) keeps a single noisy model
 // outlier from headlining over a well-supported, only-slightly-calmer hour.
 const CONFIDENCE_FLOOR = 35;
+function biggestWavesForDay() {
+  let best = null;
+  for (const sp of SPOTS) {
+    if (sp.neverRecommend) continue;
+    const spot = forecast.spots.find(s => s.id === sp.id);
+    if (!spot) continue;
+    for (const h of hoursForSelectedDay(spot)) {
+      if (h.waves?.ft == null) continue;
+      if (!best || h.waves.ft > best.hour.waves.ft) best = { spot: sp, hour: h };
+    }
+  }
+  return best;
+}
 function windiestGoodBetForDay() {
+  if (foilMode) return biggestWavesForDay();
   let best = null;
   for (const sp of SPOTS) {
     if (sp.neverRecommend) continue;
@@ -764,8 +812,15 @@ function renderWindiestCard() {
   whenEl.textContent = dayLbl === "Today" ? "today" : dayLbl;
 
   const w = windiestGoodBetForDay();
+  const eyebrow = document.querySelector("#windiestCard .windiest-eyebrow");
+  if (eyebrow && !eyebrow.dataset.wind) eyebrow.dataset.wind = eyebrow.firstChild.textContent;
+  if (eyebrow) eyebrow.firstChild.textContent = foilMode ? "🌊 Biggest waves, " : eyebrow.dataset.wind;
   if (!w) { card.style.display = "none"; return; }
   card.style.display = "block";
+  if (foilMode) {
+    body.innerHTML = `<b>${w.spot.name}</b> · ${waveText(w.hour)} at ${w.hour.time.slice(11,16)} · ${windInfo(w.hour)}`;
+    return;
+  }
   const gustText = w.hour.gust_kt != null ? `, gusting ${Math.round(w.hour.gust_kt)}` : "";
   const gustyTag = w.hour.gusty ? ` <span class="gusty-tag" title="Strong upper-level wind riding over solid surface wind — expect a choppier, more gust-prone day than the average speed alone suggests.">💨 GUSTY</span>` : "";
   body.innerHTML = `<b>${w.spot.name}</b> · ${Math.round(w.hour.speed_kt)}kt${gustText} ${w.hour.direction_label ?? ""} at ${w.hour.time.slice(11,16)}${gustyTag}`;
@@ -863,12 +918,13 @@ function renderBestBets() {
   // It's added last, at the windiest hour, marked as below the range.
   const w = windiestGoodBetForDay();
   const windiestExtra = w && !ranked.some(r => r.spot.id === w.spot.id)
-    ? { spot: w.spot, hour: w.hour, probability: probabilityInRange(w.hour, minKt).probability, windiestOnly: true }
+    ? { spot: w.spot, hour: w.hour, probability: hourOdds(w.hour).probability, windiestOnly: true }
     : null;
 
   bestBetsEl.innerHTML = "";
-  if (!ranked.length && !windiestExtra) { bestBetsEl.innerHTML = `<div class="empty">Nothing hit ${MIN_LIST_PROBABILITY}%+ for this range today — try a wider range or another day.</div>`; return; }
-  if (!ranked.length) bestBetsEl.innerHTML = `<div class="empty" style="padding-bottom:6px;">Nothing hit ${MIN_LIST_PROBABILITY}%+ for this range today. The windiest option is below; try a lighter range or another day.</div>`;
+  const none = foilMode ? "No spot reaches about 2ft of waves" : `Nothing hit ${MIN_LIST_PROBABILITY}%+ for this range`;
+  if (!ranked.length && !windiestExtra) { bestBetsEl.innerHTML = `<div class="empty">${none} today — try ${foilMode ? "another day" : "a wider range or another day"}.</div>`; return; }
+  if (!ranked.length) bestBetsEl.innerHTML = `<div class="empty" style="padding-bottom:6px;">${none} today. The ${foilMode ? "biggest waves are" : "windiest option is"} below; try ${foilMode ? "another day" : "a lighter range or another day"}.</div>`;
 
   [...ranked, ...(windiestExtra ? [windiestExtra] : [])].forEach((r, i) => {
     const div = document.createElement("div");
@@ -878,12 +934,12 @@ function renderBestBets() {
     const gustyTag = r.hour.gusty ? `<span class="gusty-tag" title="Strong upper-level wind riding over solid surface wind — expect a choppier, more gust-prone day than the average speed alone suggests.">💨 GUSTY</span>` : "";
     const offshoreTag = r.hour.favorable_direction === false ? `<span class="offshore-tag" title="Wind direction looks offshore or otherwise not rideable here, even though the speed may be there.">⚠️ CHECK DIRECTION</span>` : "";
     div.innerHTML = `
-      <div class="bet-rank">${r.windiestOnly ? "💨" : i + 1}</div>
-      <div class="bet-badge ${cls}">${r.probability}%</div>
+      <div class="bet-rank">${r.windiestOnly ? (foilMode ? "🌊" : "💨") : i + 1}</div>
+      <div class="bet-badge ${cls}">${foilMode ? `${r.hour.waves?.ft ?? "–"}ft` : `${r.probability}%`}</div>
       <div class="bet-info">
         <div class="name">${r.spot.name} <span style="color:var(--muted);font-weight:400;font-size:0.8rem;">· ${r.spot.region}</span></div>
-        <div class="detail">${r.hour.time.slice(11,16)} · ${r.hour.speed_kt != null ? Math.round(r.hour.speed_kt) : "–"}${gustText}kt ${r.hour.direction_label ?? ""} · <span title="Beaufort force ${beaufort(r.hour.speed_kt)?.force ?? ""} (Environment Canada wind scale)">${windTerm(r.hour.speed_kt)}</span>${gustyTag}${offshoreTag}${r.spot.caution_note ? `<span class="offshore-tag" title="${r.spot.caution_note}">⚠️ ${r.spot.level === "expert" ? "EXPERTS ONLY" : r.spot.level === "advanced" ? "ADVANCED ONLY" : "PORT RULES"}</span>` : ""}</div>
-        ${r.windiestOnly ? `<div class="detail" style="color:var(--muted);">Windiest option today, the one named at the top. Under ${MIN_LIST_PROBABILITY}% odds for ${rangeLabel()}.</div>` : ""}
+        ${foilMode ? `<div class="detail">${r.hour.time.slice(11,16)} · ${waveText(r.hour)}${r.hour.waves?.side ? ` · ${r.hour.waves.side}` : ""} · ${windInfo(r.hour)}${r.hour.speed_kt >= VERY_WINDY_KT ? `<span class="gusty-tag">💨 VERY WINDY</span>` : ""}${r.spot.caution_note ? `<span class="offshore-tag" title="${r.spot.caution_note}">⚠️ ${r.spot.level === "expert" ? "EXPERTS ONLY" : r.spot.level === "advanced" ? "ADVANCED ONLY" : "PORT RULES"}</span>` : ""}</div>` : `<div class="detail">${r.hour.time.slice(11,16)} · ${r.hour.speed_kt != null ? Math.round(r.hour.speed_kt) : "–"}${gustText}kt ${r.hour.direction_label ?? ""} · <span title="Beaufort force ${beaufort(r.hour.speed_kt)?.force ?? ""} (Environment Canada wind scale)">${windTerm(r.hour.speed_kt)}</span>${gustyTag}${offshoreTag}${r.spot.caution_note ? `<span class="offshore-tag" title="${r.spot.caution_note}">⚠️ ${r.spot.level === "expert" ? "EXPERTS ONLY" : r.spot.level === "advanced" ? "ADVANCED ONLY" : "PORT RULES"}</span>` : ""}</div>`}
+        ${r.windiestOnly ? `<div class="detail" style="color:var(--muted);">${foilMode ? "Biggest waves today, the spot named at the top. Under about 2ft." : `Windiest option today, the one named at the top. Under ${MIN_LIST_PROBABILITY}% odds for ${rangeLabel()}.`}</div>` : ""}
       </div>
     `;
     bestBetsEl.appendChild(div);
@@ -1044,12 +1100,13 @@ function showTip(cellEl, h, spotId) {
   const ec = h.marine_ec && h.marine_ec.gap_kt >= 4 && !h.live_reference_triggered ? h.marine_ec : null;
   const ecText = ec ? `<div style="margin-top:4px;opacity:0.9;font-weight:400;">📻 Environment Canada: ${ec.direction_label} ${ec.lo_kt}${ec.hi_kt !== ec.lo_kt ? ` to ${ec.hi_kt}` : ""}kt, stronger than the models here</div>` : "";
   const sw = h.swell;
+  const wavesText = h.waves ? `<div style="margin-top:4px;opacity:0.9;font-weight:400;">🌊 Waves ${waveText(h)}${h.waves.side ? `, ${h.waves.side}` : ""}${h.waves.source === "model" ? " (SalishSeaCast wave model)" : ""}</div>` : "";
   const swellText = sw && sw.label !== "flat" ? `<div style="margin-top:4px;opacity:0.9;font-weight:400;">🌊 ${swellLabel(sw.label)}: about ${sw.hs_ft}ft (${sw.hs_m.toFixed(1)}m)${sw.period_s ? `, ${sw.period_s}s` : ""} after ${sw.duration_h}h of wind${sw.vs_wind ? `, ${sw.vs_wind === "against" ? `wind against the ${sw.current}` : sw.vs_wind === "with" ? `${sw.current} running with the wind` : `${sw.current} across the wind`}` : ""}${sw.building ? " (4h+ against the tide: building)" : ""}</div>` : "";
   const sv = sideVerdict(SPOTS.find(s => s.id === spotId), h);
   const sideText = sv ? `<div style="margin-top:4px;opacity:0.9;font-weight:400;">↔️ ${sv.text}</div>` : "";
   const epicText = h.epic ? `<div style="margin-top:4px;font-weight:700;color:#ffcf9e;">🔥 Matches this spot's epic day setup</div>` : "";
   const spotName = (SPOTS.find(s => s.id === spotId) || {}).name ?? spotId;
-  globalTip.innerHTML = `<b>${windTerm(h.speed_kt)}${h.speed_kt != null ? ` <span style="font-weight:400;opacity:0.8;">(Beaufort ${beaufort(h.speed_kt).force})</span>` : ""}</b>${speedText}${summaryText}${sideText}${tideText}${swellText}${ecText}${mosText}${agreeText}${epicText}
+  globalTip.innerHTML = `<b>${windTerm(h.speed_kt)}${h.speed_kt != null ? ` <span style="font-weight:400;opacity:0.8;">(Beaufort ${beaufort(h.speed_kt).force})</span>` : ""}</b>${speedText}${summaryText}${sideText}${tideText}${wavesText}${swellText}${ecText}${mosText}${agreeText}${epicText}
     <button type="button" class="report-trigger" data-spot="${spotId}" data-name="${spotName}" data-date="${h.time.slice(0, 10)}" data-time="${h.time.slice(11, 16)}" data-forecast="${h.speed_kt != null ? h.speed_kt : ""}" data-dir="${h.direction_label ?? ""}">📝 Report actual conditions →</button>`;
   const rect = cellEl.getBoundingClientRect();
   globalTip.style.display = "block";
@@ -1143,6 +1200,21 @@ function cautionLine(sp) {
 function swellLabel(l) { return l === "good swell" ? "Good swell" : l === "waves" ? "Waves" : l === "chop" ? "Chop" : "Flat"; }
 // The day's best wave hours, e.g. "🌊 Waves 9am to 11am, up to 3.6ft, wind
 // against the ebb". Only shown when the swell index says waves or better.
+// Foil assist: the biggest waves of the day at this spot and the run of
+// 2ft+ hours around them.
+function waveLineForDay(hours) {
+  const withW = hours.filter(h => h.waves);
+  if (!withW.length) return `<div class="tide-line">🌊 No wave forecast here (the wave model doesn't cover this spot).</div>`;
+  const peak = withW.reduce((a, b) => (b.waves.ft > a.waves.ft ? b : a));
+  const ok = (h) => h.waves && h.waves.ft >= 2;
+  let i0 = hours.indexOf(peak), i1 = i0;
+  while (i0 > 0 && ok(hours[i0 - 1])) i0--;
+  while (i1 < hours.length - 1 && ok(hours[i1 + 1])) i1++;
+  const hr = (h) => hourLabel(Number(h.time.slice(11, 13)));
+  const span = ok(peak) && i1 > i0 ? `2ft or more ${hr(hours[i0])} to ${hr(hours[i1])}, ` : "";
+  const src = peak.waves.source === "estimate" ? "estimate from wind and fetch, carried on after the wind drops" : "SalishSeaCast wave model";
+  return `<div class="tide-line">🌊 <b>Waves</b> ${span}up to ${peak.waves.ft}ft${peak.waves.period_s ? ` at ${Math.round(peak.waves.period_s)}s` : ""} around ${hr(peak)}${peak.waves.side ? ` (${peak.waves.side})` : ""} <span style="opacity:0.75;">· ${src}</span></div>`;
+}
 function swellLineForDay(hours) {
   const isGood = (h) => h.swell && (h.swell.label === "waves" || h.swell.label === "good swell");
   const good = hours.filter(isGood);
@@ -1211,8 +1283,8 @@ function renderSpotCards() {
   const withData = SPOTS.filter(sp => forecast.spots.some(s => s.id === sp.id));
   const hidden = withData.filter(sp => !goodIds.has(sp.id)).length;
   noteEl.innerHTML = showAllSpots
-    ? `Showing all ${withData.length} spots, including those under ${MIN_LIST_PROBABILITY}% for your range.`
-    : hidden ? `${hidden} spot${hidden === 1 ? "" : "s"} under ${MIN_LIST_PROBABILITY}% for your range ${hidden === 1 ? "is" : "are"} hidden. <a id="cardsShowAll">Show all spots</a>` : "";
+    ? `Showing all ${withData.length} spots, including those ${foilMode ? "under about 2ft of waves" : `under ${MIN_LIST_PROBABILITY}% for your range`}.`
+    : hidden ? `${hidden} spot${hidden === 1 ? "" : "s"} ${foilMode ? "under about 2ft of waves or without wave data" : `under ${MIN_LIST_PROBABILITY}% for your range`} ${hidden === 1 ? "is" : "are"} hidden. <a id="cardsShowAll">Show all spots</a>` : "";
   document.getElementById("cardsShowAll")?.addEventListener("click", () => setShowAll(true));
   if (!goodIds.size && !showAllSpots) {
     spotCardsEl.innerHTML = `<div class="empty">Nothing hit ${MIN_LIST_PROBABILITY}%+ for this range today — try a wider range, another day, or turn on Show all spots.</div>`;
@@ -1249,7 +1321,7 @@ function renderSpotCards() {
       ${cautionLine(sp)}
       ${trackLine(sp)}
       ${tideLineForDay(spot)}
-      ${swellLineForDay(hours)}
+      ${foilMode ? waveLineForDay(hours) : swellLineForDay(hours)}
       ${ecLineForDay(hours)}
       ${outflowLineForDay(hours)}
       ${sideLineForDay(sp, hours)}
@@ -1261,13 +1333,13 @@ function renderSpotCards() {
       stripEl.innerHTML = '<div class="empty">No data</div>';
     } else {
       hours.forEach(h => {
-        const { probability } = probabilityInRange(h, minKt);
-        const cls = tierClass(probability);
+        const { probability } = hourOdds(h);
+        const cls = foilMode && !h.waves ? "lvl-gray" : tierClass(probability);
         const cellEl = document.createElement("div");
         cellEl.className = `hour-cell ${h.outflow_not_ridden ? "outflow" : cls}${h.epic ? " epic" : ""}`;
         cellEl.tabIndex = 0; // keyboard/touch accessible, not just mouse hover
         cellEl.setAttribute("role", "button");
-        cellEl.setAttribute("aria-label", `${h.time.slice(11,16)}: ${probability}% chance, ${h.speed_kt != null ? Math.round(h.speed_kt) : "no"} knots ${h.direction_label ?? ""}${h.outflow_not_ridden ? ", outflow, not ridden here" : h.favorable_direction === false ? ", offshore direction" : ""}${h.gusty ? ", gusty" : ""}`);
+        cellEl.setAttribute("aria-label", foilMode ? `${h.time.slice(11,16)}: waves ${waveText(h)}, ${windInfo(h)}` : `${h.time.slice(11,16)}: ${probability}% chance, ${h.speed_kt != null ? Math.round(h.speed_kt) : "no"} knots ${h.direction_label ?? ""}${h.outflow_not_ridden ? ", outflow, not ridden here" : h.favorable_direction === false ? ", offshore direction" : ""}${h.gusty ? ", gusty" : ""}`);
         cellEl.innerHTML = `
           ${h.gusty ? `<div class="gusty-dot" title="Gusty — strong upper-level wind">💨</div>` : ""}
           ${h.epic ? `<div class="epic-dot" title="Matches this spot's epic day setup">🔥</div>` : ""}
@@ -1275,9 +1347,11 @@ function renderSpotCards() {
           ${h.models_agree ? `<div class="agree-dot" title="Models agree within 15%: higher confidence">✓</div>` : ""}
           ${h.outflow_not_ridden ? `<div class="offshore-dot" title="Outflow, not inflow: riders don't launch here on an outflow">⬇️</div>` : h.favorable_direction === false ? `<div class="offshore-dot" title="Offshore / unfavorable direction">⚠️</div>` : ""}
           <div class="t">${h.time.slice(11,16)}</div>
-          <div class="p">${probability}%</div>
+          ${foilMode ? `<div class="p">${!h.waves ? "–" : h.waves.ft < 0.5 ? "flat" : `${h.waves.ft}ft`}</div>
+          <div class="d">${h.waves?.period_s && h.waves.ft >= 0.5 ? `${Math.round(h.waves.period_s)}s` : ""}${h.waves?.source === "estimate" ? " est" : ""}</div>
+          <div class="dir">${h.direction_label ?? ""} ${h.speed_kt != null ? Math.round(h.speed_kt) + "kt" : ""}</div>` : `<div class="p">${probability}%</div>
           <div class="d">${h.speed_kt != null ? Math.round(h.speed_kt) : "–"}${h.gust_kt != null ? `–${Math.round(h.gust_kt)}` : ""}kt</div>
-          <div class="dir">${h.direction_label}${h.outflow_not_ridden ? `<div class="outflow-tag">outflow</div>` : ""}</div>
+          <div class="dir">${h.direction_label}${h.outflow_not_ridden ? `<div class="outflow-tag">outflow</div>` : ""}</div>`}
         `;
         cellEl.addEventListener("mouseenter", () => { cancelHide(); showTip(cellEl, h, sp.id); });
         cellEl.addEventListener("mouseleave", scheduleHide);
@@ -1308,7 +1382,7 @@ function renderMap() {
     const marker = L.circleMarker([sp.lat, sp.lon], {
       radius: 9, color, fillColor: color, fillOpacity: 0.85, weight: 2,
     }).addTo(markerLayer);
-    marker.bindPopup(`<b>${sp.name}</b><br>${pct === null ? "no data" : outflow ? "Outflow, not inflow: not ridden here" : sp.neverRecommend ? `Not recommended; experienced locals only (${pct}% chance of ${rangeLabel()})` : pct + "% chance of " + rangeLabel()}`);
+    marker.bindPopup(`<b>${sp.name}</b><br>${pct === null ? "no data" : outflow ? "Outflow, not inflow: not ridden here" : sp.neverRecommend ? `Not recommended; experienced locals only (${pct}% chance of ${rangeLabel()})` : foilMode ? `Waves up to ${bestWindowForSpot(spot)?.hour.waves?.ft ?? "?"}ft today` : pct + "% chance of " + rangeLabel()}`);
   });
 }
 
@@ -1722,7 +1796,8 @@ async function loadLive() {
 
 presetsEl.querySelectorAll("button").forEach(btn => {
   btn.addEventListener("click", () => {
-    minKt = Number(btn.dataset.lo);
+    foilMode = btn.dataset.mode === "foil";
+    if (!foilMode) minKt = Number(btn.dataset.lo);
     presetsEl.querySelectorAll("button").forEach(b => { b.classList.remove("active"); b.setAttribute("aria-pressed", "false"); });
     btn.classList.add("active");
     btn.setAttribute("aria-pressed", "true");
