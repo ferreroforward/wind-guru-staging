@@ -62,6 +62,7 @@
   .windiest-body .sub{display:block;font-size:0.88rem;font-weight:400;color:var(--muted);margin-top:5px;line-height:1.4;}
   .daily-take-card{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--accent);box-shadow:var(--shadow);border-radius:14px;padding:16px 20px;margin:16px 0;}
   .daily-take-eyebrow{font-size:0.78rem;font-weight:700;letter-spacing:0.05em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;}
+  .daily-take-when{font-size:0.8rem;color:var(--muted);margin:-4px 0 8px;}
   .daily-take-body{font-size:1rem;color:var(--text);line-height:1.55;white-space:pre-wrap;}
 
   .best-bets{display:flex;flex-direction:column;gap:10px;}
@@ -225,8 +226,8 @@
   .links-list a:hover{text-decoration:underline;}
   .about{background:var(--panel);border:1px solid var(--border);box-shadow:var(--shadow);border-radius:14px;padding:18px 20px;font-size:0.95rem;color:var(--muted);line-height:1.65;margin-top:30px;}
   .about b{color:var(--text);}
-  .daylight-note{font-size:0.82rem;color:var(--muted);margin-top:8px;}
-  .support{background:var(--panel);border:1px solid var(--border);box-shadow:var(--shadow);border-radius:14px;padding:18px 20px;margin-top:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+  .daylight-note{font-size:0.85rem;color:var(--muted);margin:-4px 0 6px;}
+  .support{background:var(--panel);border:1px solid var(--border);box-shadow:var(--shadow);border-radius:14px;padding:18px 20px;margin-top:16px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;}
   .support-text{font-size:0.95rem;color:var(--muted);line-height:1.55;flex:1 1 320px;}
   .support-text b{color:var(--text);}
   .support-btn{flex:0 0 auto;background:#ffc439;border:1px solid #ffc439;color:#1b2438;padding:12px 22px;border-radius:24px;font-weight:700;font-size:0.95rem;text-decoration:none;white-space:nowrap;}
@@ -311,7 +312,6 @@
     <div class="control-group">
       <label>Day</label>
       <div class="day-tabs" id="dayTabs"></div>
-      <div class="daylight-note" id="daylightNote"></div>
     </div>
   </div>
 
@@ -330,6 +330,7 @@
 
   <div class="daily-take-card" id="dailyTakeCard" style="display:none;">
     <div class="daily-take-eyebrow" id="dailyTakeEyebrow">🎯 Guillermo's take</div>
+    <div class="daily-take-when" id="dailyTakeWhen"></div>
     <div class="daily-take-body" id="dailyTakeBody"></div>
   </div>
 
@@ -350,6 +351,9 @@
          with a decent shot at the chosen range. Remembered per browser. -->
     <label class="show-all"><input type="checkbox" id="showAllSpots"> Show all spots</label>
   </div>
+  <!-- Daylight line (Oct 23 2026): moved here from under the day tabs,
+       where it sat next to the hours it describes and left a gap there. -->
+  <div class="daylight-note" id="daylightNote"></div>
   <div class="cards-note" id="cardsNote"></div>
   <div id="spotCards"><div class="empty">Loading…</div></div>
   <div id="globalTip"></div>
@@ -774,6 +778,20 @@ function renderDailyTake() {
   const dayLbl = labelForDate(dateStr, selectedDayIndex);
   eyebrow.textContent = dayLbl === "Today" ? "🎯 Guillermo's take on today's forecast" : `🎯 Guillermo's take on ${dayLbl}'s forecast`;
   body.textContent = take.text;
+  // When it was posted (Oct 23 2026): a 6am take and a 9am take read
+  // differently, so riders see the time, plus the edit time if he updated it.
+  const whenEl = document.getElementById("dailyTakeWhen");
+  const fmt = (iso) => {
+    const d = new Date(iso);
+    const t = d.toLocaleTimeString("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", minute: "2-digit" }).replace(" AM", "am").replace(" PM", "pm");
+    const day = d.toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", weekday: "short", month: "short", day: "numeric" });
+    return { t, day };
+  };
+  if (take.posted_at && !isNaN(Date.parse(take.posted_at))) {
+    const p = fmt(take.posted_at);
+    const edited = take.updated_at && Date.parse(take.updated_at) - Date.parse(take.posted_at) > 5 * 60000 ? fmt(take.updated_at) : null;
+    whenEl.textContent = `Posted ${p.day} at ${p.t}${edited ? `, updated ${edited.day === p.day ? "" : edited.day + " "}at ${edited.t}` : ""}`;
+  } else whenEl.textContent = "";
 }
 
 function renderBestBetsHeading() {
