@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-21T22:07:28.100Z",
+  "updated_at": "2026-10-23T18:55:06.549Z",
   "entries": [
     {
       "spot": "boundary-bay",
@@ -1018,6 +1018,19 @@
     },
     {
       "spot": "garry-point",
+      "time": "2026-10-23T11:00",
+      "forecasted": 14.2,
+      "actual": 15.9,
+      "ratio": 1.119718309859155,
+      "source": "live-station",
+      "station": "Sand Heads",
+      "regime": "synoptic",
+      "mismatch": false,
+      "reasoning": null,
+      "checked_at": "2026-10-23T18:55:06.549Z"
+    },
+    {
+      "spot": "garry-point",
       "time": "2026-10-20T10:00",
       "forecasted": 15.8,
       "actual": 18.1,
@@ -1470,6 +1483,19 @@
       "mismatch": true,
       "reasoning": "Synoptic regime, but the magnitude missed — model agreement was 0%, so spread between models likely explains some of the gap.",
       "checked_at": "2026-08-29T12:07:32.837Z"
+    },
+    {
+      "spot": "tsawwassen-south",
+      "time": "2026-10-23T11:00",
+      "forecasted": 8.6,
+      "actual": 9.7,
+      "ratio": 1.127906976744186,
+      "source": "live-station",
+      "station": "Tsawwassen Ferry Terminal",
+      "regime": "mixed",
+      "mismatch": false,
+      "reasoning": null,
+      "checked_at": "2026-10-23T18:55:06.549Z"
     },
     {
       "spot": "tsawwassen-south",
@@ -1993,6 +2019,19 @@
     },
     {
       "spot": "jericho-spanish-banks",
+      "time": "2026-10-23T11:00",
+      "forecasted": 7.6,
+      "actual": 11.3,
+      "ratio": 1.486842105263158,
+      "source": "live-station",
+      "station": "Jericho Sailing Centre (beach)",
+      "regime": "mixed",
+      "mismatch": true,
+      "reasoning": "Forecast showed calm/mixed but live wind is running well above that — likely an unmodeled local effect or a synoptic push none of the current signals caught.",
+      "checked_at": "2026-10-23T18:55:06.549Z"
+    },
+    {
+      "spot": "jericho-spanish-banks",
       "time": "2026-10-21T15:00",
       "forecasted": 2.7,
       "actual": 8.7,
@@ -2068,6 +2107,19 @@
       "mismatch": false,
       "reasoning": null,
       "checked_at": "2026-09-27T23:33:54.618Z"
+    },
+    {
+      "spot": "squamish-spit",
+      "time": "2026-10-23T11:00",
+      "forecasted": 7.7,
+      "actual": 8.1,
+      "ratio": 1.051948051948052,
+      "source": "live-station",
+      "station": "Squamish terminal sensor (Kiteloop)",
+      "regime": "mixed",
+      "mismatch": false,
+      "reasoning": null,
+      "checked_at": "2026-10-23T18:55:06.549Z"
     },
     {
       "spot": "squamish-spit",
