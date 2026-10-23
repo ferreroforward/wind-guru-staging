@@ -1983,26 +1983,26 @@ if (CHAT_URL) {
 {
   const card = document.getElementById("alerts");
   const STATIONS = [
-    ["was", "Pam Rocks"], ["jsca", "Jericho beach station"], ["kiteloop", "Squamish terminal sensor"],
+    ["all", "All stations"], ["was", "Pam Rocks"], ["jsca", "Jericho beach station"], ["kiteloop", "Squamish terminal sensor"],
     ["46304", "English Bay buoy"], ["46146", "Halibut Bank buoy"], ["wvf", "Sand Heads"],
     ["vtf", "Tsawwassen Ferry Terminal"], ["wsb", "Point Atkinson"], ["yvr", "Vancouver Airport"], ["wsk", "Squamish Airport"],
   ];
   const SPEEDS = [10, 12, 15, 18, 20, 22, 25, 30];
   const list = document.getElementById("alertsStations");
   const addRow = (code = "was", min = 20) => {
-    if (list.children.length >= 4) return;
+    if (list.children.length >= 11) return;
     const row = document.createElement("div");
     row.className = "row";
     row.innerHTML = `<select data-k="code" aria-label="Station">${STATIONS.map(([c, n]) => `<option value="${c}"${c === code ? " selected" : ""}>${n}</option>`).join("")}</select>` +
       `<select data-k="min" aria-label="Wind speed">${SPEEDS.map(v => `<option value="${v}"${v === min ? " selected" : ""}>${v}kt or more</option>`).join("")}</select>` +
-      `<select data-k="dir" aria-label="Direction"><option value="any">any direction</option><option value="north">from the north (outflow)</option><option value="south">from the south (inflow)</option></select>` +
+      `<select data-k="dir" aria-label="Direction"><option value="any">any direction</option>${["N", "NE", "E", "SE", "S", "SW", "W", "NW"].map(d => `<option value="${d}">from the ${d}</option>`).join("")}</select>` +
       `<button type="button" class="x" aria-label="Remove">✕</button>`;
     row.querySelector(".x").addEventListener("click", () => row.remove());
     list.appendChild(row);
   };
   document.getElementById("alertsAddStation").addEventListener("click", () => addRow("jsca", 20));
-  document.getElementById("alertsSpot").innerHTML = SPOTS.filter(sp => sp.id !== "garry-point").map(sp => `<option value="${sp.id}">${sp.name}</option>`).join("");
-  addRow("was", 20);
+  document.getElementById("alertsSpot").innerHTML = `<option value="all">All spots</option>` + SPOTS.filter(sp => sp.id !== "garry-point").map(sp => `<option value="${sp.id}">${sp.name}</option>`).join("");
+  addRow("all", 20);
   const show = () => {
     if (location.hash !== "#alerts") return;
     card.style.display = "block";

@@ -508,11 +508,15 @@ async function adminPage(request, env) {
 
 const ALERT_FROM = "Wind Guru alerts <alerts@alerts.ferreroforward.ca>";
 const ALERT_SENDER_INFO = "Wind Guru, a free wind forecast by Guillermo Ferrero, Coquitlam BC";
-const ALERT_STATIONS = ["was", "jsca", "kiteloop", "46304", "46146", "wvf", "vtf", "wsb", "yvr", "wsk"];
+const ALERT_STATIONS = ["all", "was", "jsca", "kiteloop", "46304", "46146", "wvf", "vtf", "wsb", "yvr", "wsk"];
 const HOURLY_STATIONS = new Set(["was", "wgp", "wvf", "yvr", "46304", "46146"]);
 const FORECAST_PICKS = [8, 12, 18, 25];
 const ALERT_SIGNUPS_PER_DAY = 5;
-const MAX_RULES = 6;
+const MAX_RULES = 20;
+// Compass sectors for the optional direction (Oct 23 2026, Guillermo: north
+// and south alone don't fit most stations). A reading matches a sector when
+// it is within 34 degrees of it, so "NW" takes WNW, NW and NNW.
+const DIR_SECTORS = { N: 0, NE: 45, E: 90, SE: 135, S: 180, SW: 225, W: 270, NW: 315 };
 const VANCOUVER = { lat: 49.28, lon: -123.12 };
 
 function randHex(bytes) {
@@ -522,8 +526,17 @@ function hasNorth(dir) { return typeof dir === "string" && dir !== "calm" && dir
 function hasSouth(dir) { return typeof dir === "string" && dir !== "calm" && dir.includes("S"); }
 function dirOk(dir, want) {
   if (!dir || dir === "calm") return false;
-  return want === "north" ? hasNorth(dir) : want === "south" ? hasSouth(dir) : true;
+  if (want === "north") return hasNorth(dir);
+  if (want === "south") return hasSouth(dir);
+  if (want in DIR_SECTORS) {
+    const i = DIR16.indexOf(dir);
+    if (i < 0) return false;
+    const d = Math.abs(i * 22.5 - DIR_SECTORS[want]) % 360;
+    return Math.min(d, 360 - d) <= 34;
+  }
+  return true;
 }
+const STATION_CODES = ALERT_STATIONS.filter((c) => c !== "all");
 
 function validRules(list) {
   if (!Array.isArray(list) || !list.length || list.length > MAX_RULES) return null;
@@ -533,12 +546,12 @@ function validRules(list) {
     if (r.type === "station") {
       const min = Number(r.min);
       if (!ALERT_STATIONS.includes(r.code) || !Number.isInteger(min) || min < 5 || min > 40) return null;
-      out.push({ type: "station", code: r.code, min, dir: ["north", "south"].includes(r.dir) ? r.dir : "any" });
+      out.push({ type: "station", code: r.code, min, dir: ["north", "south", ...Object.keys(DIR_SECTORS)].includes(r.dir) ? r.dir : "any" });
     } else if (r.type === "porteau" || r.type === "squamish") {
       out.push({ type: r.type });
     } else if (r.type === "forecast") {
       const min = Number(r.min), pct = Number(r.pct ?? 70);
-      if (!SPOT_IDS.includes(r.spot) || r.spot === "garry-point" || !FORECAST_PICKS.includes(min) || ![50, 60, 70, 80, 90].includes(pct)) return null;
+      if (!(r.spot === "all" || SPOT_IDS.includes(r.spot)) || r.spot === "garry-point" || !FORECAST_PICKS.includes(min) || ![50, 60, 70, 80, 90].includes(pct)) return null;
       out.push({ type: "forecast", spot: r.spot, min, pct });
     } else return null;
   }
@@ -552,10 +565,13 @@ const SPOT_NAMES = {
   "ambleside": "Ambleside", "cates-park": "Cates Park",
 };
 function ruleText(r) {
-  if (r.type === "station") return `${STATION_NAMES[r.code]} reads ${r.min}kt or more${r.dir === "north" ? " from a northerly direction" : r.dir === "south" ? " from a southerly direction" : ""}`;
+  if (r.type === "station") {
+    const dirText = r.dir === "north" ? " from a northerly direction" : r.dir === "south" ? " from a southerly direction" : r.dir in DIR_SECTORS ? ` from the ${r.dir}` : "";
+    return `${r.code === "all" ? "Any station" : STATION_NAMES[r.code]} reads ${r.min}kt or more${dirText}`;
+  }
   if (r.type === "porteau") return "Porteau outflow: Pam Rocks 22kt or more from the north";
   if (r.type === "squamish") return "Squamish go signal (morning checklist, checked 10:30am to 1:30pm)";
-  if (r.type === "forecast") return `Evening heads up: ${SPOT_NAMES[r.spot]} tomorrow has ${r.pct}% odds or better of ${r.min}kt and up`;
+  if (r.type === "forecast") return `Evening heads up: ${r.spot === "all" ? "any spot" : SPOT_NAMES[r.spot]} tomorrow has ${r.pct}% odds or better of ${r.min}kt and up`;
   return "";
 }
 
@@ -717,13 +733,13 @@ function squamishSignal(rows, month = Number(pacificParts().month.slice(5))) {
   return `Pam Rocks ${pText(p0)} at ${clock(p0.time)} (${pText(p3)} at ${clock(p3.time)}), Pemberton minus Vancouver pressure ${g0 >= 0 ? "+" : ""}${g0.toFixed(1)} hPa${g2 != null ? ` (was ${g2 >= 0 ? "+" : ""}${g2.toFixed(1)})` : ""}, Squamish Airport ${tGap}°C warmer than Pam Rocks.${fall ? " In the fall the thermal has tended to come later and stronger than the page says, often 4pm to 7pm." : ""}`;
 }
 
-function forecastHit(rule, af, tomorrow) {
-  const hours = af?.spots?.[rule.spot]?.days?.[tomorrow] || [];
+function forecastHit(rule, af, tomorrow, spot = rule.spot) {
+  const hours = af?.spots?.[spot]?.days?.[tomorrow] || [];
   const good = hours.filter((h) => h.ok && (h.odds?.[rule.min] ?? 0) >= rule.pct);
   if (!good.length) return null;
   const best = good.reduce((a, b) => ((b.odds[rule.min] > a.odds[rule.min]) ? b : a));
   const kts = good.map((h) => h.kt).filter((k) => k != null);
-  return `${SPOT_NAMES[rule.spot]} tomorrow: ${rule.min}kt and up looks likely from ${hour12(good[0].t)} to ${hour12(good[good.length - 1].t)}, best ${best.odds[rule.min]}% at ${hour12(best.t)} (${best.dir || ""} ${Math.min(...kts)} to ${Math.max(...kts)}kt). Check the page in the morning, it updates overnight.`;
+  return `${SPOT_NAMES[spot] || spot} tomorrow: ${rule.min}kt and up looks likely from ${hour12(good[0].t)} to ${hour12(good[good.length - 1].t)}, best ${best.odds[rule.min]}% at ${hour12(best.t)} (${best.dir || ""} ${Math.min(...kts)} to ${Math.max(...kts)}kt). Check the page in the morning, it updates overnight.`;
 }
 
 async function listSubs(env) {
@@ -774,23 +790,41 @@ async function runAlerts(env, nowMs = Date.now()) {
     const hits = [];
     for (let i = 0; i < s.rules.length; i++) {
       const r = s.rules[i];
-      const key = `as:${p.date}:${id}:${i}`;
-      let line = null, subject = null;
+      const base = `as:${p.date}:${id}:${i}`;
+      const cands = []; // { key, line, subject, what }
       if ((r.type === "station" || r.type === "porteau") && inLight) {
-        const code = r.type === "porteau" ? "was" : r.code;
-        const x = stationHit(code, r.type === "porteau" ? 22 : r.min, r.type === "porteau" ? "north" : r.dir, latest, hist, nowMs);
-        if (x) {
-          subject = `${r.type === "porteau" ? "Porteau outflow: " : ""}${STATION_NAMES[code].replace(/ \(.*\)$/, "")} ${readingText(x)}`;
-          line = `${r.type === "porteau" ? "Porteau outflow is on. " : ""}${STATION_NAMES[code]}: ${readingText(x)} at ${hm(x.at)}.`;
+        // "All stations" checks each one; each station is its own once a day alert.
+        const codes = r.type === "porteau" ? ["was"] : r.code === "all" ? STATION_CODES : [r.code];
+        for (const code of codes) {
+          const x = stationHit(code, r.type === "porteau" ? 22 : r.min, r.type === "porteau" ? "north" : r.dir, latest, hist, nowMs);
+          if (!x) continue;
+          cands.push({
+            key: codes.length > 1 ? `${base}:${code}` : base,
+            what: `st:${code}`, // Porteau and a Pam Rocks alert share one line
+            porteau: r.type === "porteau",
+            subject: `${r.type === "porteau" ? "Porteau outflow: " : ""}${STATION_NAMES[code].replace(/ \(.*\)$/, "")} ${readingText(x)}`,
+            line: `${r.type === "porteau" ? "Porteau outflow is on. " : ""}${STATION_NAMES[code]}: ${readingText(x)} at ${hm(x.at)}.`,
+          });
         }
       } else if (r.type === "squamish" && squamish) {
-        subject = "Squamish go signal"; line = `Squamish go signal: ${squamish}`;
+        cands.push({ key: base, what: "squamish", subject: "Squamish go signal", line: `Squamish go signal: ${squamish}` });
       } else if (r.type === "forecast" && evening && af) {
-        const t = forecastHit(r, af, tomorrow);
-        if (t) { subject = `Tomorrow: ${SPOT_NAMES[r.spot]} ${r.min}kt+`; line = t; }
+        const spots = r.spot === "all" ? Object.keys(af.spots || {}).filter((x) => x !== "garry-point") : [r.spot];
+        for (const sp of spots) {
+          const t = forecastHit(r, af, tomorrow, sp);
+          if (t) cands.push({ key: spots.length > 1 ? `${base}:${sp}` : base, what: `fc:${sp}`, subject: `Tomorrow: ${SPOT_NAMES[sp] || sp} ${r.min}kt+`, line: t });
+        }
       }
-      if (!line || (await env.CHAT_KV.get(key))) continue;
-      hits.push({ key, line, subject });
+      for (const c of cands) {
+        if (await env.CHAT_KV.get(c.key)) continue; // already sent today for this rule
+        const same = hits.find((h) => h.what === c.what);
+        if (same) { // same station in this email already: one line, both rules marked sent
+          same.keys.push(c.key);
+          if (c.porteau) { same.line = c.line; same.subject = c.subject; }
+          continue;
+        }
+        hits.push({ ...c, keys: [c.key] });
+      }
     }
     if (!hits.length) continue;
     const manageUrl = `${s.base}/alerts/manage?id=${id}&t=${s.token}`;
@@ -801,7 +835,7 @@ async function runAlerts(env, nowMs = Date.now()) {
       emailHtml(hits.map((h) => esc(h.line)), f.html), manageUrl);
     if (ok) {
       sent++;
-      await Promise.all(hits.map((h) => env.CHAT_KV.put(h.key, "1", { expirationTtl: 2 * 86400 })));
+      await Promise.all(hits.flatMap((h) => h.keys).map((k) => env.CHAT_KV.put(k, "1", { expirationTtl: 2 * 86400 })));
     }
   }
   if (inLight) await env.CHAT_KV.put("alerthist", JSON.stringify(hist), { expirationTtl: 86400 });

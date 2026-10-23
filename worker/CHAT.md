@@ -48,13 +48,13 @@ When a rider says the forecast was wrong, the AI asks for spot, time and wind, t
 
 ## Email alerts (Oct 2026)
 
-Riders sign up on the page with an email, an invite code and up to 6 alerts. The sign up card only shows when the page is opened with `#alerts` at the end of the link. A confirm email turns them on. A cron trigger checks every 10 minutes and sends at most one email per alert per day, only in daylight (the forecast heads up goes around 7pm). Every email has a link to stop all alerts.
+Riders sign up on the page with an email, an invite code and up to 11 station alerts plus the triggers and the heads up. The sign up card only shows when the page is opened with `#alerts` at the end of the link. A confirm email turns them on. A cron trigger checks every 10 minutes and sends at most one email per alert per day, only in daylight (the forecast heads up goes around 7pm). Every email has a link to stop all alerts.
 
 The alerts:
-- A station reaches a wind speed: average wind, held for two readings in a row on stations that update more than once an hour (Jericho beach, Squamish terminal, Ferry Terminal, Point Atkinson, Squamish Airport). Hourly stations (Pam Rocks, Sand Heads, Vancouver Airport, the buoys) use one reading, which is already a 10 minute average. Optional direction: from the north (outflow) or from the south (inflow).
+- A station reaches a wind speed: average wind, held for two readings in a row on stations that update more than once an hour (Jericho beach, Squamish terminal, Ferry Terminal, Point Atkinson, Squamish Airport). Hourly stations (Pam Rocks, Sand Heads, Vancouver Airport, the buoys) use one reading, which is already a 10 minute average. Pick one station or "All stations" (each station that reaches the speed gets its own line, once a day). Optional direction: one of the eight compass sectors (N, NE, E, SE, S, SW, W, NW; each takes the three nearest compass points, so NW is WNW, NW and NNW).
 - Porteau outflow: Pam Rocks 22kt or more from the north.
 - Squamish go signal, checked 10:30am to 1:30pm: Pam Rocks outflow fading (or already southerly), Pemberton minus Vancouver pressure under 3 hPa or down 2 hPa in 2 hours, Squamish Airport 2°C or more warmer than Pam Rocks.
-- Evening heads up: tomorrow's odds at a spot are at or above the rider's pick for their wind range, read from `data/alerts-forecast.json` (written by every forecast run).
+- Evening heads up: tomorrow's odds at a spot (or at any spot, Steveston never) are at or above the rider's pick for their wind range, read from `data/alerts-forecast.json` (written by every forecast run).
 
 Readings for Pam Rocks, Squamish Airport, Pemberton, Point Atkinson, Sand Heads, Ferry Terminal and Vancouver Airport now also come from EC's SWOB files, which post within about a minute of the reading; the station board on the page uses them too.
 
