@@ -45,3 +45,25 @@ When a rider says the forecast was wrong, the AI asks for spot, time and wind, t
 ## Latest station readings for the page (GET /obs)
 
 `GET /obs` returns the newest reading from each station above (direction, knots, gust, time), from the same 10 minute KV cache the chat uses. No AI call, no cost. The page calls it when it opens, every 10 minutes while the tab is visible, and on Refresh live, so the station board is never more than about 10 minutes old instead of waiting for the next forecast run.
+
+## Email alerts (Oct 2026)
+
+Riders sign up on the page with an email, an invite code and up to 6 alerts. The sign up card only shows when the page is opened with `#alerts` at the end of the link. A confirm email turns them on. A cron trigger checks every 10 minutes and sends at most one email per alert per day, only in daylight (the forecast heads up goes around 7pm). Every email has a link to stop all alerts.
+
+The alerts:
+- A station reaches a wind speed: average wind, held for two readings in a row on stations that update more than once an hour (Jericho beach, Squamish terminal, Ferry Terminal, Point Atkinson, Squamish Airport). Hourly stations (Pam Rocks, Sand Heads, Vancouver Airport, the buoys) use one reading, which is already a 10 minute average. Optional direction: from the north (outflow) or from the south (inflow).
+- Porteau outflow: Pam Rocks 22kt or more from the north.
+- Squamish go signal, checked 10:30am to 1:30pm: Pam Rocks outflow fading (or already southerly), Pemberton minus Vancouver pressure under 3 hPa or down 2 hPa in 2 hours, Squamish Airport 2°C or more warmer than Pam Rocks.
+- Evening heads up: tomorrow's odds at a spot are at or above the rider's pick for their wind range, read from `data/alerts-forecast.json` (written by every forecast run).
+
+Readings for Pam Rocks, Squamish Airport, Pemberton, Point Atkinson, Sand Heads, Ferry Terminal and Vancouver Airport now also come from EC's SWOB files, which post within about a minute of the reading; the station board on the page uses them too.
+
+Setup:
+1. Resend (resend.com): create a free account, Domains > Add domain `alerts.ferreroforward.ca`. Resend lists a few DNS records.
+2. Namecheap: Domain List > ferreroforward.ca > Advanced DNS > add each record exactly as Resend shows it (they are all on the alerts subdomain, so the Microsoft 365 email records are not touched). Back in Resend, Verify.
+3. Resend: API Keys > Create, permission "Sending access", domain alerts.ferreroforward.ca. Copy it straight into Cloudflare, never into chat.
+4. Cloudflare, on the chat Worker (staging first, then production): Settings > Variables and Secrets > add Secret `RESEND_API_KEY` (the key) and Secret `ALERT_INVITE` (any invite code you choose to give friends).
+5. Cloudflare, same Worker: Settings > Trigger Events (or Triggers) > Add > Cron Triggers > `*/10 * * * *`.
+6. Share the link with `#alerts` at the end, plus the invite code.
+
+Optional text variables: `ALERT_FROM` (default `Wind Guru alerts <alerts@alerts.ferreroforward.ca>`) and `ALERT_SENDER_INFO` (the footer line). Before opening alerts to the public, the footer should include a mailing address (Canada's anti spam law).

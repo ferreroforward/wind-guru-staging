@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 import { buildGuruLive } from "./guru-live.mjs";
+import { buildAlertsForecast } from "./alerts-forecast.mjs";
 import { fetchJscaRows, fetchKiteloopRows, halfHourly, latestObservation, appendHistory, JSCA_HISTORY_META, jscaRow, TERMINAL_HISTORY_META, terminalRow } from "./extra-stations.mjs";
 import { SPOTS, PRESSURE_REFERENCE, degToLabel, DEG_LABELS, WEBCAMS } from "../assets/spots.js";
 import { MODELS, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, rowsToPressureMap, rowsToSpeedMap, currentPacificHourString, explainMismatch, parseMarineWindText, marineAnchorForHour, parseEcIssued, dropModels, tideForHour, flagEpicHours, buildMosUrl, reshapeMos, applyMos, swellForHours, thermalInputs, applyThermalModel } from "../assets/rules.js";
@@ -1393,6 +1394,11 @@ async function main() {
   const guruPath = path.join(__dirname, "..", "data", "guru-live.json");
   await writeFile(guruPath, JSON.stringify(buildGuruLive(forecast, SPOTS)));
   console.log(`Wrote ${guruPath}`);
+
+  // Light hours and odds for the email alerts (worker/chat.js); see scripts/alerts-forecast.mjs.
+  const alertsPath = path.join(__dirname, "..", "data", "alerts-forecast.json");
+  await writeFile(alertsPath, JSON.stringify(buildAlertsForecast(forecast, SPOTS)));
+  console.log(`Wrote ${alertsPath}`);
 }
 
 main().catch((err) => {

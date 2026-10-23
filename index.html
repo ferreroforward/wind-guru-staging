@@ -147,6 +147,22 @@
   .ask-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
   .ask-chips button{background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:16px;padding:6px 11px;font-size:0.86rem;cursor:pointer;}
   .ask-note{font-size:0.76rem;color:var(--muted);margin-top:8px;}
+  /* Email alerts (Oct 2026): only shown when the page is opened with #alerts. */
+  .alerts-card{background:var(--panel);border:1.5px solid var(--accent);box-shadow:var(--shadow);border-radius:14px;padding:14px 18px;margin:16px 0;}
+  .alerts-card h3{margin:0 0 4px;font-size:1.05rem;}
+  .alerts-card .row{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;align-items:center;}
+  .alerts-card input,.alerts-card select{border:1px solid var(--border);border-radius:10px;padding:9px 10px;font:inherit;font-size:16px;background:var(--panel);color:var(--text);}
+  .alerts-card input[type=email],.alerts-card input[type=text]{flex:1;min-width:180px;}
+  .alerts-card label.check{display:flex;gap:8px;align-items:center;margin:6px 0;font-size:0.95rem;}
+  .alerts-card .group{border-top:1px solid var(--border);margin-top:10px;padding-top:8px;}
+  .alerts-card .group b{font-size:0.9rem;}
+  .alerts-card button{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 18px;font-weight:700;font-size:1rem;cursor:pointer;}
+  .alerts-card button.light{background:var(--panel);color:var(--accent);border:1px solid var(--border);padding:6px 12px;font-size:0.88rem;font-weight:600;}
+  .alerts-card button.x{background:none;color:var(--muted);border:none;padding:4px 8px;font-size:1.1rem;}
+  .alerts-status{font-size:0.92rem;margin-top:8px;}
+  #alertsStations .row{border:1px solid var(--border);border-radius:12px;padding:8px;gap:6px;position:relative;padding-right:36px;}
+  #alertsStations .row select{flex:1 1 140px;min-width:0;}
+  #alertsStations .row .x{position:absolute;top:6px;right:4px;}
   .chat-fab.tucked{display:none !important;}
   .chat-fab{position:fixed;right:16px;bottom:16px;z-index:1050;background:var(--accent);color:#fff;border:none;border-radius:24px;padding:12px 16px;font-size:0.95rem;font-weight:700;box-shadow:0 6px 18px rgba(27,36,56,0.25);cursor:pointer;}
   .chat-panel{position:fixed;right:16px;bottom:16px;z-index:1060;width:380px;max-width:calc(100vw - 32px);height:560px;max-height:calc(100vh - 32px);background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:16px;box-shadow:0 12px 32px rgba(27,36,56,0.3);display:flex;flex-direction:column;overflow:hidden;}
@@ -289,6 +305,27 @@
       <button type="button">Is Porteau working?</button>
     </div>
     <div class="ask-note">Answers from this page's forecast and live stations. AI can be wrong.</div>
+  </div>
+  <div class="alerts-card" id="alerts" style="display:none;">
+    <h3>📧 Email alerts</h3>
+    <div class="ask-note" style="margin-top:0;">Invite only for now. At most one email per alert per day, only in daylight (the forecast heads up comes around 7pm). Every email has a link to stop them. We keep your email and your choices only to send these alerts.</div>
+    <form id="alertsForm">
+      <div class="row"><input type="email" id="alertsEmail" placeholder="Your email" autocomplete="email" required aria-label="Your email"><input type="text" id="alertsInvite" placeholder="Invite code" autocomplete="off" required aria-label="Invite code" style="flex:0 1 160px;min-width:120px;"></div>
+      <div class="group"><b>Station reaches a wind speed</b> <span class="ask-note">(average wind, held for two readings)</span>
+        <div id="alertsStations"></div>
+        <button type="button" class="light" id="alertsAddStation">+ Add a station</button>
+      </div>
+      <div class="group"><b>Triggers</b>
+        <label class="check"><input type="checkbox" id="alertsPorteau"> Porteau outflow: Pam Rocks 22kt or more from the north</label>
+        <label class="check"><input type="checkbox" id="alertsSquamish"> Squamish go signal (morning checklist, checked 10:30am to 1:30pm)</label>
+      </div>
+      <div class="group"><b>Evening heads up for tomorrow</b>
+        <label class="check"><input type="checkbox" id="alertsForecastOn"> Email me around 7pm when tomorrow looks good at</label>
+        <div class="row"><select id="alertsSpot" aria-label="Spot"></select><select id="alertsMin" aria-label="Wind"><option value="8">8+ Light</option><option value="12" selected>12+ Sweet spot</option><option value="18">18+ Powered</option><option value="25">25+ Full send</option></select><select id="alertsPct" aria-label="Odds"><option value="50">50% odds</option><option value="60">60% odds</option><option value="70" selected>70% odds</option><option value="80">80% odds</option><option value="90">90% odds</option></select></div>
+      </div>
+      <div class="row" style="margin-top:12px;"><button type="submit" id="alertsSubmit">Send me a confirm email</button></div>
+      <div class="alerts-status" id="alertsStatus"></div>
+    </form>
   </div>
   <div class="meta-row">
     <span id="genLabel">Loading forecast…</span>
@@ -1937,6 +1974,58 @@ if (CHAT_URL) {
     e.preventDefault();
     if (window.innerWidth <= 520) chatClose();
     document.getElementById(a.dataset.chatAnchor)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
+// ---- Email alerts sign up (Oct 2026) ----
+// Friends only for now: the card only shows when the page is opened with
+// #alerts. Posts to the chat worker (CHAT_URL), which emails a confirm link.
+{
+  const card = document.getElementById("alerts");
+  const STATIONS = [
+    ["was", "Pam Rocks"], ["jsca", "Jericho beach station"], ["kiteloop", "Squamish terminal sensor"],
+    ["46304", "English Bay buoy"], ["46146", "Halibut Bank buoy"], ["wvf", "Sand Heads"],
+    ["vtf", "Tsawwassen Ferry Terminal"], ["wsb", "Point Atkinson"], ["yvr", "Vancouver Airport"], ["wsk", "Squamish Airport"],
+  ];
+  const SPEEDS = [10, 12, 15, 18, 20, 22, 25, 30];
+  const list = document.getElementById("alertsStations");
+  const addRow = (code = "was", min = 20) => {
+    if (list.children.length >= 4) return;
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `<select data-k="code" aria-label="Station">${STATIONS.map(([c, n]) => `<option value="${c}"${c === code ? " selected" : ""}>${n}</option>`).join("")}</select>` +
+      `<select data-k="min" aria-label="Wind speed">${SPEEDS.map(v => `<option value="${v}"${v === min ? " selected" : ""}>${v}kt or more</option>`).join("")}</select>` +
+      `<select data-k="dir" aria-label="Direction"><option value="any">any direction</option><option value="north">from the north (outflow)</option><option value="south">from the south (inflow)</option></select>` +
+      `<button type="button" class="x" aria-label="Remove">✕</button>`;
+    row.querySelector(".x").addEventListener("click", () => row.remove());
+    list.appendChild(row);
+  };
+  document.getElementById("alertsAddStation").addEventListener("click", () => addRow("jsca", 20));
+  document.getElementById("alertsSpot").innerHTML = SPOTS.filter(sp => sp.id !== "garry-point").map(sp => `<option value="${sp.id}">${sp.name}</option>`).join("");
+  addRow("was", 20);
+  const show = () => {
+    if (location.hash !== "#alerts") return;
+    card.style.display = "block";
+    setTimeout(() => card.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+  };
+  window.addEventListener("hashchange", show);
+  show();
+  document.getElementById("alertsForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const status = document.getElementById("alertsStatus");
+    const btn = document.getElementById("alertsSubmit");
+    const rules = [...list.children].map(r => ({ type: "station", code: r.querySelector('[data-k="code"]').value, min: Number(r.querySelector('[data-k="min"]').value), dir: r.querySelector('[data-k="dir"]').value }));
+    if (document.getElementById("alertsPorteau").checked) rules.push({ type: "porteau" });
+    if (document.getElementById("alertsSquamish").checked) rules.push({ type: "squamish" });
+    if (document.getElementById("alertsForecastOn").checked) rules.push({ type: "forecast", spot: document.getElementById("alertsSpot").value, min: Number(document.getElementById("alertsMin").value), pct: Number(document.getElementById("alertsPct").value) });
+    if (!rules.length) { status.textContent = "Pick at least one alert."; return; }
+    btn.disabled = true; status.textContent = "Sending…";
+    try {
+      const r = await fetch(`${CHAT_URL}/alerts/subscribe`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: document.getElementById("alertsEmail").value, invite: document.getElementById("alertsInvite").value, rules }) });
+      const j = await r.json().catch(() => ({}));
+      status.textContent = r.ok ? "Check your email and tap the confirm link to turn your alerts on. (Look in spam if it's not there in a minute.)" : (j.error || "That didn't work, try again later.");
+    } catch { status.textContent = "That didn't work, check your connection."; }
+    finally { btn.disabled = false; }
   });
 }
 
