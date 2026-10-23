@@ -796,12 +796,22 @@ function renderBestBets() {
   // bet; the spot's card below still shows it, marked as outflow.
   // neverRecommend spots (Steveston, Oct 2026) keep their card but are
   // never a best bet.
-  const ranked = rankedSpotsForDay().filter(r => r.probability >= MIN_LIST_PROBABILITY && !r.hour.outflow_not_ridden && !r.spot.neverRecommend);
+  const ranked = rankedSpotsForDay().filter(r => r.probability >= MIN_LIST_PROBABILITY && !r.hour.outflow_not_ridden && !r.spot.neverRecommend).slice(0, 9);
+  // The spot named in the "Windiest good bet" card at the top is always in
+  // this list too, even when it's under MIN_LIST_PROBABILITY for the chosen
+  // range (Guillermo, Oct 23 2026: the top card said Squamish 11kt at 4pm
+  // while this list said nothing hit 40%, and the spot's card was hidden).
+  // It's added last, at the windiest hour, marked as below the range.
+  const w = windiestGoodBetForDay();
+  const windiestExtra = w && !ranked.some(r => r.spot.id === w.spot.id)
+    ? { spot: w.spot, hour: w.hour, probability: probabilityInRange(w.hour, minKt).probability, windiestOnly: true }
+    : null;
 
   bestBetsEl.innerHTML = "";
-  if (!ranked.length) { bestBetsEl.innerHTML = `<div class="empty">Nothing hit ${MIN_LIST_PROBABILITY}%+ for this range today — try a wider range or another day.</div>`; return; }
+  if (!ranked.length && !windiestExtra) { bestBetsEl.innerHTML = `<div class="empty">Nothing hit ${MIN_LIST_PROBABILITY}%+ for this range today — try a wider range or another day.</div>`; return; }
+  if (!ranked.length) bestBetsEl.innerHTML = `<div class="empty" style="padding-bottom:6px;">Nothing hit ${MIN_LIST_PROBABILITY}%+ for this range today. The windiest option is below; try a lighter range or another day.</div>`;
 
-  ranked.slice(0, 9).forEach((r, i) => {
+  [...ranked, ...(windiestExtra ? [windiestExtra] : [])].forEach((r, i) => {
     const div = document.createElement("div");
     div.className = "bet-card";
     const cls = tierClass(r.probability);
@@ -809,11 +819,12 @@ function renderBestBets() {
     const gustyTag = r.hour.gusty ? `<span class="gusty-tag" title="Strong upper-level wind riding over solid surface wind — expect a choppier, more gust-prone day than the average speed alone suggests.">💨 GUSTY</span>` : "";
     const offshoreTag = r.hour.favorable_direction === false ? `<span class="offshore-tag" title="Wind direction looks offshore or otherwise not rideable here, even though the speed may be there.">⚠️ CHECK DIRECTION</span>` : "";
     div.innerHTML = `
-      <div class="bet-rank">${i + 1}</div>
+      <div class="bet-rank">${r.windiestOnly ? "💨" : i + 1}</div>
       <div class="bet-badge ${cls}">${r.probability}%</div>
       <div class="bet-info">
         <div class="name">${r.spot.name} <span style="color:var(--muted);font-weight:400;font-size:0.8rem;">· ${r.spot.region}</span></div>
         <div class="detail">${r.hour.time.slice(11,16)} · ${r.hour.speed_kt != null ? Math.round(r.hour.speed_kt) : "–"}${gustText}kt ${r.hour.direction_label ?? ""} · <span title="Beaufort force ${beaufort(r.hour.speed_kt)?.force ?? ""} (Environment Canada wind scale)">${windTerm(r.hour.speed_kt)}</span>${gustyTag}${offshoreTag}${r.spot.caution_note ? `<span class="offshore-tag" title="${r.spot.caution_note}">⚠️ ${r.spot.level === "expert" ? "EXPERTS ONLY" : r.spot.level === "advanced" ? "ADVANCED ONLY" : "PORT RULES"}</span>` : ""}</div>
+        ${r.windiestOnly ? `<div class="detail" style="color:var(--muted);">Windiest option today, the one named at the top. Under ${MIN_LIST_PROBABILITY}% odds for ${rangeLabel()}.</div>` : ""}
       </div>
     `;
     bestBetsEl.appendChild(div);
@@ -1131,6 +1142,10 @@ function renderSpotCards() {
   spotCardsEl.innerHTML = "";
   const noteEl = document.getElementById("cardsNote");
   const goodIds = new Set(rankedSpotsForDay().filter(r => r.probability >= MIN_LIST_PROBABILITY).map(r => r.spot.id));
+  // The spot in the "Windiest good bet" card always gets its hour by hour
+  // card, so riders can see the hours and report conditions (Oct 23 2026).
+  const windiest = windiestGoodBetForDay();
+  if (windiest) goodIds.add(windiest.spot.id);
   // A spot with a possible epic window always gets its card, whatever range
   // is selected.
   for (const sd of forecast.spots) if (epicWindowsForDay(sd).length) goodIds.add(sd.id);
