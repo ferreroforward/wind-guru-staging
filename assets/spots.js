@@ -622,7 +622,7 @@ export const SPOTS = [
     // knowledge like the ESE pattern. Only affects the general favorable-
     // direction flag, not the Point Atkinson offset estimate (referenceStation
     // below), which still only applies within the ESE dirSector.
-    favorable_deg: [[90, 140], [260, 280]],
+    favorable_deg: [[60, 140], [260, 280]],
     // Point Atkinson's own live SWOB station — found via igetwind.com's
     // station-finder API, same pattern as Pam Rocks/White Rock (see README
     // "Live verification"). Far more relevant now that Erwin Park is
