@@ -56,7 +56,7 @@ export default {
       return jsonResponse({ error: "Invalid JSON" }, 400, env);
     }
 
-    const { spot, date, time, forecast_speed, actual_speed, actual_gust, wave_size, wind_dir, forecast_dir } = data || {};
+    const { spot, date, time, forecast_speed, actual_speed, actual_gust, wave_size, wind_dir, forecast_dir, weeds } = data || {};
 
     // --- Validation. Every field here is untrusted, public-internet input
     // — this is the one place standing between an anonymous POST and a
@@ -90,6 +90,12 @@ export default {
       return jsonResponse({ error: "Unknown wind_dir" }, 400, env);
     }
     const forecastDir = DIRECTIONS.includes(forecast_dir) ? forecast_dir : null;
+    // Optional weeds in the water (added Oct 2026, Guillermo after a weedy
+    // easterly session at Boundary Bay).
+    const WEEDS = ["none", "some", "lots"];
+    if (weeds != null && weeds !== "" && !WEEDS.includes(weeds)) {
+      return jsonResponse({ error: "Unknown weeds" }, 400, env);
+    }
     // Loose sanity window (30 days back, 1 day forward) so this can't be
     // used to backdate/postdate junk far outside anything the calibration
     // pipeline (scripts/apply-feedback.mjs) would treat as a real report.
@@ -117,6 +123,7 @@ export default {
       "### Actual speed (kt)", "", String(actual_speed), "",
       "### Actual gust (kt)", "", actual_gust != null ? String(actual_gust) : "_No response_", "",
       "### Waves", "", wave_size ? wave_size : "_No response_", "",
+      "### Weeds", "", weeds ? weeds : "_No response_", "",
       "### Actual direction (optional)", "", wind_dir ? wind_dir : "_No response_", "",
       "### Forecasted direction (optional)", "", forecastDir ? forecastDir : "_No response_", "",
       "### Notes — any idea why it differed?", "", "Submitted via the in-page report popup.", "",
