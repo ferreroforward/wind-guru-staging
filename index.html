@@ -25,6 +25,8 @@
   .meta-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px;font-size:0.92rem;color:var(--muted);}
   .meta-row button{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.92rem;}
   .meta-row button:hover{border-color:var(--accent);}
+  .refresh-note{flex-basis:100%;font-size:0.85rem;color:var(--muted);}
+  .refresh-note:empty{display:none;}
   #refreshBtn{padding:11px 22px;font-size:1.02rem;font-weight:600;background:var(--accent);color:#fff;border:1px solid var(--accent);}
   #refreshBtn:hover{background:#2568bd;border-color:#2568bd;}
   #refreshBtn:disabled{opacity:0.7;cursor:default;}
@@ -367,6 +369,7 @@
     <span id="genLabel">Loading forecast…</span>
     <span id="accuracyBadge"></span>
     <button id="refreshBtn">Refresh live</button>
+    <span id="refreshNote" class="refresh-note" aria-live="polite"></span>
   </div>
 </header>
 
@@ -2019,6 +2022,30 @@ presetsEl.querySelectorAll("button").forEach(btn => {
 // browser only forecast (loadLive) is now just the fallback when there is
 // no snapshot, since it skips rider feedback, the Pam Rocks nowcast and the
 // pressure check.
+// The server forecast runs at about 5am, 1pm and 5pm Pacific (12:00, 20:00
+// and 00:00 UTC in update-forecast.yml; GitHub often starts them late).
+const FORECAST_RUN_UTC_HOURS = [0, 12, 20];
+function nextForecastRunMs(now = Date.now()) {
+  const d = new Date(now);
+  for (let day = 0; day < 2; day++) {
+    for (const h of FORECAST_RUN_UTC_HOURS) {
+      const ms = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + day, h);
+      if (ms > now) return ms;
+    }
+  }
+  return null;
+}
+// Oct 28 2026 (Guillermo: "the refresh button does nothing"): it did refresh,
+// but when no newer run had landed nothing on screen changed. Now it says
+// what it checked.
+let refreshNoteTimer = null;
+function showRefreshNote(text) {
+  const el = document.getElementById("refreshNote");
+  if (!el) return;
+  el.textContent = text;
+  clearTimeout(refreshNoteTimer);
+  refreshNoteTimer = setTimeout(() => { el.textContent = ""; }, 20000);
+}
 async function refreshAll() {
   refreshBtn.disabled = true;
   refreshBtn.textContent = "Refreshing…";
@@ -2026,12 +2053,18 @@ async function refreshAll() {
     const res = await fetch("data/forecast.json", { cache: "no-store" });
     if (res.ok) {
       const dayBefore = forecast ? dayBuckets()[selectedDayIndex] : null;
+      const oldRun = forecast?.generated_at;
       forecast = await res.json();
       const idx = dayBefore ? dayBuckets().indexOf(dayBefore) : -1;
       if (idx !== -1) selectedDayIndex = idx;
       const obs = refreshStations();
       renderAll();
       await obs;
+      const next = nextForecastRunMs();
+      const stations = liveObs && Date.now() - liveObs.fetchedAt < 60000 ? " Station readings are up to date." : "";
+      showRefreshNote(forecast.generated_at !== oldRun
+        ? `Checked at ${clockLabel(Date.now())}: newer forecast loaded.${stations}`
+        : `Checked at ${clockLabel(Date.now())}: you already have the latest forecast${next ? `; the next one is due around ${clockLabel(next).replace(":00", "")}` : ""}.${stations}`);
     } else {
       await refreshStations();
       await loadLive();
