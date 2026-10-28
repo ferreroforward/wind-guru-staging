@@ -1356,6 +1356,12 @@ function howeSeries() {
   const hp = forecast?.howe_sound_pressure;
   if (!hp) return null;
   const obs = (hp.observed || []).filter(r => isFinite(r.at)).map(r => ({ ...r }));
+  // Hours the chat worker kept since the run (Oct 28 2026), so the chart
+  // fills in every hour between forecast runs. A run's row wins; the
+  // worker's fills hours the run didn't have.
+  const have = new Set(obs.map(r => r.t));
+  for (const r of liveObs?.pressureHistory || []) if (r && isFinite(r.at) && r.gap != null && !have.has(r.t)) { obs.push({ ...r }); have.add(r.t); }
+  obs.sort((a, b) => a.at - b.at);
   // The latest hourly reading from the chat worker, when it is newer than the run's.
   const p = liveObs?.pressure;
   if (p?.pem && p?.yvr && Math.abs(p.pem.at - p.yvr.at) <= 90 * 60000) {
@@ -1653,7 +1659,7 @@ const OBS_CODES = {
   "Vancouver International": "yvr",
   "Squamish Airport": "wsk",
 };
-let liveObs = null; // { fetchedAt, byCode, pressure } from GET /obs
+let liveObs = null; // { fetchedAt, byCode, pressure, pressureHistory } from GET /obs
 function clockLabel(ms) {
   return new Date(ms).toLocaleTimeString("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", minute: "2-digit" }).replace(" AM", "am").replace(" PM", "pm");
 }
@@ -1681,7 +1687,7 @@ async function refreshStations() {
     const r = await fetch(`${CHAT_URL}/obs`);
     if (!r.ok) return;
     const j = await r.json();
-    liveObs = { fetchedAt: Date.now(), byCode: Object.fromEntries((j.stations || []).map(x => [x.code, x])), pressure: j.pressure || null };
+    liveObs = { fetchedAt: Date.now(), byCode: Object.fromEntries((j.stations || []).map(x => [x.code, x])), pressure: j.pressure || null, pressureHistory: Array.isArray(j.pressure_history) ? j.pressure_history : [] };
     if (forecast) { renderSurfaceObservations(); insertHowePanel(); }
   } catch { /* the snapshot's readings stay */ }
   finally { obsFetching = false; }

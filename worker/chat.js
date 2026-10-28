@@ -362,6 +362,47 @@ function swobPressure(xml) {
   return isFinite(at) && mslp != null ? { at, mslp, temp: v("air_temp") } : null;
 }
 
+// Rolling hourly pressure history for the Howe Sound panel (Oct 28 2026,
+// Guillermo: update it like the station board). The forecast run saves 12
+// hours, but runs are hours apart, so the worker keeps the last 14 hourly
+// rows itself in KV (one write per new hour) and /obs returns them; the
+// page fills the chart from them between runs. Same row shape as
+// scripts/howe-pressure.mjs.
+const PRESSURE_HIST_HOURS = 14;
+const pacificHourFmt = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" });
+function pacificHourKey(ms) {
+  const p = Object.fromEntries(pacificHourFmt.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:00`;
+}
+const r1 = (x) => Math.round(x * 10) / 10;
+function pressureRow(pressure, pam) {
+  const { pem, yvr, wsk, was } = pressure;
+  if (!pem || !yvr || Math.abs(pem.at - yvr.at) > 30 * 60000) return null;
+  const at = Math.floor(Math.max(pem.at, yvr.at) / 3600000) * 3600000;
+  const near = (x) => x && Math.abs(x.at - at) <= 30 * 60000;
+  return {
+    t: pacificHourKey(at), at, pem: pem.mslp, yvr: yvr.mslp,
+    wsk: near(wsk) ? wsk.mslp : null, was: near(was) ? was.mslp : null,
+    gap: r1(yvr.mslp - pem.mslp),
+    local: near(wsk) && near(was) ? r1(was.mslp - wsk.mslp) : null,
+    pam_kt: pam && Math.abs(pam.at - at) <= 30 * 60000 ? pam.kt : null,
+    pam_dir: pam && Math.abs(pam.at - at) <= 30 * 60000 ? pam.dir : null,
+    wsk_c: near(wsk) ? wsk.temp : null, was_c: near(was) ? was.temp : null,
+  };
+}
+async function updatePressureHistory(env, pressure, pam, nowMs = Date.now()) {
+  const old = (await env.CHAT_KV.get("pressure_hist", "json")) || [];
+  const keep = old.filter((r) => r && isFinite(r.at) && r.at > nowMs - PRESSURE_HIST_HOURS * 3600000);
+  const row = pressureRow(pressure, pam);
+  if (!row || keep.some((r) => r.t === row.t && r.gap === row.gap && r.local === row.local)) {
+    if (keep.length !== old.length) await env.CHAT_KV.put("pressure_hist", JSON.stringify(keep));
+    return keep;
+  }
+  const hist = keep.filter((r) => r.t !== row.t).concat(row).sort((a, b) => a.at - b.at);
+  await env.CHAT_KV.put("pressure_hist", JSON.stringify(hist));
+  return hist;
+}
+
 // Fetches every station at most once per 10 minutes (shared by the chat and
 // the page's board, kept in KV). Returns { at, text, stations }.
 async function getObsData(env) {
@@ -410,7 +451,9 @@ async function getObsData(env) {
   // Hourly rows for the Squamish go signal (email alerts).
   const rows = Object.fromEntries(["was", "wgp", "yvr", "wsk"].map((c) => [c, (byCode[c] || []).slice(0, 6)]));
   for (const k of Object.keys(pressure)) if (!pressure[k]) delete pressure[k];
-  const out = { at: Date.now(), text, stations, rows, pressure };
+  let pressureHistory = [];
+  try { pressureHistory = await updatePressureHistory(env, pressure, swob.was); } catch { /* the page still has the run's hours */ }
+  const out = { at: Date.now(), text, stations, rows, pressure, pressure_history: pressureHistory };
   await env.CHAT_KV.put("obs", JSON.stringify(out), { expirationTtl: 3600 });
   return out;
 }
@@ -423,7 +466,7 @@ async function getObservations(env) {
 async function obsRoute(env) {
   if (!env.CHAT_KV) return json({ error: "not set up" }, 503, env);
   const o = await getObsData(env);
-  return new Response(JSON.stringify({ at: o.at, stations: o.stations || [], pressure: o.pressure || {} }), {
+  return new Response(JSON.stringify({ at: o.at, stations: o.stations || [], pressure: o.pressure || {}, pressure_history: o.pressure_history || [] }), {
     headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=60", ...corsHeaders(env) },
   });
 }
@@ -881,9 +924,16 @@ async function runAlerts(env, nowMs = Date.now()) {
 
 export default {
   // Exposed only for tests; Cloudflare ignores extra keys on the default export.
-  _test: { parseEcPast24, obsText, validMessages, costUsd, jscaText, terminalText, validReport, newId, parseSwob, swobPressure, validRules, squamishSignal, stationHit, daylightMs, runAlerts },
+  _test: { parseEcPast24, obsText, validMessages, costUsd, jscaText, terminalText, validReport, newId, parseSwob, swobPressure, pressureRow, updatePressureHistory, validRules, squamishSignal, stationHit, daylightMs, runAlerts },
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(runAlerts(env, event.scheduledTime || Date.now()).catch((e) => console.error("alerts", e)));
+    const t = event.scheduledTime || Date.now();
+    ctx.waitUntil(runAlerts(env, t).then(async (r) => {
+      // Alerts sleep in the dark; still read the stations once an hour
+      // (just after EC posts the hourly files) so the pressure history has
+      // no overnight hole.
+      const min = new Date(t).getUTCMinutes();
+      if (r?.skipped && min >= 5 && min < 15 && env.CHAT_KV) await getObsData(env);
+    }).catch((e) => console.error("alerts", e)));
   },
   async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(env) });
