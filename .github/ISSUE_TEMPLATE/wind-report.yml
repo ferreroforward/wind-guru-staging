@@ -69,6 +69,15 @@ body:
         - waves
         - good swell
   - type: dropdown
+    id: weeds
+    attributes:
+      label: Weeds
+      description: Optional, floating weed or eelgrass in the water
+      options:
+        - none
+        - some
+        - lots
+  - type: dropdown
     id: actual_direction
     attributes:
       label: Actual direction (optional)

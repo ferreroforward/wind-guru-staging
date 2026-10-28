@@ -458,6 +458,14 @@
           <option value="good swell">Good swell</option>
         </select>
       </label>
+      <label class="report-field">Weeds <span class="optional">optional, floating weed or eelgrass in the water</span>
+        <select id="reportWeeds">
+          <option value="">Not sure</option>
+          <option value="none">None</option>
+          <option value="some">Some</option>
+          <option value="lots">Lots</option>
+        </select>
+      </label>
       <div class="report-modal-msg" id="reportModalMsg"></div>
       <div class="report-modal-actions">
         <button type="button" class="secondary" id="reportModalCancel">Cancel</button>
@@ -991,6 +999,7 @@ const reportActualMin = document.getElementById("reportActualMin");
 const reportActualGust = document.getElementById("reportActualGust");
 const reportWaveSize = document.getElementById("reportWaveSize");
 const reportWindDir = document.getElementById("reportWindDir");
+const reportWeeds = document.getElementById("reportWeeds");
 const reportModalMsg = document.getElementById("reportModalMsg");
 const reportModalSubmit = document.getElementById("reportModalSubmit");
 const reportModalCancel = document.getElementById("reportModalCancel");
@@ -1005,6 +1014,7 @@ function openReportModal(ds) {
   reportActualGust.value = "";
   reportWaveSize.value = "";
   reportWindDir.value = "";
+  reportWeeds.value = "";
   reportModalMsg.textContent = "";
   reportModalMsg.className = "report-modal-msg";
   reportModalSubmit.disabled = false;
@@ -1047,7 +1057,7 @@ async function submitReport() {
     const res = await fetch(WORKER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...reportModalCtx, actual_speed: actual, actual_gust: gust, wave_size: reportWaveSize.value || null, wind_dir: reportWindDir.value || null }),
+      body: JSON.stringify({ ...reportModalCtx, actual_speed: actual, actual_gust: gust, wave_size: reportWaveSize.value || null, wind_dir: reportWindDir.value || null, weeds: reportWeeds.value || null }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     reportModalMsg.textContent = "Thanks — that's logged and feeds straight into the forecast.";
