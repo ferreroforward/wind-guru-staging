@@ -1275,15 +1275,35 @@ function swellLineForDay(hours) {
 // When Environment Canada's marine forecast is clearly stronger than the
 // models for this spot (4kt+ apart, a direction the spot works on), say so
 // instead of using EC as the number (changed Sep 28 2026, see rules.js).
-function ecLineForDay(hours) {
+function ecLineForDay(hours, sp) {
   const hit = hours.filter(h => h.marine_ec && h.marine_ec.gap_kt >= 4 && !h.live_reference_triggered);
   if (!hit.length) return "";
+  const warn = sp ? ecWarningName(sp) : null;
   const e = hit[0].marine_ec;
   const models = Math.round(Math.min(...hit.map(h => h.speed_kt ?? 0)));
   const modelsHi = Math.round(Math.max(...hit.map(h => h.speed_kt ?? 0)));
   const from = hourLabel(Number(hit[0].time.slice(11, 13)));
   const range = e.hi_kt !== e.lo_kt ? `${e.lo_kt} to ${e.hi_kt}` : `${e.lo_kt}`;
-  return `<div class="tide-line">📻 Environment Canada calls ${e.direction_label} ${range}kt from about ${from}, stronger than the models here (${models === modelsHi ? models : `${models} to ${modelsHi}`}kt). Check the live readings before you go.</div>`;
+  return `<div class="tide-line">📻 ${warn ? `<b>${warn[0].toUpperCase()}${warn.slice(1)} in effect.</b> ` : ""}Environment Canada calls ${e.direction_label} ${range}kt from about ${from}, stronger than the models here (${models === modelsHi ? models : `${models} to ${modelsHi}`}kt). Check the live readings before you go.</div>`;
+}
+
+// EC warning outflow (Oct 28 2026, per Guillermo): on Oct 29 EC had a gale
+// warning for Howe Sound (northerly outflow 25 to 35) while the models gave
+// Porteau 2 to 10kt, so its card, the only place the EC call shows, was
+// hidden. Now a spot keeps its card when its marine area has a strong wind
+// or gale warning with an outflow and EC is 10kt+ above the models for a
+// direction the spot works on, whatever range is picked.
+const EC_WARNING_GAP_KT = 10;
+function ecWarningName(sp) {
+  const b = forecast.marine_bulletins?.[sp.marineZone];
+  if (!b?.warning) return null;
+  const m = (b.text || "").match(/(strong wind|gale|storm|hurricane force wind) warning/i);
+  return m ? m[0].toLowerCase() : null;
+}
+function ecWarningOutflowForDay(sp, spotData) {
+  const b = forecast.marine_bulletins?.[sp.marineZone];
+  if (!b?.warning || !b.parsed?.hasOutflow) return false;
+  return hoursForSelectedDay(spotData).some(h => h.marine_ec && h.marine_ec.gap_kt >= EC_WARNING_GAP_KT && !h.live_reference_triggered);
 }
 
 // Squamish (Oct 2026, per Guillermo): riders don't launch at the Spit on an
@@ -1462,6 +1482,11 @@ function renderSpotCards() {
   // A spot with a possible epic window always gets its card, whatever range
   // is selected.
   for (const sd of forecast.spots) if (epicWindowsForDay(sd).length) goodIds.add(sd.id);
+  // An EC strong wind or gale warning for an outflow the models miss keeps the card.
+  for (const sp of SPOTS) {
+    const sd = forecast.spots.find(s => s.id === sp.id);
+    if (sd && ecWarningOutflowForDay(sp, sd)) goodIds.add(sp.id);
+  }
   const withData = SPOTS.filter(sp => forecast.spots.some(s => s.id === sp.id));
   const hidden = withData.filter(sp => !goodIds.has(sp.id)).length;
   noteEl.innerHTML = showAllSpots
@@ -1506,7 +1531,7 @@ function renderSpotCards() {
       ${trackLine(sp)}
       ${tideLineForDay(spot)}
       ${foilMode ? waveLineForDay(hours) : swellLineForDay(hours)}
-      ${ecLineForDay(hours)}
+      ${ecLineForDay(hours, sp)}
       ${outflowLineForDay(hours)}
       ${sideLineForDay(sp, hours)}
       ${liveBadge}
