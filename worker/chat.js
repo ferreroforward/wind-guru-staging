@@ -344,6 +344,24 @@ function parseSwob(xml) {
   return { at, dir: calm ? "calm" : deg != null ? DIR16[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16] : null, kt, gust: gust != null && gust > kt ? gust : null, temp: v("air_temp") };
 }
 
+// Sea level pressure (0.1 hPa) from the hourly SWOB files, for the page's
+// Howe Sound pressure panel: Vancouver minus Pemberton, Pam Rocks minus
+// Squamish Airport. The Squamish minute file has no pressure, so its hourly
+// file is fetched as well. Oct 28 2026.
+const PRESSURE_SWOB = { pem: "wgp", yvr: "yvr", was: "was" }; // panel key -> SWOB code above
+function swobPressure(xml) {
+  const v = (n) => {
+    const m = xml.match(new RegExp(`<element name="${n}" uom="[^"]*" value="([^"]*)"`));
+    if (!m || m[1] === "MSNG" || m[1] === "") return null;
+    const x = parseFloat(m[1]);
+    return isFinite(x) ? x : null;
+  };
+  const tm = xml.match(/<element name="date_tm" uom="[^"]*" value="([^"]+)"/);
+  const at = tm ? Date.parse(tm[1]) : NaN;
+  const mslp = v("mslp");
+  return isFinite(at) && mslp != null ? { at, mslp, temp: v("air_temp") } : null;
+}
+
 // Fetches every station at most once per 10 minutes (shared by the chat and
 // the page's board, kept in KV). Returns { at, text, stations }.
 async function getObsData(env) {
@@ -353,6 +371,8 @@ async function getObsData(env) {
   const extra = [];
   const latest = {};
   const swob = {};
+  const pressure = {};
+  const swobKey = Object.fromEntries(Object.entries(PRESSURE_SWOB).map(([k, c]) => [c, k]));
   const UA = { headers: { "User-Agent": "wind-guru-chat/1.0" } };
   await Promise.all([
     ...EC_STATIONS.map(async (st) => {
@@ -364,9 +384,16 @@ async function getObsData(env) {
     ...Object.entries(SWOB).map(async ([code, file]) => {
       try {
         const r = await fetch(`https://dd.weather.gc.ca/today/observations/swob-ml/latest/${file}-swob.xml`, UA);
-        if (r.ok) swob[code] = parseSwob(await r.text());
+        if (r.ok) {
+          const xml = await r.text();
+          swob[code] = parseSwob(xml);
+          if (swobKey[code]) pressure[swobKey[code]] = swobPressure(xml);
+        }
       } catch { /* the past conditions page still covers it */ }
     }),
+    (async () => {
+      try { const r = await fetch("https://dd.weather.gc.ca/today/observations/swob-ml/latest/CWSK-AUTO-swob.xml", UA); if (r.ok) pressure.wsk = swobPressure(await r.text()); } catch {}
+    })(),
     (async () => {
       try { const r = await fetch("https://jsca.bc.ca/main/downld02.txt", UA); if (r.ok) { const t = await r.text(); extra[0] = jscaText(t); latest.jsca = jscaLatest(t); } } catch {}
     })(),
@@ -378,11 +405,12 @@ async function getObsData(env) {
   for (const [code, x] of Object.entries(swob)) if (x && (!latest[code] || x.at > latest[code].at)) latest[code] = x;
   const text = [obsText(byCode), extra[0] || "Jericho Sailing Centre beach station: no reading available", extra[1] || "Squamish shipping terminal sensor: no reading available"].join("\n");
   const stations = Object.entries(latest).filter(([, v]) => v && isFinite(v.at)).map(([code, v]) => ({ code, name: STATION_NAMES[code], ...v }));
-  const fetched = Object.keys(byCode).length + (extra[0] ? 1 : 0) + (extra[1] ? 1 : 0);
+  const fetched = Object.keys(byCode).length + (extra[0] ? 1 : 0) + (extra[1] ? 1 : 0) + Object.values(swob).filter(Boolean).length;
   if (!fetched) return cached?.text ? cached : { at: Date.now(), text: "Live station readings are not available right now.", stations: [] };
   // Hourly rows for the Squamish go signal (email alerts).
   const rows = Object.fromEntries(["was", "wgp", "yvr", "wsk"].map((c) => [c, (byCode[c] || []).slice(0, 6)]));
-  const out = { at: Date.now(), text, stations, rows };
+  for (const k of Object.keys(pressure)) if (!pressure[k]) delete pressure[k];
+  const out = { at: Date.now(), text, stations, rows, pressure };
   await env.CHAT_KV.put("obs", JSON.stringify(out), { expirationTtl: 3600 });
   return out;
 }
@@ -395,7 +423,7 @@ async function getObservations(env) {
 async function obsRoute(env) {
   if (!env.CHAT_KV) return json({ error: "not set up" }, 503, env);
   const o = await getObsData(env);
-  return new Response(JSON.stringify({ at: o.at, stations: o.stations || [] }), {
+  return new Response(JSON.stringify({ at: o.at, stations: o.stations || [], pressure: o.pressure || {} }), {
     headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=60", ...corsHeaders(env) },
   });
 }
@@ -853,7 +881,7 @@ async function runAlerts(env, nowMs = Date.now()) {
 
 export default {
   // Exposed only for tests; Cloudflare ignores extra keys on the default export.
-  _test: { parseEcPast24, obsText, validMessages, costUsd, jscaText, terminalText, validReport, newId, parseSwob, validRules, squamishSignal, stationHit, daylightMs, runAlerts },
+  _test: { parseEcPast24, obsText, validMessages, costUsd, jscaText, terminalText, validReport, newId, parseSwob, swobPressure, validRules, squamishSignal, stationHit, daylightMs, runAlerts },
   async scheduled(event, env, ctx) {
     ctx.waitUntil(runAlerts(env, event.scheduledTime || Date.now()).catch((e) => console.error("alerts", e)));
   },

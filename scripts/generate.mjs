@@ -11,6 +11,7 @@ import path from "node:path";
 import { buildGuruLive } from "./guru-live.mjs";
 import { buildAlertsForecast } from "./alerts-forecast.mjs";
 import { fetchWaves, attachWaves } from "./waves.mjs";
+import { buildHowePressure } from "./howe-pressure.mjs";
 import { fetchJscaRows, fetchKiteloopRows, halfHourly, latestObservation, appendHistory, JSCA_HISTORY_META, jscaRow, TERMINAL_HISTORY_META, terminalRow } from "./extra-stations.mjs";
 import { SPOTS, PRESSURE_REFERENCE, degToLabel, DEG_LABELS, WEBCAMS } from "../assets/spots.js";
 import { MODELS, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, rowsToPressureMap, rowsToSpeedMap, currentPacificHourString, explainMismatch, parseMarineWindText, marineAnchorForHour, parseEcIssued, dropModels, tideForHour, flagEpicHours, buildMosUrl, reshapeMos, applyMos, swellForHours, thermalInputs, applyThermalModel } from "../assets/rules.js";
@@ -1378,6 +1379,17 @@ async function main() {
   const spotOrder = new Map(SPOTS.map((s, i) => [s.id, i]));
   spotsOut.sort((a, b) => spotOrder.get(a.id) - spotOrder.get(b.id));
 
+  // Howe Sound pressure panel (Squamish and Porteau cards): observed
+  // Vancouver minus Pemberton from EC SWOB (0.1 hPa) plus the models' gap.
+  let howeSoundPressure = null;
+  try {
+    const prev = await readFile(OUT_PATH, "utf8").then(JSON.parse).catch(() => null);
+    howeSoundPressure = await buildHowePressure(await getGradientStations(), startedAt, prev?.howe_sound_pressure?.observed);
+    console.log(`Howe Sound pressure: ${howeSoundPressure.observed.length} observed hours, ${Object.keys(howeSoundPressure.forecast).length} forecast hours`);
+  } catch (err) {
+    console.log(`Howe Sound pressure failed: ${err.message}`);
+  }
+
   const forecast = {
     generated_at: startedAt.toISOString(),
     generated_at_label: startedAt.toLocaleString("en-US", {
@@ -1394,6 +1406,7 @@ async function main() {
     mos_score: await readFile(path.join(__dirname, "..", "data", "mos-score.json"), "utf8").then(JSON.parse).catch(() => null),
     surface_observations: surfaceObservations,
     webcams: await resolveWebcams(),
+    howe_sound_pressure: howeSoundPressure,
     missing_spots: missingSpots,
     spots: spotsOut,
   };
