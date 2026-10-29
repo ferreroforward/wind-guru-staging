@@ -1495,16 +1495,19 @@ function howePanelHtml(s) {
     const what = dT >= 3 ? "valley warmer than the water: thermal helping" : dT >= 1 ? "valley a little warmer: weak thermal help" : "no valley heating, so any wind is pressure driven";
     facts.push(`<div><b>Squamish Airport minus Pam Rocks:</b> ${howeSigned(dT)}°C, ${what}</div>`);
   }
-  // Pemberton minus Pam Rocks (Oct 29 2026): the outflow gradient Porteau
-  // rides on, with its 3 hour change.
+  // Pam Rocks minus Pemberton (Oct 29 2026): the outflow gradient Porteau
+  // rides on, with its 3 hour change. Same sign as every other number on
+  // the panel (Guillermo, Oct 29): negative pushes air out of the Sound.
   const pwRows = s.obs.filter(r => r.pem != null && r.was != null);
   const pwL = pwRows[pwRows.length - 1];
   if (pwL && L.at - pwL.at <= 3 * 3600000) {
-    const pwOf = (r) => r.pem - r.was;
+    const pwOf = (r) => r.was - r.pem;
     const pwB = pwRows.find(r => Math.abs(r.at - (pwL.at - 3 * 3600000)) <= 30 * 60000);
     const c = pwB ? howeR1(pwOf(pwL) - pwOf(pwB)) : null;
     const a = c == null ? "" : c >= 0.3 ? " \u2191" : c <= -0.3 ? " \u2193" : " \u2192";
-    facts.push(`<div><b>Pemberton minus Pam Rocks:</b> ${howeSigned(howeR1(pwOf(pwL)))} hPa${a}${c != null ? `, ${howeSigned(c)} in 3 hours` : ""}</div>`);
+    const v = howeR1(pwOf(pwL));
+    const what = v <= -0.5 ? "Pemberton higher: pushes air out" : v >= 0.5 ? "Pam Rocks higher: pulls air up the Sound" : "about even";
+    facts.push(`<div><b>Pam Rocks minus Pemberton:</b> ${howeSigned(v)} hPa${a}${c != null ? `, ${howeSigned(c)} in 3 hours` : ""}, ${what}</div>`);
   }
   const lRow = [...s.obs].reverse().find(r => r.local != null);
   if (lRow && L.at - lRow.at <= 3 * 3600000) {
