@@ -629,8 +629,17 @@ function validRules(list) {
       out.push({ type: r.type });
     } else if (r.type === "forecast") {
       const min = Number(r.min), pct = Number(r.pct ?? 70);
-      if (!(r.spot === "all" || SPOT_IDS.includes(r.spot)) || r.spot === "garry-point" || !FORECAST_PICKS.includes(min) || ![50, 60, 70, 80, 90].includes(pct)) return null;
-      out.push({ type: "forecast", spot: r.spot, min, pct });
+      if (!FORECAST_PICKS.includes(min) || ![50, 60, 70, 80, 90].includes(pct)) return null;
+      // Several spots (Oct 30 2026, a tester asked for "a few of my locals");
+      // a single spot or "all" is still understood.
+      if (Array.isArray(r.spots) && r.spots.length) {
+        const spots = SPOT_IDS.filter((id) => id !== "garry-point" && r.spots.includes(id));
+        if (spots.length !== new Set(r.spots).size) return null;
+        out.push(spots.length === 1 ? { type: "forecast", spot: spots[0], min, pct } : { type: "forecast", spot: "some", spots, min, pct });
+      } else {
+        if (!(r.spot === "all" || SPOT_IDS.includes(r.spot)) || r.spot === "garry-point") return null;
+        out.push({ type: "forecast", spot: r.spot, min, pct });
+      }
     } else return null;
   }
   return out;
@@ -650,7 +659,11 @@ function ruleText(r) {
   }
   if (r.type === "porteau") return "Porteau outflow: Pam Rocks 22kt or more from the north";
   if (r.type === "squamish") return "Squamish go signal (morning checklist, checked 10:30am to 1:30pm)";
-  if (r.type === "forecast") return `Evening heads up: ${r.spot === "all" ? "any spot" : SPOT_NAMES[r.spot]} tomorrow has ${r.pct}% odds or better of ${r.min}kt and up`;
+  if (r.type === "forecast") {
+    const names = Array.isArray(r.spots) ? r.spots.map((x) => SPOT_NAMES[x] || x) : null;
+    const where = r.spot === "all" ? "any spot" : names ? `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}` : SPOT_NAMES[r.spot];
+    return `Evening heads up: ${where} tomorrow has ${r.pct}% odds or better of ${r.min}kt and up`;
+  }
   return "";
 }
 
@@ -888,7 +901,7 @@ async function runAlerts(env, nowMs = Date.now()) {
       } else if (r.type === "squamish" && squamish) {
         cands.push({ key: base, what: "squamish", subject: "Squamish go signal", line: `Squamish go signal: ${squamish}` });
       } else if (r.type === "forecast" && evening && af) {
-        const spots = r.spot === "all" ? Object.keys(af.spots || {}).filter((x) => x !== "garry-point") : [r.spot];
+        const spots = r.spot === "all" ? Object.keys(af.spots || {}).filter((x) => x !== "garry-point") : Array.isArray(r.spots) ? r.spots : [r.spot];
         for (const sp of spots) {
           const t = forecastHit(r, af, tomorrow, sp);
           if (t) cands.push({ key: spots.length > 1 ? `${base}:${sp}` : base, what: `fc:${sp}`, subject: `Tomorrow: ${SPOT_NAMES[sp] || sp} ${r.min}kt+`, line: t });

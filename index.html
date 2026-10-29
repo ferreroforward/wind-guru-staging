@@ -360,7 +360,8 @@
       </div>
       <div class="group"><b>Evening heads up for tomorrow</b>
         <label class="check"><input type="checkbox" id="alertsForecastOn"> Email me around 7pm when tomorrow looks good at</label>
-        <div class="row"><select id="alertsSpot" aria-label="Spot"></select><select id="alertsMin" aria-label="Wind"><option value="8">8+ Light</option><option value="12" selected>12+ Sweet spot</option><option value="18">18+ Powered</option><option value="25">25+ Full send</option></select><select id="alertsPct" aria-label="Odds"><option value="50">50% odds</option><option value="60">60% odds</option><option value="70" selected>70% odds</option><option value="80">80% odds</option><option value="90">90% odds</option></select></div>
+        <div class="dir-chips" id="alertsSpots" role="group" aria-label="Spots" style="margin:6px 0;"></div>
+        <div class="row"><select id="alertsMin" aria-label="Wind"><option value="8">8+ Light</option><option value="12" selected>12+ Sweet spot</option><option value="18">18+ Powered</option><option value="25">25+ Full send</option></select><select id="alertsPct" aria-label="Odds"><option value="50">50% odds</option><option value="60">60% odds</option><option value="70" selected>70% odds</option><option value="80">80% odds</option><option value="90">90% odds</option></select></div>
       </div>
       <div class="row" style="margin-top:12px;"><button type="submit" id="alertsSubmit">Send me a confirm email</button></div>
       <div class="alerts-status" id="alertsStatus"></div>
@@ -2415,7 +2416,11 @@ if (CHAT_URL) {
     list.appendChild(row);
   };
   document.getElementById("alertsAddStation").addEventListener("click", () => addRow("jsca", 20));
-  document.getElementById("alertsSpot").innerHTML = `<option value="all">All spots</option>` + SPOTS.filter(sp => sp.id !== "garry-point").map(sp => `<option value="${sp.id}">${sp.name}</option>`).join("");
+  // Evening heads up spots (Oct 30 2026, a tester: "select a few of my
+  // locals"): several can be picked; none picked means all spots.
+  const spotsBox = document.getElementById("alertsSpots");
+  spotsBox.innerHTML = `<span class="lbl">Spots (none = all):</span>` + SPOTS.filter(sp => sp.id !== "garry-point").map(sp => `<button type="button" class="dchip" data-spot="${sp.id}" aria-pressed="false">${({ "tsawwassen-south": "Tsawwassen", "dundarave-pier": "Dundarave", "ambleside": "Ambleside", "cates-park": "Cates Park", "white-rock-east": "White Rock East", "jericho-spanish-banks": "Jericho" })[sp.id] || sp.name.replace(/ \(.*\)$/, "").replace(/ - .*$/, "")}</button>`).join("");
+  spotsBox.querySelectorAll(".dchip").forEach(b => b.addEventListener("click", () => b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") === "true" ? "false" : "true")));
   addRow("all", 20);
   const show = () => {
     if (location.hash !== "#alerts") return;
@@ -2431,7 +2436,10 @@ if (CHAT_URL) {
     const rules = [...list.children].map(r => ({ type: "station", code: r.querySelector('[data-k="code"]').value, min: Number(r.querySelector('[data-k="min"]').value), dirs: [...r.querySelectorAll('.dchip[aria-pressed="true"]')].map(b => b.dataset.d) }));
     if (document.getElementById("alertsPorteau").checked) rules.push({ type: "porteau" });
     if (document.getElementById("alertsSquamish").checked) rules.push({ type: "squamish" });
-    if (document.getElementById("alertsForecastOn").checked) rules.push({ type: "forecast", spot: document.getElementById("alertsSpot").value, min: Number(document.getElementById("alertsMin").value), pct: Number(document.getElementById("alertsPct").value) });
+    if (document.getElementById("alertsForecastOn").checked) {
+      const picked = [...document.querySelectorAll('#alertsSpots .dchip[aria-pressed="true"]')].map(b => b.dataset.spot);
+      rules.push({ type: "forecast", ...(picked.length ? { spots: picked } : { spot: "all" }), min: Number(document.getElementById("alertsMin").value), pct: Number(document.getElementById("alertsPct").value) });
+    }
     if (!rules.length) { status.textContent = "Pick at least one alert."; return; }
     btn.disabled = true; status.textContent = "Sending…";
     try {
