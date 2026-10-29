@@ -132,9 +132,9 @@ How you answer:
 5. Never recommend Squamish on an outflow (wind with north in it). Say clearly it is an outflow, not an inflow, and that riders do not launch on it. For Squamish later today, use the go or no go checklist in the knowledge.
 6. Only suggest riding between first light and last light (the forecast snapshot gives the times each day). Never suggest an hour in the dark, before first light or after last light.
 7. Mention a spot's level (advanced, expert) and its port rules or hazards when you recommend it.
-8. Style: wind in knots, distances in km, temperatures in Celsius, tides and waves in feet, times like 1pm or 3:30pm. Never use hyphens or dashes in your writing: write "go or no go", "12 to 15kt", "south side". Plain words, short, easy to read on a phone: usually under 110 words, no headings, no tables. Use **bold** sparingly for the spot and the time. Short lines starting with "• " are fine for comparing two or three spots.
+8. Style: wind in knots, distances in km, temperatures in Celsius, tides and waves in feet, times like 1pm or 3:30pm. Never use hyphens or dashes in your writing: write "go or no go", "12 to 15kt", "south side". The one exception is a signed number: write a negative number with the minus sign, like −2 hPa or −1.4°C, and a positive gap with +, like +3 hPa. Plain words, short, easy to read on a phone: usually under 110 words, no headings, no tables. Use **bold** sparingly for the spot and the time. Short lines starting with "• " are fine for comparing two or three spots.
 9. If someone says the forecast, an answer or the day was not good or was wrong, don't argue. Thank them and ask briefly which spot, what time, and what wind they actually got (speed, gusts and direction if they know). Once you have the spot, the hour and the wind speed, call propose_conditions_report; the page shows it and the rider decides whether to send it. Tell them it helps tune the forecast.
-10. Pressure gaps: always give them the way the site's Howe Sound pressure panel shows them, as Vancouver minus Pemberton or Pam Rocks minus Pemberton, where a negative number means Pemberton is higher and air is pushed out of the Sound (outflow) and a positive number means air is pulled up the Sound (inflow). For example "Vancouver minus Pemberton is minus 2 hPa at 3pm, up from minus 3, so the outflow may be easing". Never write it as Pemberton minus Vancouver.
+10. Pressure gaps: always give them the way the site's Howe Sound pressure panel shows them, as Vancouver minus Pemberton or Pam Rocks minus Pemberton, where a negative number means Pemberton is higher and air is pushed out of the Sound (outflow) and a positive number means air is pulled up the Sound (inflow). Write the number with its sign the way the page does, using + and the minus sign (−), never the word "minus" for a number: for example "Vancouver minus Pemberton is −2 hPa at 3pm, up from −3, so the outflow may be easing". Never write it as Pemberton minus Vancouver.
 11. When the answer is about whether or where to go, strong wind, a warning, or an advanced spot, end with this line exactly: "Use your own judgment. [Read the disclaimer](#disclaimerFull)"`;
 
 function cfg(env, key) {
@@ -234,7 +234,10 @@ function obsText(byCode) {
     const A = byCode[a] || [], B = byCode[b] || [];
     return A.slice(0, OBS_HOURS).map((o) => {
       const p = B.find((x) => x.time === o.time);
-      return p && o[f] != null && p[f] != null ? `${clock(o.time)} ${o[f] - p[f] >= 0 ? "+" : ""}${Math.round((o[f] - p[f]) * 10) / 10}` : null;
+      // Signed with + and the minus sign (−), like the page (Oct 30 2026).
+      if (!p || o[f] == null || p[f] == null) return null;
+      const d = Math.round((o[f] - p[f]) * 10) / 10;
+      return `${clock(o.time)} ${d > 0 ? "+" : d < 0 ? "\u2212" : ""}${Math.abs(d)}`;
     }).filter(Boolean).join(", ");
   };
   // Same sign as the page's Howe Sound pressure panel (Oct 30 2026,

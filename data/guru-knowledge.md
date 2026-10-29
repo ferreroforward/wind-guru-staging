@@ -44,7 +44,7 @@ When the tide runs against the wind, waves get steeper and choppier. Wind blowin
 The Spit thermal needs the morning outflow to die and the valley to warm up. Check these in the morning:
 
 1. Pam Rocks trend 7am to 11am. Outflow fading each hour, going calm, then SE by noon to 1pm is a GO sign. Outflow still building, or 20kt or more at noon, is NO GO.
-2. Pressure: Vancouver (yvr) minus Pemberton (wgp), the way the page shows it (negative = Pemberton higher, outflow). Rising toward zero by about 1 hPa per hour, or level near zero, is good. Still minus 3 hPa or lower and not moving is NO GO.
+2. Pressure: Vancouver (yvr) minus Pemberton (wgp), the way the page shows it (negative = Pemberton higher, outflow). Rising toward zero by about 1 hPa per hour, or level near zero, is good. Still −3 hPa or lower and not moving is NO GO.
 3. Temperature: Squamish Airport (wsk) 2 to 3 degrees warmer than Pam Rocks by 1pm to 2pm is a GO sign. Sun alone is not enough (Oct 15: sunny, warm valley, but the outflow held and the thermal never came).
 4. A light northerly model wind is not proof there is no outflow. Use the Pam Rocks trend and the pressure gap as the switch, not the forecast speed.
 
