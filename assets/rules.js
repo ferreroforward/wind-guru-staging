@@ -866,7 +866,12 @@ export function classifyHour(spot, row, localHour, month, refSpeedKt = null, pre
     displaySpeed = est;
     displayGust = est * gustRatio;
     displayModels = row.speeds;
-    mosSigma = mosNow.sigma * mosLeadFactor(mosNow.leadHours) * (ruleInfo?.sigmaScale ?? 1);
+    // A curve flow (the Porteau outflow, Oct 29 2026) keeps its error band
+    // in Pam Rocks knots and stores the curve, so probabilityInRange can read
+    // the odds as "Pam Rocks reaches the works line" (see there). The flat
+    // shift flows (inflow) keep the stretched band as before.
+    const curveOdds = Array.isArray(ruleInfo?.curve);
+    mosSigma = mosNow.sigma * mosLeadFactor(mosNow.leadHours) * (curveOdds ? 1 : (ruleInfo?.sigmaScale ?? 1));
     mosInfo = {
       station: mosNow.station,
       station_kt: Math.round(mosNow.speed * 10) / 10,
@@ -874,6 +879,7 @@ export function classifyHour(spot, row, localHour, month, refSpeedKt = null, pre
       sigma_kt: Math.round(mosSigma * 10) / 10,
       recent_offset_kt: mosNow.offsetKt ? Math.round(mosNow.offsetKt * 10) / 10 : 0,
       ...(ruleInfo ? { flow: ruleInfo.flow, threshold_kt: ruleInfo.thresholdKt, works: ruleInfo.works } : {}),
+      ...(curveOdds ? { curve: ruleInfo.curve } : {}),
     };
     if ((regime === "calm" || regime === "mixed") && est >= 10) {
       regime = "synoptic";
@@ -1413,6 +1419,15 @@ export function probabilityInRange(hourResult, lo) {
   // P(true value >= lo) = 1 - F(lo) under the logistic band (normal for the
   // learned blend, matching how its error was measured).
   let probability = useMos ? 1 - normCdf((lo - center) / sigma) : 1 - logisticCdf(lo, center, sigma);
+  // Porteau outflow (Oct 29 2026): the curve is steep at the works line
+  // (Pam Rocks 22 is Porteau 18), so the odds are worked out at Pam Rocks:
+  // the chance Pam Rocks reaches the works line, or the Pam Rocks speed the
+  // picked minimum needs, whichever is higher. For the 8, 12 and 18 picks
+  // that is the odds it works.
+  if (useMos && Array.isArray(hourResult.mos.curve) && hourResult.mos.station_kt != null) {
+    const pamLo = Math.max(hourResult.mos.threshold_kt ?? 0, invertCurve(hourResult.mos.curve, lo));
+    probability = 1 - normCdf((pamLo - hourResult.mos.station_kt) / sigma);
+  }
   // Never claim near-total certainty. The learned blend's top bucket verified
   // at about 91 to 95% in the back test, so it may go a little higher.
   probability = Math.min(probability, useMos ? 0.95 : 0.92);
@@ -1803,9 +1818,10 @@ export function applyMos(point, input) {
 // minimum of 25 to 30 knots". The Pam Rocks forecast is turned into a
 // Porteau estimate by shifting it so the rule's threshold lands on 12kt, the
 // app's usual "it's working" floor: 14kt inflow -> 12. The outflow uses a
-// curve instead (Oct 11 2026, see spots.js): 22kt -> 12, 26 -> 22, 30 -> 27.
-// So P(Porteau >= 12) is exactly P(Pam Rocks clears the
-// rule). Directions outside both sectors don't reach Porteau well.
+// curve instead (see spots.js; Oct 29 2026: Pam Rocks 22 -> 18, 24 -> 23,
+// then 1:1 from 26, because Porteau read about the same as Pam Rocks once
+// it worked). Its odds are worked out at Pam Rocks (probabilityInRange).
+// Directions outside both sectors don't reach Porteau well.
 export function pamRocksRuleEstimate(rule, pamKt, pamDirDeg, fromModels = false) {
   if (pamKt == null) return null;
   const flows = [
@@ -1818,18 +1834,11 @@ export function pamRocksRuleEstimate(rule, pamKt, pamDirDeg, fromModels = false)
   // A flow may carry a `curve` ([Pam Rocks kt, Porteau kt] points, straight
   // lines between, 1:1 above the last point) instead of the flat shift: the
   // outflow reaches Porteau at close to the Pam Rocks speed once it is
-  // established (Oct 11 2026, see spots.js). The curve must pass through
-  // [thresholdKt, worksAtKt] so the odds keep their meaning.
+  // established (Oct 11 and Oct 29 2026, see spots.js).
   let estimateKt;
-  if (Array.isArray(hit.curve) && hit.curve.length >= 2) {
-    const c = hit.curve, last = c[c.length - 1];
-    if (pamKt <= c[0][0]) estimateKt = c[0][1] * (c[0][0] > 0 ? pamKt / c[0][0] : 1);
-    else if (pamKt >= last[0]) estimateKt = last[1] + (pamKt - last[0]);
-    else {
-      const i = c.findIndex(pt => pt[0] >= pamKt);
-      const [x0, y0] = c[i - 1], [x1, y1] = c[i];
-      estimateKt = y0 + (y1 - y0) * (pamKt - x0) / (x1 - x0);
-    }
+  const hasCurve = Array.isArray(hit.curve) && hit.curve.length >= 2;
+  if (hasCurve) {
+    estimateKt = curveAt(hit.curve, pamKt);
   } else {
     estimateKt = pamKt - (hit.thresholdKt - target);
   }
@@ -1846,6 +1855,104 @@ export function pamRocksRuleEstimate(rule, pamKt, pamDirDeg, fromModels = false)
     works: pamKt >= hit.thresholdKt,
     estimateKt,
     sigmaScale,
+    ...(hasCurve ? { curve: hit.curve } : {}),
+  };
+}
+
+// [Pam Rocks kt, Porteau kt] curve: straight lines between the points, a
+// straight line from 0 to the first point, 1:1 above the last.
+export function curveAt(c, x) {
+  const last = c[c.length - 1];
+  if (x <= c[0][0]) return c[0][1] * (c[0][0] > 0 ? x / c[0][0] : 1);
+  if (x >= last[0]) return last[1] + (x - last[0]);
+  const i = c.findIndex(pt => pt[0] >= x);
+  const [x0, y0] = c[i - 1], [x1, y1] = c[i];
+  return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+}
+// The Pam Rocks speed that gives Porteau `y` on the curve (the curve only
+// ever rises, so this is the inverse).
+export function invertCurve(c, y) {
+  const last = c[c.length - 1];
+  if (y >= last[1]) return last[0] + (y - last[1]);
+  if (y <= c[0][1]) return c[0][1] > 0 ? c[0][0] * y / c[0][1] : c[0][0];
+  const i = c.findIndex(pt => pt[1] >= y);
+  const [x0, y0] = c[i - 1], [x1, y1] = c[i];
+  return y1 === y0 ? x0 : x0 + (x1 - x0) * (y - y0) / (y1 - y0);
+}
+
+// Live outflow hold for Porteau (Oct 29 2026). A strong outflow reading at
+// Pam Rocks right now is the best guide to the next three hours, better than
+// the learned forecast, which faded the Oct 25 afternoon and ran 1 to 3kt low
+// on Oct 29. Back test, EC hourly, two cool seasons, 5am to 2pm, Pam Rocks
+// outflow 20kt+ now (556 cases): holding near the reading caught 832 of the
+// 991 next three hours at 22kt+ with 209 false calls (a flat 22 / 21 / 20
+// caught 376 with 180 false), and the Pemberton minus Vancouver trend over
+// the last three hours earned its place mostly when Pam Rocks is 20 to 24:
+// rising, 42% of the next hours reached 22+; steady 29%; falling 19%.
+// Pemberton minus Vancouver tested a little better than Pemberton minus
+// Pam Rocks. Returns Pam Rocks knots for the next 1, 2 and 3 hours, or null.
+export const OUTFLOW_HOLD = {
+  minKt: 20, capKt: 28, trendHpa: 0.5,
+  // Knots off the current reading for the next 1, 2, 3 hours.
+  under24: { rising: [0, 0, -1], steady: [-1, -2, -3], falling: [-2, -4, -6] },
+  from24: { rising: [0, 0, -1], steady: [-1, -1, -2], falling: [-1, -2, -3] },
+};
+const isOutflowDeg = (d) => d != null && (d >= 320 || d <= 50);
+export function outflowHold(observed, nowMs) {
+  const rows = (observed || []).filter((r) => r && isFinite(r.at)).sort((a, b) => a.at - b.at);
+  const L = rows[rows.length - 1];
+  if (!L || L.pam_kt == null || nowMs - L.at > 90 * 60000) return null;
+  const deg = L.pam_dir != null ? DEG_FROM_LABEL[L.pam_dir] : null;
+  if (!isOutflowDeg(deg) || L.pam_kt < OUTFLOW_HOLD.minKt) return null;
+  const pv = (r) => (r.pem != null && r.yvr != null ? r.pem - r.yvr : null);
+  const before = rows.find((r) => Math.abs(r.at - (L.at - 3 * 3600000)) <= 30 * 60000);
+  const change = pv(L) != null && before && pv(before) != null ? Math.round((pv(L) - pv(before)) * 10) / 10 : null;
+  const trend = change == null ? "steady" : change >= OUTFLOW_HOLD.trendHpa ? "rising" : change <= -OUTFLOW_HOLD.trendHpa ? "falling" : "steady";
+  const n = Math.min(L.pam_kt, OUTFLOW_HOLD.capKt);
+  const steps = (L.pam_kt < 24 ? OUTFLOW_HOLD.under24 : OUTFLOW_HOLD.from24)[trend];
+  return { at: L.at, nowKt: L.pam_kt, dir: L.pam_dir, gapHpa: pv(L) != null ? Math.round(pv(L) * 10) / 10 : null, changeHpa: change, trend, kt: steps.map((o) => Math.round((n + o) * 10) / 10) };
+}
+// The page's live version (index.html, every station refresh): the newest
+// hourly reading from the chat worker can be hours newer than the forecast
+// run, so the page applies the same hold itself, from the current hour (the
+// reading itself) to three hours ahead. Returns new hours, or null when
+// nothing changes.
+export function liveOutflowHours(spot, hours, observed, nowMs) {
+  const hold = outflowHold(observed, nowMs);
+  if (!hold || !spot.pamRocksRule) return null;
+  const keyOf = (ms) => { const d = new Date(ms); const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" }).formatToParts(d).map((x) => [x.type, x.value])); return `${p.year}-${p.month}-${p.day}T${p.hour}:00`; };
+  const keys = [0, 1, 2, 3].map((i) => keyOf(hold.at + i * 3600000));
+  let changed = false;
+  const out = hours.map((h) => {
+    const i = keys.indexOf(h.time);
+    if (i < 0) return h;
+    const kt = i === 0 ? hold.nowKt : hold.kt[i - 1];
+    const nh = applyOutflowHold(h, spot, hold, kt, i);
+    if (nh !== h) changed = true;
+    return nh;
+  });
+  return changed ? { hours: out, hold } : null;
+}
+const DEG_FROM_LABEL = Object.fromEntries(["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"].map((l, i) => [l, i * 22.5]));
+// Raises a Porteau forecast hour to the hold (never lowers it). `holdKt` is
+// Pam Rocks knots for this hour.
+export function applyOutflowHold(hourResult, spot, hold, holdKt, hoursAhead) {
+  if (!spot.pamRocksRule || !hourResult || holdKt == null) return hourResult;
+  const pamNow = hourResult.mos?.station_kt;
+  if (pamNow != null && pamNow >= holdKt) return hourResult;
+  const r = pamRocksRuleEstimate(spot.pamRocksRule, holdKt, 0);
+  if (!r || r.flow !== "outflow" || r.estimateKt <= (hourResult.speed_kt ?? 0)) return hourResult;
+  const ratio = 1.25; // an established outflow gusts about a quarter over its average (Oct 29: 20 to 25 gusting 25 to 27)
+  const words = { rising: "rising", steady: "steady", falling: "falling" }[hold.trend];
+  return {
+    ...hourResult,
+    speed_kt: Math.round(r.estimateKt * 10) / 10,
+    gust_kt: Math.round(r.estimateKt * ratio * 10) / 10,
+    regime: "outflow",
+    favorable_direction: true,
+    mos: hourResult.mos ? { ...hourResult.mos, station_kt: holdKt, flow: "outflow", threshold_kt: r.thresholdKt, works: r.works, curve: r.curve } : hourResult.mos,
+    outflow_hold: { hours_ahead: hoursAhead, pam_rocks_now_kt: hold.nowKt, pam_rocks_kt: holdKt, trend: hold.trend, gap_hpa: hold.gapHpa, change_hpa: hold.changeHpa },
+    reason: `${hourResult.reason} Pam Rocks reads ${Math.round(hold.nowKt)}kt ${hold.dir} now, with the Pemberton minus Vancouver gap ${words}${hold.changeHpa != null ? ` (${hold.changeHpa > 0 ? "+" : ""}${hold.changeHpa} hPa in 3 hours)` : ""}, ${hoursAhead === 0 ? "so this hour follows the reading." : `so the outflow is held at about ${Math.round(holdKt)}kt here ${hoursAhead} hour${hoursAhead === 1 ? "" : "s"} ahead.`}`,
   };
 }
 

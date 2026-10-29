@@ -160,9 +160,15 @@ export const SPOTS = [
       // 22kt, and `curve` ([Pam Rocks kt, Porteau kt] points, straight lines
       // between, 1:1 above the last) climbs quickly to near the Pam Rocks
       // reading once the outflow is established, instead of a flat minus 13.
-      // The threshold still lands on worksAtKt, so the 12kt odds are still
-      // the odds that Pam Rocks clears the rule.
-      outflow: { dirSector: [320, 50], modelDirSector: [295, 65], thresholdKt: 22, curve: [[14, 0], [22, 12], [26, 22], [30, 27]] },
+      // Curve steepened Oct 29 2026: Pam Rocks read N 22, 24, 24 at 9, 10
+      // and 11am and Guillermo reported Porteau 20 gusting 25, 25 gusting
+      // 26 and 25 gusting 27 (very good waves), while the old curve ([22,12],
+      // [26,22]) showed 12 and about 17. Porteau now follows Pam Rocks
+      // closely once it works: 22 -> 18, 24 -> 23, then 1:1 from 26, with a
+      // low start below the 22kt works line. The odds no longer come from
+      // the 12kt line; they are the odds Pam Rocks reaches 22 (works), see
+      // probabilityInRange in rules.js.
+      outflow: { dirSector: [320, 50], modelDirSector: [295, 65], thresholdKt: 22, curve: [[14, 0], [21, 10], [22, 18], [24, 23], [26, 26]] },
       worksAtKt: 12,
     },
     // Learned correction (rules.js applyMos, data/mos-coefficients.json):

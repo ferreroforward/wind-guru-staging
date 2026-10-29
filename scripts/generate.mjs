@@ -11,10 +11,10 @@ import path from "node:path";
 import { buildGuruLive } from "./guru-live.mjs";
 import { buildAlertsForecast } from "./alerts-forecast.mjs";
 import { fetchWaves, attachWaves } from "./waves.mjs";
-import { buildHowePressure } from "./howe-pressure.mjs";
+import { buildHowePressure, fetchObservedPressure, mergeObserved } from "./howe-pressure.mjs";
 import { fetchJscaRows, fetchKiteloopRows, halfHourly, latestObservation, appendHistory, JSCA_HISTORY_META, jscaRow, TERMINAL_HISTORY_META, terminalRow } from "./extra-stations.mjs";
 import { SPOTS, PRESSURE_REFERENCE, degToLabel, DEG_LABELS, WEBCAMS } from "../assets/spots.js";
-import { MODELS, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, rowsToPressureMap, rowsToSpeedMap, currentPacificHourString, explainMismatch, parseMarineWindText, marineAnchorForHour, parseEcIssued, dropModels, tideForHour, flagEpicHours, buildMosUrl, reshapeMos, applyMos, swellForHours, thermalInputs, applyThermalModel } from "../assets/rules.js";
+import { MODELS, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, rowsToPressureMap, rowsToSpeedMap, currentPacificHourString, explainMismatch, parseMarineWindText, marineAnchorForHour, parseEcIssued, dropModels, tideForHour, flagEpicHours, buildMosUrl, reshapeMos, applyMos, swellForHours, thermalInputs, applyThermalModel, outflowHold, applyOutflowHold } from "../assets/rules.js";
 
 // Minutes between "now" and a Pacific-local "HH:MM" observation time, on the
 // (safe) assumption the observation is from earlier today — used to catch a
@@ -972,6 +972,19 @@ async function main() {
     }
   }
 
+  // Observed Howe Sound pressure and Pam Rocks wind (EC SWOB, hourly), read
+  // before the spots so the Porteau outflow hold can use it; the panel
+  // below reuses it. Hours the last run saved fill EC's pruned files.
+  let howeObserved = null, porteauHold = null;
+  try {
+    const prev = await readFile(OUT_PATH, "utf8").then(JSON.parse).catch(() => null);
+    howeObserved = mergeObserved(await fetchObservedPressure(startedAt), prev?.howe_sound_pressure?.observed, startedAt);
+    porteauHold = outflowHold(howeObserved, startedAt.getTime());
+    if (porteauHold) console.log(`[Porteau] outflow hold: Pam Rocks ${porteauHold.nowKt}kt now, gap ${porteauHold.trend}, next 3 hours ${porteauHold.kt.join(" / ")}`);
+  } catch (err) {
+    console.log(`Howe Sound pressure observed failed: ${err.message}`);
+  }
+
   console.log("Fetching daily take...");
   const dailyTakes = await fetchDailyTakes();
 
@@ -1100,7 +1113,10 @@ async function main() {
         thermalNow = applyThermalModel(thermalModel, thermalInputs(row, refs, hour));
       }
 
-      return classifyHour(spot, row, hour, month, refSpeedKt, pressureGradients, overrideRecord, pamRocksNow, marineAnchor, liveRefNow, mosNow, thermalNow);
+      const result = classifyHour(spot, row, hour, month, refSpeedKt, pressureGradients, overrideRecord, pamRocksNow, marineAnchor, liveRefNow, mosNow, thermalNow);
+      // Porteau outflow hold for the next three hours (rules.js outflowHold).
+      if (spot.pamRocksRule && porteauHold && ahead >= 1 && ahead <= 3) return applyOutflowHold(result, spot, porteauHold, porteauHold.kt[ahead - 1], ahead);
+      return result;
     });
 
     // Tide state per hour (for spots with a tideStation), then the spot's
@@ -1383,8 +1399,7 @@ async function main() {
   // Vancouver minus Pemberton from EC SWOB (0.1 hPa) plus the models' gap.
   let howeSoundPressure = null;
   try {
-    const prev = await readFile(OUT_PATH, "utf8").then(JSON.parse).catch(() => null);
-    howeSoundPressure = await buildHowePressure(await getGradientStations(), startedAt, prev?.howe_sound_pressure?.observed);
+    howeSoundPressure = await buildHowePressure(await getGradientStations(), startedAt, [], howeObserved);
     console.log(`Howe Sound pressure: ${howeSoundPressure.observed.length} observed hours, ${Object.keys(howeSoundPressure.forecast).length} forecast hours`);
   } catch (err) {
     console.log(`Howe Sound pressure failed: ${err.message}`);

@@ -122,8 +122,8 @@ export function mergeObserved(fresh, previous, now = new Date(), hours = 12) {
   return [...byT.values()].sort((a, b) => a.at - b.at);
 }
 
-export async function buildHowePressure(gradientStations, now = new Date(), previousObserved = []) {
-  const observed = mergeObserved(await fetchObservedPressure(now), previousObserved, now);
+export async function buildHowePressure(gradientStations, now = new Date(), previousObserved = [], observedAlready = null) {
+  const observed = observedAlready || mergeObserved(await fetchObservedPressure(now), previousObserved, now);
   // Keep a window around now (14 hours back, 36 ahead): enough for the chart
   // even when the page is opened a while after this run, and keeps the file small.
   const all = forecastGap(gradientStations?.rows?.coastal, gradientStations?.rows?.interior);
