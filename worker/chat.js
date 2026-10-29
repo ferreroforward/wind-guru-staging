@@ -134,7 +134,8 @@ How you answer:
 7. Mention a spot's level (advanced, expert) and its port rules or hazards when you recommend it.
 8. Style: wind in knots, distances in km, temperatures in Celsius, tides and waves in feet, times like 1pm or 3:30pm. Never use hyphens or dashes in your writing: write "go or no go", "12 to 15kt", "south side". Plain words, short, easy to read on a phone: usually under 110 words, no headings, no tables. Use **bold** sparingly for the spot and the time. Short lines starting with "• " are fine for comparing two or three spots.
 9. If someone says the forecast, an answer or the day was not good or was wrong, don't argue. Thank them and ask briefly which spot, what time, and what wind they actually got (speed, gusts and direction if they know). Once you have the spot, the hour and the wind speed, call propose_conditions_report; the page shows it and the rider decides whether to send it. Tell them it helps tune the forecast.
-10. When the answer is about whether or where to go, strong wind, a warning, or an advanced spot, end with this line exactly: "Use your own judgment. [Read the disclaimer](#disclaimerFull)"`;
+10. Pressure gaps: always give them the way the site's Howe Sound pressure panel shows them, as Vancouver minus Pemberton or Pam Rocks minus Pemberton, where a negative number means Pemberton is higher and air is pushed out of the Sound (outflow) and a positive number means air is pulled up the Sound (inflow). For example "Vancouver minus Pemberton is minus 2 hPa at 3pm, up from minus 3, so the outflow may be easing". Never write it as Pemberton minus Vancouver.
+11. When the answer is about whether or where to go, strong wind, a warning, or an advanced spot, end with this line exactly: "Use your own judgment. [Read the disclaimer](#disclaimerFull)"`;
 
 function cfg(env, key) {
   const v = env[key];
@@ -236,8 +237,11 @@ function obsText(byCode) {
       return p && o[f] != null && p[f] != null ? `${clock(o.time)} ${o[f] - p[f] >= 0 ? "+" : ""}${Math.round((o[f] - p[f]) * 10) / 10}` : null;
     }).filter(Boolean).join(", ");
   };
-  const pg = gap("wgp", "yvr", "hpa");
-  if (pg) lines.push(`Pemberton minus Vancouver pressure (hPa): ${pg}`);
+  // Same sign as the page's Howe Sound pressure panel (Oct 30 2026,
+  // Guillermo): negative means Pemberton is higher and pushes air out of the
+  // Sound (outflow), positive pulls air up it (inflow).
+  const pg = gap("yvr", "wgp", "hpa");
+  if (pg) lines.push(`Vancouver minus Pemberton pressure (hPa; negative = Pemberton higher, pushing air out of Howe Sound, outflow; positive = Vancouver higher, pulling air up the Sound, inflow): ${pg}`);
   const tg = gap("wsk", "was", "temp");
   if (tg) lines.push(`Squamish Airport minus Pam Rocks temperature (°C): ${tg}`);
   return lines.join("\n");
@@ -345,6 +349,8 @@ function parseSwob(xml) {
 }
 
 // Sea level pressure (0.1 hPa) from the hourly SWOB files, for the page's
+// "+1.0", "−2.3": the sign the page's pressure panel uses.
+const signedHpa = (x) => `${x > 0 ? "+" : x < 0 ? "\u2212" : ""}${Math.abs(x).toFixed(1)}`;
 // Howe Sound pressure panel: Vancouver minus Pemberton, Pam Rocks minus
 // Squamish Airport. The Squamish minute file has no pressure, so its hourly
 // file is fetched as well. Oct 28 2026.
@@ -822,7 +828,7 @@ function squamishSignal(rows, month = Number(pacificParts().month.slice(5))) {
   const warmOk = tGap != null && tGap >= 2;
   if (!(fading && pressureOk && warmOk)) return null;
   const pText = (x) => (x.dir === "calm" ? "calm" : `${x.dir} ${x.kt}`);
-  return `Pam Rocks ${pText(p0)} at ${clock(p0.time)} (${pText(p3)} at ${clock(p3.time)}), Pemberton minus Vancouver pressure ${g0 >= 0 ? "+" : ""}${g0.toFixed(1)} hPa${g2 != null ? ` (was ${g2 >= 0 ? "+" : ""}${g2.toFixed(1)})` : ""}, Squamish Airport ${tGap}°C warmer than Pam Rocks.${fall ? " In the fall the thermal has tended to come later and stronger than the page says, often 4pm to 7pm." : ""}`;
+  return `Pam Rocks ${pText(p0)} at ${clock(p0.time)} (${pText(p3)} at ${clock(p3.time)}), Vancouver minus Pemberton pressure ${signedHpa(-g0)} hPa${g2 != null ? ` (was ${signedHpa(-g2)})` : ""}, Squamish Airport ${tGap}°C warmer than Pam Rocks.${fall ? " In the fall the thermal has tended to come later and stronger than the page says, often 4pm to 7pm." : ""}`;
 }
 
 function forecastHit(rule, af, tomorrow, spot = rule.spot) {
