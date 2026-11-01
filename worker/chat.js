@@ -378,7 +378,9 @@ function swobPressure(xml) {
 // page fills the chart from them between runs. Same row shape as
 // scripts/howe-pressure.mjs.
 const PRESSURE_HIST_HOURS = 14;
-const pacificHourFmt = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" });
+// BC stays on UTC-7 all year since 2026 (same as BC_TZ in assets/rules.js).
+const BC_TZ = "Etc/GMT+7";
+const pacificHourFmt = new Intl.DateTimeFormat("en-CA", { timeZone: BC_TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" });
 function pacificHourKey(ms) {
   const p = Object.fromEntries(pacificHourFmt.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
   return `${p.year}-${p.month}-${p.day}T${p.hour}:00`;

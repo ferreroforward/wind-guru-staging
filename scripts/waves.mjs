@@ -1,3 +1,4 @@
+import { BC_TZ } from "../assets/rules.js";
 // Waves for the "Foil assist" pick (Oct 2026). Foil assist riders need
 // waves, not wind, so every forecast run pulls the SalishSeaCast wave model
 // (WaveWatch III for the Strait of Georgia, run daily by UBC EOAS with DFO,
@@ -33,7 +34,7 @@ export const ESTIMATE_SPOTS = ["porteau-cove"];
 const M_TO_FT = 3.28084;
 
 // "2026-10-23T18:00:00Z" -> Pacific "2026-10-23T11:00" (the forecast hours' clock).
-const pacificFmt = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" });
+const pacificFmt = new Intl.DateTimeFormat("en-CA", { timeZone: BC_TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" });
 export function pacificHourKey(iso) {
   const p = Object.fromEntries(pacificFmt.formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
   return `${p.year}-${p.month}-${p.day}T${p.hour}:00`;

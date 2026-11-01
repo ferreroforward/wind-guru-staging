@@ -14,7 +14,7 @@ import { fetchWaves, attachWaves } from "./waves.mjs";
 import { buildHowePressure, fetchObservedPressure, mergeObserved } from "./howe-pressure.mjs";
 import { fetchJscaRows, fetchKiteloopRows, halfHourly, latestObservation, appendHistory, JSCA_HISTORY_META, jscaRow, TERMINAL_HISTORY_META, terminalRow } from "./extra-stations.mjs";
 import { SPOTS, PRESSURE_REFERENCE, degToLabel, DEG_LABELS, WEBCAMS } from "../assets/spots.js";
-import { MODELS, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, rowsToPressureMap, rowsToSpeedMap, currentPacificHourString, explainMismatch, parseMarineWindText, marineAnchorForHour, parseEcIssued, dropModels, tideForHour, flagEpicHours, buildMosUrl, reshapeMos, applyMos, swellForHours, thermalInputs, applyThermalModel, outflowHold, applyOutflowHold } from "../assets/rules.js";
+import { BC_TZ, MODELS, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, rowsToPressureMap, rowsToSpeedMap, currentPacificHourString, explainMismatch, parseMarineWindText, marineAnchorForHour, parseEcIssued, dropModels, tideForHour, flagEpicHours, buildMosUrl, reshapeMos, applyMos, swellForHours, thermalInputs, applyThermalModel, outflowHold, applyOutflowHold } from "../assets/rules.js";
 
 // Minutes between "now" and a Pacific-local "HH:MM" observation time, on the
 // (safe) assumption the observation is from earlier today — used to catch a
@@ -27,7 +27,7 @@ function minutesSincePacificHm(hhmm, now = new Date()) {
   if (!hhmm) return null;
   const [hh, mm] = hhmm.split(":").map(Number);
   if (!isFinite(hh) || !isFinite(mm)) return null;
-  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: BC_TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
   const parts = Object.fromEntries(fmt.formatToParts(now).map(p => [p.type, p.value]));
   const nowMinutes = Number(parts.hour) * 60 + Number(parts.minute);
   const obsMinutes = hh * 60 + mm;
@@ -292,7 +292,7 @@ async function fetchIgetwindObservation(station) {
     // Previously passed through `windObs.at` (raw UTC) directly as the
     // display time, which read as Pacific local and was off by 7-8 hours
     // whenever it was actually shown — convert properly here instead.
-    time: new Date(atMs).toLocaleTimeString("en-US", { timeZone: "America/Los_Angeles", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }),
+    time: new Date(atMs).toLocaleTimeString("en-US", { timeZone: BC_TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }),
     ageMin: Math.round(ageMin),
     speedKt: Math.round(speedMs * 1.943844 * 10) / 10,
     gustKt: isFinite(gustMs) ? Math.round(gustMs * 1.943844 * 10) / 10 : null,
@@ -318,7 +318,7 @@ function parseWhiteRockCity(json) {
   const gustKt = wg ? parseFloat(wg.value) : NaN;
   const dirDeg = wd ? parseFloat(wd.value) : NaN;
   return {
-    time: new Date(ws.ts).toLocaleTimeString("en-US", { timeZone: "America/Los_Angeles", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }),
+    time: new Date(ws.ts).toLocaleTimeString("en-US", { timeZone: BC_TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }),
     ageMin: Math.round((Date.now() - ws.ts) / 60000),
     speedKt: Math.round(speedKt * 10) / 10,
     gustKt: isFinite(gustKt) ? Math.round(gustKt * 10) / 10 : null,
@@ -536,7 +536,7 @@ function labelHilo(arr) {
   return pts.map((p, i) => {
     const nb = [pts[i - 1], pts[i + 1]].filter(Boolean);
     const high = nb.length ? nb.every((n) => p.v > n.v) : p.v > 2.5;
-    const local = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    const local = new Intl.DateTimeFormat("en-CA", { timeZone: BC_TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
       .formatToParts(p.t).reduce((o, x) => (o[x.type] = x.value, o), {});
     return {
       date: `${local.year}-${local.month}-${local.day}`,
@@ -1408,9 +1408,9 @@ async function main() {
   const forecast = {
     generated_at: startedAt.toISOString(),
     generated_at_label: startedAt.toLocaleString("en-US", {
-      timeZone: "America/Los_Angeles",
+      timeZone: BC_TZ,
       weekday: "short", month: "short", day: "numeric",
-      hour: "numeric", minute: "2-digit", timeZoneName: "short",
+      hour: "numeric", minute: "2-digit",
     }),
     models_used: MODELS.map(m => m.label),
     marine_bulletins: bulletins,

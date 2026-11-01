@@ -7,13 +7,13 @@
 // for today and the next two days, plus the EC marine forecast, today's
 // take and the track record. The worker adds live station readings on top.
 
-import { probabilityInRange, daylightWindow, isDaylightHour } from "../assets/rules.js";
+import { BC_TZ, probabilityInRange, daylightWindow, isDaylightHour } from "../assets/rules.js";
 
 const LEGEND = "Each hour: time, direction and speed (knots, g = gust), odds of 12kt or more, regime, waves, tide height in ft with r rising or f falling. OUTFLOW NOT RIDDEN = Squamish outflow, never recommend. OFF DIR = direction does not work at that spot.";
 
 function pacificDate(d, addDays = 0) {
   const t = new Date(d.getTime() + addDays * 86400000);
-  return t.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" }); // YYYY-MM-DD
+  return t.toLocaleDateString("en-CA", { timeZone: BC_TZ }); // YYYY-MM-DD
 }
 function dayLabel(dateStr) {
   const [y, m, dd] = dateStr.split("-").map(Number);

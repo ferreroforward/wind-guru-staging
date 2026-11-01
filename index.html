@@ -583,7 +583,7 @@ const ASSET_VERSION = await fetch("data/version.json", { cache: "no-store" })
   .then(r => (r.ok ? r.json() : null)).then(v => v?.version).catch(() => null)
   ?? String(Math.floor(Date.now() / 600000));
 const { SPOTS, inSector, WEBCAMS } = await import(`./assets/spots.js?v=${ASSET_VERSION}`);
-const { probabilityInRange, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, referenceStationSpeeds, dropModels, buildMosUrl, reshapeMos, applyMos, currentPacificHourString, swellForHours, daylightWindow, isDaylightHour, liveOutflowHours } = await import(`./assets/rules.js?v=${ASSET_VERSION}`);
+const { BC_TZ, probabilityInRange, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, referenceStationSpeeds, dropModels, buildMosUrl, reshapeMos, applyMos, currentPacificHourString, swellForHours, daylightWindow, isDaylightHour, liveOutflowHours } = await import(`./assets/rules.js?v=${ASSET_VERSION}`);
 
 let forecast = null; // loaded forecast.json shape
 let selectedDayIndex = 0;
@@ -599,7 +599,7 @@ function syncSelectedDayToToday() {
   if (initialDaySet) return;
   initialDaySet = true;
   const dates = dayBuckets();
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: BC_TZ });
   const idx = dates.indexOf(today);
   if (idx !== -1) selectedDayIndex = idx;
 }
@@ -680,7 +680,7 @@ function initMap() {
 }
 
 function dayBuckets() {
-  // Group hours[] (America/Los_Angeles local ISO strings) by calendar date.
+  // Group hours[] (BC local ISO strings, BC_TZ) by calendar date.
   if (!forecast || !forecast.spots.length) return [];
   const dates = [];
   for (const h of forecast.spots[0].hours) {
@@ -691,10 +691,10 @@ function dayBuckets() {
 }
 
 function labelForDate(dateStr, idx) {
-  // Forecast dates are Pacific-local (America/Los_Angeles). Comparing
+  // Forecast dates are BC local (BC_TZ). Comparing
   // against a UTC "today" breaks in the evening, once UTC has already
   // rolled over to the next calendar day while it's still today here.
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: BC_TZ });
   if (dateStr === today) return "Today";
   const d = new Date(dateStr + "T12:00:00");
   const wd = d.toLocaleDateString("en-US", { weekday: "short" });
@@ -924,8 +924,8 @@ function renderDailyTake() {
   const whenEl = document.getElementById("dailyTakeWhen");
   const fmt = (iso) => {
     const d = new Date(iso);
-    const t = d.toLocaleTimeString("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", minute: "2-digit" }).replace(" AM", "am").replace(" PM", "pm");
-    const day = d.toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", weekday: "short", month: "short", day: "numeric" });
+    const t = d.toLocaleTimeString("en-US", { timeZone: BC_TZ, hour: "numeric", minute: "2-digit" }).replace(" AM", "am").replace(" PM", "pm");
+    const day = d.toLocaleDateString("en-US", { timeZone: BC_TZ, weekday: "short", month: "short", day: "numeric" });
     return { t, day };
   };
   if (take.posted_at && !isNaN(Date.parse(take.posted_at))) {
@@ -1003,7 +1003,7 @@ const WORKER_URL = "https://wind-guru-reports-staging.guillermo-ferrero.workers.
 // h is optional — falls back to today's date and an empty time if no
 // specific hour is available.
 function reportContext(spotId, h) {
-  const date = h ? h.time.slice(0, 10) : new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+  const date = h ? h.time.slice(0, 10) : new Date().toLocaleDateString("en-CA", { timeZone: BC_TZ });
   const time = h ? h.time.slice(11, 16) : "";
   const forecast_speed = h && h.speed_kt != null ? h.speed_kt : "";
   return { spot: spotId, date, time, forecast_speed };
@@ -1351,7 +1351,7 @@ document.getElementById("showAllSpots").addEventListener("change", e => setShowA
 // gusting 27 on pressure, not a thermal, while the page said 13). Vancouver
 // minus Pemberton sea level pressure, observed (EC SWOB, 0.1 hPa) against
 // the models' gap; same sign as the learned model's dPL.
-const howePacificFmt = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" });
+const howePacificFmt = new Intl.DateTimeFormat("en-CA", { timeZone: BC_TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" });
 function howeKey(ms) {
   const p = Object.fromEntries(howePacificFmt.formatToParts(new Date(ms)).map(x => [x.type, x.value]));
   return `${p.year}-${p.month}-${p.day}T${p.hour}:00`;
@@ -1726,7 +1726,7 @@ const OBS_CODES = {
 };
 let liveObs = null; // { fetchedAt, byCode, pressure, pressureHistory } from GET /obs
 function clockLabel(ms) {
-  return new Date(ms).toLocaleTimeString("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", minute: "2-digit" }).replace(" AM", "am").replace(" PM", "pm");
+  return new Date(ms).toLocaleTimeString("en-US", { timeZone: BC_TZ, hour: "numeric", minute: "2-digit" }).replace(" AM", "am").replace(" PM", "pm");
 }
 function mergeLiveStation(s) {
   const live = liveObs?.byCode?.[OBS_CODES[s.name]];
@@ -2081,7 +2081,7 @@ async function loadLive() {
       // need data only the twice(-now-thrice)-daily server run fetches), so
       // the number it shows is actually less complete than the regular
       // snapshot, even though it's more recent.
-      generated_at_label: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }) + " (live)",
+      generated_at_label: new Date().toLocaleString("en-US", { timeZone: BC_TZ, weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + " (live)",
       models_used: prev?.models_used || [],
       marine_bulletins: prev?.marine_bulletins || {},
       surface_observations: prev?.surface_observations,

@@ -34,6 +34,15 @@ import { inSector, degToLabel } from "./spots.js";
 // dedupeRow).
 //
 // Not available from Open-Meteo for this area: HRW 3km (NOAA WRF window).
+// BC clock time. British Columbia stopped changing its clocks in 2026: it
+// stays on UTC-7 all year (no fall back on Nov 1 2026). America/Los_Angeles
+// still falls back to UTC-8, which put every hour on the site an hour early
+// in winter, and America/Vancouver only works where the time zone data is
+// 2026 or newer (Node 20 on GitHub Actions and older phones are not). A fixed
+// UTC-7 zone works everywhere. Note the IANA sign is reversed: Etc/GMT+7 is
+// UTC-7. Every forecast hour, tide time and clock label uses this.
+export const BC_TZ = "Etc/GMT+7";
+
 export const MODELS = [
   { key: "gfs", param: "gfs_seamless", label: "HRRR 3km (NOAA), then GFS", resolution: "fine", weight: 6 },
   { key: "ecmwf", param: "ecmwf_ifs025", label: "ECMWF 25km", resolution: "coarse", weight: 1 },
@@ -143,7 +152,7 @@ export function buildForecastUrl(lat, lon, days = 4) {
     "wind_speed_850hPa", "wind_direction_850hPa", "shortwave_radiation",
   ].join(",");
   return `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-    `&hourly=${hourly}&models=${models}&wind_speed_unit=kn&timezone=America%2FLos_Angeles&forecast_days=${days}`;
+    `&hourly=${hourly}&models=${models}&wind_speed_unit=kn&timezone=${encodeURIComponent(BC_TZ)}&forecast_days=${days}`;
 }
 
 // Reshape Open-Meteo's multi-model response (one array per variable per
@@ -1483,19 +1492,19 @@ export function probabilityInRange(hourResult, lo) {
 }
 
 export function localHourAndMonth(isoTime) {
-  // isoTime like "2026-08-12T14:00" already in America/Los_Angeles from the API.
+  // isoTime like "2026-08-12T14:00" already in BC time (BC_TZ) from the API.
   const d = new Date(isoTime);
   return { hour: d.getHours ? Number(isoTime.slice(11, 13)) : null, month: Number(isoTime.slice(5, 7)) };
 }
 
-// "2026-08-13T14:00" for the current instant, in America/Los_Angeles —
+// "2026-08-13T14:00" for the current instant, in BC time (BC_TZ) —
 // matches the local-time format Open-Meteo's hourly.time array uses, so it
 // can be looked up directly against a spot's `hours` array. Used by the
 // live-observation verification check (see generate.mjs) to find "the
 // forecast for right now."
 export function currentPacificHourString(now = new Date()) {
   const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Los_Angeles",
+    timeZone: BC_TZ,
     year: "numeric", month: "2-digit", day: "2-digit",
     hour: "2-digit", hourCycle: "h23",
   });
@@ -1604,7 +1613,7 @@ function sunEventsUtcMs(dateStr, lat, lon, altDeg) {
   const toMs = (j) => (j - 2440587.5) * 86400000;
   return { rise: toMs(jTransit - w / 360), set: toMs(jTransit + w / 360) };
 }
-const pacificClock = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+const pacificClock = new Intl.DateTimeFormat("en-CA", { timeZone: BC_TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 function pacificMinutes(ms) {
   const p = Object.fromEntries(pacificClock.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
   return Number(p.hour) * 60 + Number(p.minute);
@@ -1920,7 +1929,7 @@ export function outflowHold(observed, nowMs) {
 export function liveOutflowHours(spot, hours, observed, nowMs) {
   const hold = outflowHold(observed, nowMs);
   if (!hold || !spot.pamRocksRule) return null;
-  const keyOf = (ms) => { const d = new Date(ms); const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" }).formatToParts(d).map((x) => [x.type, x.value])); return `${p.year}-${p.month}-${p.day}T${p.hour}:00`; };
+  const keyOf = (ms) => { const d = new Date(ms); const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: BC_TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" }).formatToParts(d).map((x) => [x.type, x.value])); return `${p.year}-${p.month}-${p.day}T${p.hour}:00`; };
   const keys = [0, 1, 2, 3].map((i) => keyOf(hold.at + i * 3600000));
   let changed = false;
   const out = hours.map((h) => {

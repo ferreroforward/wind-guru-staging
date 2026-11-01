@@ -1,3 +1,4 @@
+import { BC_TZ } from "../assets/rules.js";
 // Howe Sound pressure panel (Oct 2026). Squamish and Porteau winds are often
 // pressure driven: on Oct 27 the Spit blew 23 gusting 27 with no thermal
 // (Squamish Airport and Pam Rocks both 10°C) while Vancouver minus Pemberton
@@ -50,7 +51,7 @@ export function parsePressureSwob(xml) {
 
 // "2026-10-27T17:00:00Z" -> Pacific hour key "2026-10-27T10:00", the same
 // clock the forecast rows use.
-const pacificFmt = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" });
+const pacificFmt = new Intl.DateTimeFormat("en-CA", { timeZone: BC_TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" });
 export function pacificHourKey(ms) {
   const p = Object.fromEntries(pacificFmt.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
   return `${p.year}-${p.month}-${p.day}T${p.hour}:00`;

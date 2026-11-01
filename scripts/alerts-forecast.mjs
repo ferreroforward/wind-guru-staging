@@ -5,12 +5,12 @@
 // quick pick (8, 12, 18, 25 knots and up). The worker reads it once each
 // evening for the "forecast heads up" alert, so it never has to parse the
 // full forecast.json.
-import { probabilityInRange, isDaylightHour } from "../assets/rules.js";
+import { BC_TZ, probabilityInRange, isDaylightHour } from "../assets/rules.js";
 
 const PICKS = [8, 12, 18, 25];
 
 function pacificDate(d) {
-  return d.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+  return d.toLocaleDateString("en-CA", { timeZone: BC_TZ });
 }
 
 export function buildAlertsForecast(forecast, spotConfigs, now = new Date()) {
