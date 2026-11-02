@@ -832,6 +832,10 @@ function biggestWavesForDay() {
 }
 function windiestGoodBetForDay() {
   if (foilMode) return biggestWavesForDay();
+  // Only when something is actually on for the picked range (Guillermo,
+  // Nov 2 2026: "why show a windiest spot if there is none really?"). With
+  // nothing at MIN_LIST_PROBABILITY the top card says so instead.
+  if (!rankedSpotsForDay().some(r => r.probability >= MIN_LIST_PROBABILITY && !r.hour.outflow_not_ridden && !r.spot.neverRecommend)) return null;
   let best = null;
   for (const sp of SPOTS) {
     if (sp.neverRecommend) continue;
@@ -859,9 +863,14 @@ function renderWindiestCard() {
   const w = windiestGoodBetForDay();
   const eyebrow = document.querySelector("#windiestCard .windiest-eyebrow");
   if (eyebrow && !eyebrow.dataset.wind) eyebrow.dataset.wind = eyebrow.firstChild.textContent;
-  if (eyebrow) eyebrow.firstChild.textContent = foilMode ? "🌊 Biggest waves, " : eyebrow.dataset.wind;
-  if (!w) { card.style.display = "none"; return; }
+  if (eyebrow) eyebrow.firstChild.textContent = foilMode ? "🌊 Biggest waves, " : w ? eyebrow.dataset.wind : "💨 Wind for your range, ";
+  if (!w && foilMode) { card.style.display = "none"; return; }
   card.style.display = "block";
+  if (!w) {
+    const day = dayLbl === "Today" ? "today" : dayLbl;
+    body.innerHTML = `No windy spots ${day} for ${rangeLabel()}. Try ${minKt > 8 ? "a lighter range or " : ""}another day.`;
+    return;
+  }
   if (foilMode) {
     body.innerHTML = `<b>${w.spot.name}</b> · ${waveText(w.hour)} at ${w.hour.time.slice(11,16)} · ${windInfo(w.hour)}`;
     return;
@@ -1303,23 +1312,13 @@ function ecLineForDay(hours, sp) {
   return `<div class="tide-line">📻 ${warn ? `<b>${warn[0].toUpperCase()}${warn.slice(1)} in effect.</b> ` : ""}Environment Canada calls ${e.direction_label} ${range}kt from about ${from}, stronger than the models here (${models === modelsHi ? models : `${models} to ${modelsHi}`}kt). Check the live readings before you go.</div>`;
 }
 
-// EC warning outflow (Oct 28 2026, per Guillermo): on Oct 29 EC had a gale
-// warning for Howe Sound (northerly outflow 25 to 35) while the models gave
-// Porteau 2 to 10kt, so its card, the only place the EC call shows, was
-// hidden. Now a spot keeps its card when its marine area has a strong wind
-// or gale warning with an outflow and EC is 10kt+ above the models for a
-// direction the spot works on, whatever range is picked.
-const EC_WARNING_GAP_KT = 10;
+// The EC warning in effect for a spot's marine area, named on its EC line
+// (Oct 28 2026).
 function ecWarningName(sp) {
   const b = forecast.marine_bulletins?.[sp.marineZone];
   if (!b?.warning) return null;
   const m = (b.text || "").match(/(strong wind|gale|storm|hurricane force wind) warning/i);
   return m ? m[0].toLowerCase() : null;
-}
-function ecWarningOutflowForDay(sp, spotData) {
-  const b = forecast.marine_bulletins?.[sp.marineZone];
-  if (!b?.warning || !b.parsed?.hasOutflow) return false;
-  return hoursForSelectedDay(spotData).some(h => h.marine_ec && h.marine_ec.gap_kt >= EC_WARNING_GAP_KT && !h.live_reference_triggered);
 }
 
 // Squamish (Oct 2026, per Guillermo): riders don't launch at the Spit on an
@@ -1534,8 +1533,8 @@ function insertHowePanel() {
   const s = howeSeries();
   if (!s) return;
   const firstCard = spotCardsEl.querySelector('.spot-card[data-spot="squamish-spit"], .spot-card[data-spot="porteau-cove"]');
-  // With both cards hidden, only speak up when the pressure says something.
-  if (!firstCard && howeBand(s.L.gap).cls === "neutral" && !s.ahead) return;
+  // Always shown on today's tab (Guillermo, Nov 2 2026), above the Squamish
+  // or Porteau card, or at the top of the cards when both are hidden.
   const el = document.createElement("div");
   el.className = "howe-card";
   el.id = "howePanel";
@@ -1554,11 +1553,10 @@ function renderSpotCards() {
   // A spot with a possible epic window always gets its card, whatever range
   // is selected.
   for (const sd of forecast.spots) if (epicWindowsForDay(sd).length) goodIds.add(sd.id);
-  // An EC strong wind or gale warning for an outflow the models miss keeps the card.
-  for (const sp of SPOTS) {
-    const sd = forecast.spots.find(s => s.id === sp.id);
-    if (sd && ecWarningOutflowForDay(sp, sd)) goodIds.add(sp.id);
-  }
+  // (Oct 28 to Nov 2 2026 an EC strong wind or gale warning also kept a
+  // card on; removed at Guillermo's request: only spots the page
+  // recommends show unless Show all spots is on. The EC line still names
+  // the warning on the card when it shows.)
   const withData = SPOTS.filter(sp => forecast.spots.some(s => s.id === sp.id));
   const hidden = withData.filter(sp => !goodIds.has(sp.id)).length;
   noteEl.innerHTML = showAllSpots
