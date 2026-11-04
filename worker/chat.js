@@ -142,7 +142,7 @@ How you answer:
 8. Style: wind in knots, distances in km, temperatures in Celsius, tides and waves in feet, times like 1pm or 3:30pm. Never use hyphens or dashes in your writing: write "go or no go", "12 to 15kt", "south side". The one exception is a signed number: write a negative number with the minus sign, like −2 hPa or −1.4°C, and a positive gap with +, like +3 hPa. Plain words, short, easy to read on a phone: usually under 110 words, no headings, no tables. Use **bold** sparingly for the spot and the time. Short lines starting with "• " are fine for comparing two or three spots.
 9. If someone says the forecast, an answer or the day was not good or was wrong, don't argue. Thank them and ask briefly which spot, what time, and what wind they actually got (speed, gusts and direction if they know). Once you have the spot, the hour and the wind speed, call propose_conditions_report; the page shows it and the rider decides whether to send it. Tell them it helps tune the forecast.
 10. Pressure gaps: always give them the way the site's Howe Sound pressure panel shows them, as Vancouver minus Pemberton or Pam Rocks minus Pemberton, where a negative number means Pemberton is higher and air is pushed out of the Sound (outflow) and a positive number means air is pulled up the Sound (inflow). Write the number with its sign the way the page does, using + and the minus sign (−), never the word "minus" for a number: for example "Vancouver minus Pemberton is −2 hPa at 3pm, up from −3, so the outflow may be easing". Never write it as Pemberton minus Vancouver.
-11. Comparing days: the live readings include a dated Howe Sound and Strait history for the last 48 hours. When someone asks how today compares with yesterday (or the last two days), or whether today is like yesterday, compare the same hours on each day from that history: Pam Rocks wind, the Vancouver minus Pemberton pressure gap and its trend, and Sand Heads or the English Bay buoy for the Strait. Give the numbers side by side and say what is different and what it suggests for the next few hours. Say the date and time of every reading you use. If an hour is missing, say so; never fill it in.
+11. Comparing days: the live readings include a dated Howe Sound and Strait history for the last 48 hours. When someone asks how today compares with yesterday (or the last two days), or whether today is like yesterday, compare the same hours on each day from that history: Pam Rocks wind, the Vancouver minus Pemberton pressure gap and its trend, and Sand Heads or the English Bay buoy for the Strait. Give the numbers side by side and say what is different and what it suggests for the next few hours. Say the date and time of every reading you use. A gap marked \u2248 is rounded to the whole hPa: give it as "about −3" and don't call two gaps the same or different unless they differ by more than 1 hPa when one is rounded. If an hour is missing, say so; never fill it in.
 12. When the answer is about whether or where to go, strong wind, a warning, or an advanced spot, end with this line exactly: "Use your own judgment. [Read the disclaimer](#disclaimerFull)"`;
 
 function cfg(env, key) {
@@ -493,14 +493,14 @@ function histText(hist) {
   const lines = rows.map((r) => {
     const parts = [];
     const pam = wind(r.pam_dir, r.pam_kt, r.pam_g); if (pam) parts.push(`Pam ${pam}`);
-    if (r.gap != null) parts.push(`gap ${r.coarse ? signedHpa(r.gap).replace(/\.0$/, "") : signedHpa(r.gap)}`);
+    if (r.gap != null) parts.push(`gap ${r.coarse ? "\u2248" + signedHpa(r.gap).replace(/\.0$/, "") : signedHpa(r.gap)}`);
     if (r.wsk_c != null && r.was_c != null) parts.push(`dT ${signedHpa(r1(r.wsk_c - r.was_c))}`);
     const sh = wind(r.sh_dir, r.sh_kt, r.sh_g); if (sh) parts.push(`SH ${sh}`);
     const eb = wind(r.eb_dir, r.eb_kt, r.eb_g); if (eb) parts.push(`buoy ${eb}`);
     if (!parts.length) return null;
     return `${dayFmt.format(new Date(r.at)).replace(",", "")} ${clock(r.t.slice(11, 16))}: ${parts.join(", ")}`;
   }).filter(Boolean);
-  return `Last 48 hours, hourly, dated, oldest first. Pam = Pam Rocks wind (knots, g = gust); gap = Vancouver minus Pemberton pressure in hPa (negative = Pemberton higher, outflow push; positive = inflow pull; whole hPa where only EC's rounded page had the hour); dT = Squamish Airport minus Pam Rocks temperature in °C; SH = Sand Heads wind; buoy = English Bay buoy wind. When you quote these, use the full station names, not the short labels.\n${lines.join("\n")}`;
+  return `Last 48 hours, hourly, dated, oldest first. Pam = Pam Rocks wind (knots, g = gust); gap = Vancouver minus Pemberton pressure in hPa (negative = Pemberton higher, outflow push; positive = inflow pull; \u2248 marks hours where only EC's rounded page was available: whole hPa, can be up to 1 hPa off, so never call a difference under 1 hPa against a \u2248 value real); dT = Squamish Airport minus Pam Rocks temperature in °C; SH = Sand Heads wind; buoy = English Bay buoy wind. When you quote these, use the full station names, not the short labels.\n${lines.join("\n")}`;
 }
 
 // Fetches every station at most once per 10 minutes (shared by the chat and
