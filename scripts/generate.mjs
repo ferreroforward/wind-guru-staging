@@ -882,16 +882,28 @@ async function fetchDailyTakes() {
   // wind-report.
   const url = `https://api.github.com/repos/${DAILY_TAKE_OWNER}/${DAILY_TAKE_REPO}/issues?creator=${AUTHOR_USERNAME}&state=open&per_page=30`;
   let issues;
-  try {
-    const res = await fetch(url, { headers });
-    if (!res.ok) {
-      console.log(`[daily-take] GitHub API fetch failed: ${res.status} ${res.statusText}`);
-      return {};
+  // Nov 4 2026: an unauthenticated call hit GitHub's rate limit (403) and the
+  // run published no takes at all, wiping Guillermo's take from the site.
+  // Now: the workflow passes GITHUB_TOKEN, we try twice, and if GitHub still
+  // says no we keep the takes from the last snapshot instead of none.
+  for (let attempt = 1; attempt <= 2 && !issues; attempt++) {
+    try {
+      const res = await fetch(url, { headers, signal: AbortSignal.timeout(30000) });
+      if (!res.ok) {
+        console.log(`[daily-take] GitHub API fetch failed (try ${attempt}): ${res.status} ${res.statusText}`);
+      } else {
+        issues = (await res.json()).filter((i) => !i.pull_request);
+      }
+    } catch (err) {
+      console.log(`[daily-take] fetch failed (try ${attempt}): ${err.message}`);
     }
-    issues = (await res.json()).filter((i) => !i.pull_request);
-  } catch (err) {
-    console.log(`[daily-take] fetch failed: ${err.message}`);
-    return {};
+    if (!issues && attempt < 2) await new Promise((r) => setTimeout(r, 5000));
+  }
+  if (!issues) {
+    const prev = await readFile(OUT_PATH, "utf8").then(JSON.parse).catch(() => null);
+    const kept = prev?.daily_takes && typeof prev.daily_takes === "object" ? prev.daily_takes : {};
+    console.log(`[daily-take] keeping ${Object.keys(kept).length} take(s) from the last snapshot.`);
+    return kept;
   }
 
   // Newest-edited first, so if there's ever more than one open issue for
