@@ -872,6 +872,8 @@ export const WEBCAMS = [
   { id: "whiterock-east", name: "White Rock East Beach camera", area: "White Rock East Beach", url: "https://www.whiterockcity.ca/1212/Waterfront-Live-Cameras", camstreamer: "Sev2OTrlNL6v43zBHBp0DuE9tobufzZI1zXUkAdW", youtube: "ClvJjIz5GE4", credit: "City of White Rock", spotId: "white-rock-east" },
   { id: "whiterock-west", name: "White Rock West Beach (pier) camera", area: "White Rock West Beach and the pier", url: "https://www.whiterockcity.ca/1212/Waterfront-Live-Cameras", camstreamer: "kJLUClW1kDbLu1C1N8WKsKXGxWcK0gI26OvLxcc2", youtube: "4MK3E9EWDSY", credit: "City of White Rock" },
   { id: "gondola", name: "Sea to Sky Gondola", area: "Squamish and Howe Sound", url: "https://www.seatoskygondola.com/weather-and-cams/", spotId: "squamish-spit" },
+  // Nov 4 2026 (Guillermo): Elliot Funt's camera near Copper Cove, West Vancouver, looking north up Howe Sound. The stream only plays on his own page (camsecure.co refuses other sites), so it's a link card.
+  { id: "copper-cove", name: "Howe Sound camera (Copper Cove)", area: "Lower Howe Sound, looking north from West Vancouver", url: "https://www.howe-sound.ca/", credit: "Elliot Funt" },
 ];
 
 export const DEG_LABELS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
