@@ -51,9 +51,14 @@ export function pacificToUtcMs(y, mo, d, h, mi) {
   }
   return guess;
 }
+// Clock label shown on the site: BC time (fixed UTC-7 since Nov 2026), like
+// every other station. The JSCA page's own times still parse with
+// America/Vancouver above, because its clock follows the old rules
+// (UTC-8 in winter); checked Nov 3 2026: reading age 8 min, label was an hour early.
+const BC_HM = new Intl.DateTimeFormat("en-CA", { timeZone: "Etc/GMT+7", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 export function pacificHm(ms) {
-  const p = pacificParts(ms);
-  return `${String(p.h).padStart(2, "0")}:${String(p.mi).padStart(2, "0")}`;
+  const p = Object.fromEntries(BC_HM.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+  return `${p.hour}:${p.minute}`;
 }
 const labelToDeg = (l) => { const i = DEG_LABELS.indexOf(l); return i >= 0 ? i * 22.5 : null; };
 const degToLabel = (deg) => (deg == null ? null : DEG_LABELS[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16]);

@@ -687,7 +687,7 @@ function dayBuckets() {
     const date = h.time.slice(0, 10);
     if (!dates.includes(date)) dates.push(date);
   }
-  return dates.slice(0, 4);
+  return dates.slice(0, 5); // five days since Nov 3 2026
 }
 
 function labelForDate(dateStr, idx) {
@@ -877,7 +877,9 @@ function renderWindiestCard() {
   }
   const gustText = w.hour.gust_kt != null ? `, gusting ${Math.round(w.hour.gust_kt)}` : "";
   const gustyTag = w.hour.gusty ? ` <span class="gusty-tag" title="Strong upper-level wind riding over solid surface wind — expect a choppier, more gust-prone day than the average speed alone suggests.">💨 GUSTY</span>` : "";
-  body.innerHTML = `<b>${w.spot.name}</b> · ${Math.round(w.hour.speed_kt)}kt${gustText} ${w.hour.direction_label ?? ""} at ${w.hour.time.slice(11,16)}${gustyTag}`;
+  const storm = ecTopForDay(w.spot, w.hour.time.slice(0, 10));
+  const stormTag = storm && storm.hiKt >= 34 ? ` <span class="offshore-tag">⚠️ EC CALLS UP TO ${storm.hiKt}KT</span>` : "";
+  body.innerHTML = `<b>${w.spot.name}</b> · ${Math.round(w.hour.speed_kt)}kt${gustText} ${w.hour.direction_label ?? ""} at ${w.hour.time.slice(11,16)}${gustyTag}${stormTag}`;
 }
 
 // "Possible epic day": a spot's rider verified epic setup (epicSignature in
@@ -986,7 +988,9 @@ function renderBestBets() {
     const cls = tierClass(r.probability);
     const gustText = r.hour.gust_kt != null ? `–${Math.round(r.hour.gust_kt)}` : "";
     const gustyTag = r.hour.gusty ? `<span class="gusty-tag" title="Strong upper-level wind riding over solid surface wind — expect a choppier, more gust-prone day than the average speed alone suggests.">💨 GUSTY</span>` : "";
-    const offshoreTag = r.hour.favorable_direction === false ? `<span class="offshore-tag" title="Wind direction looks offshore or otherwise not rideable here, even though the speed may be there.">⚠️ CHECK DIRECTION</span>` : "";
+    const storm = ecTopForDay(r.spot, r.hour.time.slice(0, 10));
+    const offshoreTag = (r.hour.favorable_direction === false ? `<span class="offshore-tag" title="Wind direction looks offshore or otherwise not rideable here, even though the speed may be there.">⚠️ CHECK DIRECTION</span>` : "") +
+      (storm && storm.hiKt >= 34 ? `<span class="offshore-tag" title="Environment Canada calls gale or storm strength for this area on this day.">⚠️ EC CALLS UP TO ${storm.hiKt}KT</span>` : "");
     div.innerHTML = `
       <div class="bet-rank">${r.windiestOnly ? (foilMode ? "🌊" : "💨") : i + 1}</div>
       <div class="bet-badge ${cls}">${foilMode ? `${r.hour.waves?.ft ?? "–"}ft` : `${r.probability}%`}</div>
@@ -1312,6 +1316,48 @@ function ecLineForDay(hours, sp) {
   return `<div class="tide-line">📻 ${warn ? `<b>${warn[0].toUpperCase()}${warn.slice(1)} in effect.</b> ` : ""}Environment Canada calls ${e.direction_label} ${range}kt from about ${from}, stronger than the models here (${models === modelsHi ? models : `${models} to ${modelsHi}`}kt). Check the live readings before you go.</div>`;
 }
 
+// EC's extended forecast (days 3 to 5, Nov 3 2026, rules.js
+// parseMarineExtended): a note on those days' cards when EC's outlook for a
+// direction the spot works on is clearly stronger than the models. Never the
+// number: on 37 days scored Sep 28 to Nov 2, EC's outlook caught more of the
+// strong days than the models but also called more that didn't come, and
+// the models were closer on size (claude/ec-extended-score-2026-11-03.md).
+function ecExtendedDay(sp, dateStr) {
+  const b = forecast.marine_bulletins?.[sp.marineZone];
+  return (b?.extended || []).find(d => d.dateStr === dateStr) || null;
+}
+function ecExtendedLineForDay(sp, hours) {
+  if (!hours.length || hours.some(h => h.marine_ec)) return ""; // the main forecast covers this day
+  const d = ecExtendedDay(sp, hours[0].time.slice(0, 10));
+  if (!d?.top || d.maxKt == null) return "";
+  const works = d.clauses.filter(c => c.directionDeg == null || (sp.favorable_deg || []).some(sec => inSector(c.directionDeg, sec)));
+  const best = works.reduce((a, c) => (c.hiKt > (a?.hiKt ?? -1) ? c : a), null);
+  if (!best) return "";
+  const models = Math.round(Math.max(...hours.map(h => h.speed_kt ?? 0)));
+  if ((best.loKt + best.hiKt) / 2 < models + 4) return "";
+  const text = d.text.replace(/\s*knots\b/gi, "").replace(/\s+/g, " ").replace(/^./, c => c.toLowerCase());
+  return `<div class="tide-line">📻 Environment Canada's outlook for ${d.day}: ${text}. That's stronger than the models, which show up to ${models}kt here. EC's outlook has often run high, so check again closer to the day.</div>`;
+}
+// EC calling gale or storm strength for a spot's area on the day (Nov 3
+// 2026, Guillermo: one day this week was forecast at 50 knots). The odds
+// for "18kt and up" don't say "too much", so the card does.
+function ecTopForDay(sp, dateStr) {
+  const b = forecast.marine_bulletins?.[sp.marineZone];
+  if (!b) return null;
+  let top = null;
+  for (const seg of b.parsed?.segments || []) if (seg.dateStr === dateStr && !seg.isException && seg.hiKt != null && (!top || seg.hiKt > top.hiKt)) top = seg;
+  const ext = (b.extended || []).find(d => d.dateStr === dateStr);
+  if (ext?.top && (!top || ext.top.hiKt > top.hiKt)) top = ext.top;
+  return top;
+}
+function stormLineForDay(sp, hours) {
+  if (!hours.length) return "";
+  const top = ecTopForDay(sp, hours[0].time.slice(0, 10));
+  if (!top || top.hiKt < 34) return "";
+  const strength = top.hiKt >= 48 ? "storm" : "gale";
+  return `<div class="caution-line">⚠️ Environment Canada calls ${top.directionLabel ? top.directionLabel + " " : ""}${top.loKt} to ${top.hiKt}kt in this area (${strength} strength). Too strong for most riders: check the warning and the live readings before you go.</div>`;
+}
+
 // The EC warning in effect for a spot's marine area, named on its EC line
 // (Oct 28 2026).
 function ecWarningName(sp) {
@@ -1601,7 +1647,9 @@ function renderSpotCards() {
       ${trackLine(sp)}
       ${tideLineForDay(spot)}
       ${foilMode ? waveLineForDay(hours) : swellLineForDay(hours)}
+      ${stormLineForDay(sp, hours)}
       ${ecLineForDay(hours, sp)}
+      ${ecExtendedLineForDay(sp, hours)}
       ${outflowLineForDay(hours)}
       ${porteauOddsLineForDay(hours)}
       ${sideLineForDay(sp, hours)}
@@ -1931,7 +1979,7 @@ function renderTrackRecord() {
   const fb = forecast?.rider_feedback;
   if (!measured.length && !fb?.accuracy) { sec.style.display = "none"; return; }
   sec.style.display = "";
-  const updated = ms?.updated_at ? new Date(ms.updated_at).toLocaleDateString("en-CA", { timeZone: "America/Vancouver", month: "short", day: "numeric" }) : "";
+  const updated = ms?.updated_at ? new Date(ms.updated_at).toLocaleDateString("en-CA", { timeZone: BC_TZ, month: "short", day: "numeric" }) : "";
   document.getElementById("trackIntro").textContent = ms
     ? `Every night we check the last ${ms.window_days} days of our forecasts against what the nearest Environment Canada station actually measured. A "windy hour" is ${ms.threshold_kt}kt or more. Last checked ${updated}.`
     : "";

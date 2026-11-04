@@ -31,6 +31,11 @@
 // (propose_conditions_report); the page shows it and only sends it to the
 // report Worker if the rider taps Send.
 
+// BC stays on UTC-7 all year since 2026 (same as BC_TZ in assets/rules.js).
+// Used for every BC clock time here: America/Vancouver needs 2026 time zone
+// data the Workers runtime may not have yet (Nov 3 2026 fix).
+const BC_TZ = "Etc/GMT+7";
+
 const SITE_URL = "https://ferreroforward.github.io/wind-guru-staging/"; // STAGING VALUE
 const DEFAULTS = {
   MODEL: "claude-sonnet-5-5",
@@ -156,9 +161,9 @@ function json(body, status, env) {
 }
 
 function pacificParts(d = new Date()) {
-  const date = d.toLocaleDateString("en-CA", { timeZone: "America/Vancouver" });
-  const time = d.toLocaleTimeString("en-US", { timeZone: "America/Vancouver", hour: "numeric", minute: "2-digit" }).replace(" AM", "am").replace(" PM", "pm");
-  const weekday = d.toLocaleDateString("en-US", { timeZone: "America/Vancouver", weekday: "long", month: "short", day: "numeric" });
+  const date = d.toLocaleDateString("en-CA", { timeZone: BC_TZ });
+  const time = d.toLocaleTimeString("en-US", { timeZone: BC_TZ, hour: "numeric", minute: "2-digit" }).replace(" AM", "am").replace(" PM", "pm");
+  const weekday = d.toLocaleDateString("en-US", { timeZone: BC_TZ, weekday: "long", month: "short", day: "numeric" });
   return { date, month: date.slice(0, 7), time, weekday };
 }
 
@@ -271,7 +276,7 @@ function terminalText(json) {
   if (!s.length) return null;
   const kt = (k) => Math.round(k * 0.539957);
   const lbl = (d) => (isFinite(d) ? DIR16[Math.round(((d % 360) + 360) % 360 / 22.5) % 16] : "");
-  const hm = (ms) => new Date(ms).toLocaleTimeString("en-US", { timeZone: "America/Vancouver", hour: "numeric", minute: "2-digit" }).replace(":00", "").replace(" AM", "am").replace(" PM", "pm");
+  const hm = (ms) => new Date(ms).toLocaleTimeString("en-US", { timeZone: BC_TZ, hour: "numeric", minute: "2-digit" }).replace(":00", "").replace(" AM", "am").replace(" PM", "pm");
   const last = s[s.length - 1];
   const parts = [];
   // Newest sample, then every half hour back over 6 hours (one sample each).
@@ -287,7 +292,7 @@ const DIR16 = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W
 // Pacific wall clock to epoch ms (DST handled by asking Intl for the offset).
 function pacificMs(y, mo, d, H, M) {
   const guess = Date.UTC(y, mo - 1, d, H, M);
-  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "America/Vancouver", hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric" })
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: BC_TZ, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric" })
     .formatToParts(new Date(guess)).map((x) => [x.type, Number(x.value)]));
   const wall = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute);
   return guess - (wall - guess);
@@ -378,8 +383,6 @@ function swobPressure(xml) {
 // page fills the chart from them between runs. Same row shape as
 // scripts/howe-pressure.mjs.
 const PRESSURE_HIST_HOURS = 14;
-// BC stays on UTC-7 all year since 2026 (same as BC_TZ in assets/rules.js).
-const BC_TZ = "Etc/GMT+7";
 const pacificHourFmt = new Intl.DateTimeFormat("en-CA", { timeZone: BC_TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" });
 function pacificHourKey(ms) {
   const p = Object.fromEntries(pacificHourFmt.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
@@ -562,7 +565,7 @@ async function adminPage(request, env) {
     const [l, f] = await Promise.all([env.CHAT_KV.get(`log:${i}`, "json"), fbIds.has(i) ? env.CHAT_KV.get(`fb:${i}`, "json") : null]);
     return { i, l, f };
   }));
-  const fmt = (t) => new Date(t).toLocaleString("en-CA", { timeZone: "America/Vancouver", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const fmt = (t) => new Date(t).toLocaleString("en-CA", { timeZone: BC_TZ, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
   const downs = [...fbIds].length;
   const cards = entries.filter((e) => e.l).map(({ l, f }) => {
     const cls = f?.rating === "down" ? "down" : f?.rating === "up" ? "up" : "";
@@ -788,11 +791,11 @@ function daylightMs(dateStr) {
   return { first: toMs(jT - w / 360), last: toMs(jT + w / 360) };
 }
 function pacificMinutesOf(ms) {
-  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "America/Vancouver", hourCycle: "h23", hour: "numeric", minute: "numeric" }).formatToParts(new Date(ms)).map((x) => [x.type, Number(x.value)]));
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: BC_TZ, hourCycle: "h23", hour: "numeric", minute: "numeric" }).formatToParts(new Date(ms)).map((x) => [x.type, Number(x.value)]));
   return p.hour * 60 + p.minute;
 }
 function hm(ms) {
-  return new Date(ms).toLocaleTimeString("en-US", { timeZone: "America/Vancouver", hour: "numeric", minute: "2-digit" }).replace(" AM", "am").replace(" PM", "pm");
+  return new Date(ms).toLocaleTimeString("en-US", { timeZone: BC_TZ, hour: "numeric", minute: "2-digit" }).replace(" AM", "am").replace(" PM", "pm");
 }
 function hour12(t) { const H = Number(t.slice(0, 2)); return `${H % 12 || 12}${H < 12 ? "am" : "pm"}`; }
 function readingText(x) {
@@ -884,7 +887,7 @@ async function runAlerts(env, nowMs = Date.now()) {
   if (evening && subs.some(({ s }) => s.rules.some((r) => r.type === "forecast"))) {
     try { const r = await fetch(`${env.SITE_URL || SITE_URL}data/alerts-forecast.json`, { cf: { cacheTtl: 300 } }); if (r.ok) af = await r.json(); } catch {}
   }
-  const tomorrow = new Date(nowMs + 86400000).toLocaleDateString("en-CA", { timeZone: "America/Vancouver" });
+  const tomorrow = new Date(nowMs + 86400000).toLocaleDateString("en-CA", { timeZone: BC_TZ });
   const squamish = squamishWindow && inLight ? squamishSignal(obs.rows) : null;
 
   let sent = 0;

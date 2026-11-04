@@ -321,6 +321,47 @@ function weekdayOfDateStr(dateStr) { return new Date(dateStr + "T12:00:00Z").get
 function hourKey(dateStr, hour) { return Date.parse(dateStr + "T00:00:00Z") / 3600000 + hour; }
 
 // "04:38 AM PDT 25 September 2026" -> { dateStr: "2026-09-25", hour: 4 }
+// EC's extended forecast (days 3 to 5, Nov 3 2026): "Thursday Wind
+// southeast 20 to 30 knots veering to southwest 15 to 25 in the morning then
+// increasing to southeast 30 to 40 in the afternoon. Friday Wind ...".
+// Day level only (EC gives no hours here): per named day, its date, EC's
+// own wording, every speed clause and the day's top speed. Days after the
+// issue date only; a weekday name means the next one after the issue day.
+const EXT_DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+export function parseMarineExtended(text, issued) {
+  if (!text) return [];
+  const iss = typeof issued === "string" ? parseEcIssued(issued) : issued;
+  if (!iss?.dateStr) return [];
+  const clean = String(text).replace(/\s+/g, " ").trim();
+  const re = /\b(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)\b\s+(?:Wind|Winds)\b/gi;
+  const starts = [];
+  let m;
+  while ((m = re.exec(clean))) starts.push({ i: m.index, day: m[1].toLowerCase() });
+  const issueDow = new Date(`${iss.dateStr}T12:00:00Z`).getUTCDay();
+  const out = [];
+  starts.forEach((st, k) => {
+    const body = clean.slice(st.i + st.day.length, k + 1 < starts.length ? starts[k + 1].i : clean.length).replace(/^\s*(?:Wind|Winds)\s+/i, "").trim().replace(/\.$/, "");
+    const ahead = ((EXT_DAYS.indexOf(st.day) - issueDow + 7) % 7) || 7;
+    const dateStr = addDaysToDateStr(iss.dateStr, ahead);
+    const clauses = [];
+    for (const part of body.split(/\b(?:then|becoming|increasing to|diminishing to|rising to|easing to|veering to|backing to|and to)\b/i)) {
+      const chunk = part.trim();
+      if (!chunk) continue;
+      const r = chunk.match(/\b(\d{1,2})\s+to\s+(\d{1,3})\b/), one = chunk.match(/\b(\d{1,2})\b/);
+      const light = /\blight\b/i.test(chunk) && !/\d/.test(chunk);
+      const loKt = r ? Number(r[1]) : one ? Number(one[1]) : light ? 0 : null;
+      const hiKt = r ? Number(r[2]) : one ? Number(one[1]) : light ? 5 : null;
+      if (loKt == null) continue;
+      const w = DIR_WORDS.find((d) => new RegExp(`\\b${d}\\b`, "i").test(chunk)) || null;
+      const timing = (chunk.match(/\b(early in the morning|in the morning|near noon|in the afternoon|late in the day|in the evening|overnight|late in the afternoon)\b/i) || [])[1] || null;
+      clauses.push({ loKt, hiKt, directionLabel: w, directionDeg: w ? DIR_WORD_DEG[w] : null, regime: /\boutflow\b/i.test(chunk) ? "outflow" : /\binflow\b/i.test(chunk) ? "inflow" : null, timing: timing ? timing.toLowerCase() : null });
+    }
+    const top = clauses.reduce((a, c) => (c.hiKt > (a?.hiKt ?? -1) ? c : a), null);
+    out.push({ day: st.day[0].toUpperCase() + st.day.slice(1), dateStr, text: body, clauses, maxKt: top ? top.hiKt : null, top });
+  });
+  return out;
+}
+
 export function parseEcIssued(issued) {
   if (!issued) return null;
   const m = String(issued).match(/(\d{1,2}):(\d{2})\s*(AM|PM)?\s*[A-Z]{3,4}\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/i);

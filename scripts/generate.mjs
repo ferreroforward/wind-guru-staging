@@ -14,7 +14,7 @@ import { fetchWaves, attachWaves } from "./waves.mjs";
 import { buildHowePressure, fetchObservedPressure, mergeObserved } from "./howe-pressure.mjs";
 import { fetchJscaRows, fetchKiteloopRows, halfHourly, latestObservation, appendHistory, JSCA_HISTORY_META, jscaRow, TERMINAL_HISTORY_META, terminalRow } from "./extra-stations.mjs";
 import { SPOTS, PRESSURE_REFERENCE, degToLabel, DEG_LABELS, WEBCAMS } from "../assets/spots.js";
-import { BC_TZ, MODELS, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, rowsToPressureMap, rowsToSpeedMap, currentPacificHourString, explainMismatch, parseMarineWindText, marineAnchorForHour, parseEcIssued, dropModels, tideForHour, flagEpicHours, buildMosUrl, reshapeMos, applyMos, swellForHours, thermalInputs, applyThermalModel, outflowHold, applyOutflowHold } from "../assets/rules.js";
+import { BC_TZ, MODELS, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, rowsToPressureMap, rowsToSpeedMap, currentPacificHourString, explainMismatch, parseMarineWindText, marineAnchorForHour, parseEcIssued, dropModels, tideForHour, flagEpicHours, buildMosUrl, reshapeMos, applyMos, swellForHours, thermalInputs, applyThermalModel, outflowHold, applyOutflowHold, parseMarineExtended } from "../assets/rules.js";
 
 // Minutes between "now" and a Pacific-local "HH:MM" observation time, on the
 // (safe) assumption the observation is from earlier today — used to catch a
@@ -46,7 +46,7 @@ const TERMINAL_HISTORY_PATH = path.join(__dirname, "..", "data", "squamish-termi
 const MOS_PATH = path.join(__dirname, "..", "data", "mos-coefficients.json");
 const MOS_RECENT_PATH = path.join(__dirname, "..", "data", "mos-recent.json");
 const THERMAL_PATH = path.join(__dirname, "..", "data", "squamish-thermal.json");
-const FORECAST_DAYS = 4; // "today" + 3 days ahead
+const FORECAST_DAYS = 5; // "today" + 4 days ahead (5th day added Nov 3 2026 so riders can plan the week)
 const LIVE_ERROR_THRESHOLD = 0.20; // 20% — flag as a "mismatch" in the UI/console at this gap or bigger
 const LIVE_LOG_MAX_PER_SPOT = 40; // cap so the log file doesn't grow forever
 // Skip the % comparison below this forecast speed. Originally 2kt, which let
@@ -365,6 +365,7 @@ function swobObservation(station) {
 //    discards one dead connection, so these are retried quickly and more
 //    often (NETWORK_TRIES) and the cause is logged.
 const NETWORK_TRIES = 8;
+const FETCH_TIMEOUT_MS = 30000;
 async function fetchRetry(url, options = {}, tries = 4) {
   const waits = [3000, 8000, 20000];
   const networkWaits = [300, 600, 1000, 2000, 4000, 8000, 20000];
@@ -372,7 +373,10 @@ async function fetchRetry(url, options = {}, tries = 4) {
   let httpFails = 0, networkFails = 0;
   for (;;) {
     try {
-      const res = await fetch(url, options);
+      // Give up on a request that hangs (Nov 3 2026: Open-Meteo held GitHub's
+      // connections for 5 minutes per try, so runs took up to an hour); the
+      // retry below then tries again straight away.
+      const res = await fetch(url, { ...options, signal: options.signal ?? AbortSignal.timeout(FETCH_TIMEOUT_MS) });
       if (res.ok || (res.status < 500 && res.status !== 429)) return res;
       lastErr = new Error(`HTTP ${res.status} ${res.statusText}`);
       httpFails++;
@@ -684,6 +688,9 @@ async function fetchMarineBulletin(zone) {
       warning_headline: warnM ? warnM[0].toUpperCase() : null,
       extended_text: extended ? extended.text : null,
       extended_issued: extended ? extended.issued : null,
+      // Days 3 to 5 by name, parsed (Nov 3 2026): shown as a note on those
+      // days' cards and scored against the models, never used as the number.
+      extended: extended ? parseMarineExtended(extended.text, extended.issued || winds?.issued) : [],
     };
   } catch (err) {
     console.error(`[${zone.id}] marine bulletin fetch failed: ${err.message}`);
