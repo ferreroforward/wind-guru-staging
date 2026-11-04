@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-04T14:19:51.705Z",
+  "updated_at": "2026-11-04T15:52:13.387Z",
   "entries": [
     {
       "spot": "boundary-bay",
@@ -391,6 +391,19 @@
       "station": "White Rock, BC",
       "reasoning": "Forecast showed calm/mixed and live wind came in lighter still — models were on the right track, just a bit high.",
       "checked_at": "2026-08-15T03:05:00.396Z"
+    },
+    {
+      "spot": "porteau-cove",
+      "time": "2026-11-04T08:00",
+      "forecasted": 0,
+      "actual": 15.9,
+      "ratio": 3.18,
+      "source": "live-station",
+      "station": "Pam Rocks (Howe Sound entrance)",
+      "regime": "calm",
+      "mismatch": true,
+      "reasoning": "Forecast showed calm/mixed but live wind is running well above that — likely an unmodeled local effect or a synoptic push none of the current signals caught.",
+      "checked_at": "2026-11-04T15:52:13.387Z"
     },
     {
       "spot": "porteau-cove",
@@ -900,17 +913,17 @@
       "checked_at": "2026-09-11T22:24:04.956Z"
     },
     {
-      "spot": "porteau-cove",
-      "time": "2026-09-10T20:00",
-      "forecasted": 9.4,
-      "actual": 1.9,
-      "ratio": 0.20212765957446807,
+      "spot": "white-rock-east",
+      "time": "2026-11-04T08:00",
+      "forecasted": 3.3,
+      "actual": 11.7,
+      "ratio": 2.34,
       "source": "live-station",
-      "station": "Pam Rocks (Howe Sound entrance)",
-      "regime": "synoptic",
+      "station": "White Rock East Beach",
+      "regime": "mixed",
       "mismatch": true,
-      "reasoning": "Synoptic regime, but the magnitude missed — model agreement was 90%, so spread between models likely explains some of the gap. This hour already had a rider-feedback adjustment applied.",
-      "checked_at": "2026-09-11T03:53:55.557Z"
+      "reasoning": "Forecast showed calm/mixed but live wind is running well above that — likely an unmodeled local effect or a synoptic push none of the current signals caught.",
+      "checked_at": "2026-11-04T15:52:13.387Z"
     },
     {
       "spot": "white-rock-east",
@@ -1028,6 +1041,19 @@
       "mismatch": true,
       "reasoning": "Synoptic regime, but the magnitude missed — model agreement was 56%, so spread between models likely explains some of the gap.",
       "checked_at": "2026-08-28T02:19:42.599Z"
+    },
+    {
+      "spot": "garry-point",
+      "time": "2026-11-04T08:00",
+      "forecasted": 8.8,
+      "actual": 8.9,
+      "ratio": 1.0113636363636362,
+      "source": "live-station",
+      "station": "Sand Heads",
+      "regime": "mixed",
+      "mismatch": false,
+      "reasoning": null,
+      "checked_at": "2026-11-04T15:52:13.387Z"
     },
     {
       "spot": "garry-point",
@@ -1537,19 +1563,6 @@
       "checked_at": "2026-08-31T20:08:20.523Z"
     },
     {
-      "spot": "garry-point",
-      "time": "2026-08-30T13:00",
-      "forecasted": 9,
-      "actual": 9.9,
-      "ratio": 1.1,
-      "source": "live-station",
-      "station": "Sand Heads",
-      "regime": "synoptic",
-      "mismatch": false,
-      "reasoning": null,
-      "checked_at": "2026-08-30T20:08:29.330Z"
-    },
-    {
       "spot": "tsawwassen-south",
       "time": "2026-10-23T13:00",
       "forecasted": 8.3,
@@ -1980,6 +1993,19 @@
     },
     {
       "spot": "crescent-beach",
+      "time": "2026-11-04T08:00",
+      "forecasted": 5.9,
+      "actual": 11.7,
+      "ratio": 1.983050847457627,
+      "source": "live-station",
+      "station": "White Rock East Beach",
+      "regime": "mixed",
+      "mismatch": true,
+      "reasoning": "Forecast showed calm/mixed but live wind is running well above that — likely an unmodeled local effect or a synoptic push none of the current signals caught.",
+      "checked_at": "2026-11-04T15:52:13.387Z"
+    },
+    {
+      "spot": "crescent-beach",
       "time": "2026-09-28T09:00",
       "forecasted": 9.8,
       "actual": 4.2,
@@ -2097,6 +2123,19 @@
     },
     {
       "spot": "jericho-spanish-banks",
+      "time": "2026-11-04T08:00",
+      "forecasted": 7.3,
+      "actual": 1.7,
+      "ratio": 0.2328767123287671,
+      "source": "live-station",
+      "station": "Jericho Sailing Centre (beach)",
+      "regime": "mixed",
+      "mismatch": true,
+      "reasoning": "Forecast showed calm/mixed and live wind came in lighter still — models were on the right track, just a bit high. This hour already had a rider-feedback adjustment applied.",
+      "checked_at": "2026-11-04T15:52:13.387Z"
+    },
+    {
+      "spot": "jericho-spanish-banks",
       "time": "2026-10-29T15:00",
       "forecasted": 13.7,
       "actual": 9.6,
@@ -2211,6 +2250,19 @@
       "mismatch": false,
       "reasoning": null,
       "checked_at": "2026-09-27T23:33:54.618Z"
+    },
+    {
+      "spot": "squamish-spit",
+      "time": "2026-11-04T08:00",
+      "forecasted": 3.6,
+      "actual": 8.1,
+      "ratio": 1.6199999999999999,
+      "source": "live-station",
+      "station": "Squamish terminal sensor (Kiteloop)",
+      "regime": "mixed",
+      "mismatch": true,
+      "reasoning": "Forecast showed calm/mixed but live wind is running well above that — likely an unmodeled local effect or a synoptic push none of the current signals caught.",
+      "checked_at": "2026-11-04T15:52:13.387Z"
     },
     {
       "spot": "squamish-spit",
