@@ -118,6 +118,8 @@ const EC_STATIONS = [
 const STATION_NAMES = { ...Object.fromEntries(EC_STATIONS.map((s) => [s.code, s.name])), jsca: "Jericho Sailing Centre (beach)", kiteloop: "Squamish terminal sensor (Kiteloop)" };
 const OBS_MAX_AGE_MS = 10 * 60 * 1000;
 const OBS_HOURS = 12;
+// The EC page lists 24 hours; the 48 hour history (below) takes all of them.
+const EC_PAGE_ROWS = 26;
 
 const RULES = `You are Wind Guru AI, the AI assistant on Wind Guru, a free wind sports forecast site for Metro Vancouver and Howe Sound made by Guillermo Ferrero. You are an AI, not Guillermo. When the data includes Guillermo's own take, you may quote it as his ("Guillermo's take says ..."), never as yours.
 
@@ -140,7 +142,8 @@ How you answer:
 8. Style: wind in knots, distances in km, temperatures in Celsius, tides and waves in feet, times like 1pm or 3:30pm. Never use hyphens or dashes in your writing: write "go or no go", "12 to 15kt", "south side". The one exception is a signed number: write a negative number with the minus sign, like −2 hPa or −1.4°C, and a positive gap with +, like +3 hPa. Plain words, short, easy to read on a phone: usually under 110 words, no headings, no tables. Use **bold** sparingly for the spot and the time. Short lines starting with "• " are fine for comparing two or three spots.
 9. If someone says the forecast, an answer or the day was not good or was wrong, don't argue. Thank them and ask briefly which spot, what time, and what wind they actually got (speed, gusts and direction if they know). Once you have the spot, the hour and the wind speed, call propose_conditions_report; the page shows it and the rider decides whether to send it. Tell them it helps tune the forecast.
 10. Pressure gaps: always give them the way the site's Howe Sound pressure panel shows them, as Vancouver minus Pemberton or Pam Rocks minus Pemberton, where a negative number means Pemberton is higher and air is pushed out of the Sound (outflow) and a positive number means air is pulled up the Sound (inflow). Write the number with its sign the way the page does, using + and the minus sign (−), never the word "minus" for a number: for example "Vancouver minus Pemberton is −2 hPa at 3pm, up from −3, so the outflow may be easing". Never write it as Pemberton minus Vancouver.
-11. When the answer is about whether or where to go, strong wind, a warning, or an advanced spot, end with this line exactly: "Use your own judgment. [Read the disclaimer](#disclaimerFull)"`;
+11. Comparing days: the live readings include a dated Howe Sound and Strait history for the last 48 hours. When someone asks how today compares with yesterday (or the last two days), or whether today is like yesterday, compare the same hours on each day from that history: Pam Rocks wind, the Vancouver minus Pemberton pressure gap and its trend, and Sand Heads or the English Bay buoy for the Strait. Give the numbers side by side and say what is different and what it suggests for the next few hours. Say the date and time of every reading you use. If an hour is missing, say so; never fill it in.
+12. When the answer is about whether or where to go, strong wind, a warning, or an advanced spot, end with this line exactly: "Use your own judgment. [Read the disclaimer](#disclaimerFull)"`;
 
 function cfg(env, key) {
   const v = env[key];
@@ -194,7 +197,7 @@ function parseEcPast24(html) {
     if (!header && cells.some((c) => /^wind\s*\(\s*km\/h/i.test(c))) header = cells;
     else if (cells.length >= 4 && /^\d{2}:\d{2}$/.test(cells[0])) {
       rows.push(cells);
-      if (rows.length >= OBS_HOURS) break; // newest first; keeps CPU low on the free plan
+      if (rows.length >= EC_PAGE_ROWS) break; // newest first; keeps CPU low on the free plan
     }
   }
   if (!header) return [];
@@ -382,7 +385,14 @@ function swobPressure(xml) {
 // rows itself in KV (one write per new hour) and /obs returns them; the
 // page fills the chart from them between runs. Same row shape as
 // scripts/howe-pressure.mjs.
-const PRESSURE_HIST_HOURS = 14;
+// Nov 4 2026 (Guillermo: let the AI compare today with yesterday): the same
+// KV rows now cover 48 hours and also carry Sand Heads and the English Bay
+// buoy. Rows from the 0.1 hPa SWOB files are the precise ones; hours the
+// worker missed are filled from EC's past 24 hour pages (whole hPa, marked
+// coarse) so a restart or a quiet night still leaves a full two days.
+// /obs still returns only the last 14 precise hours for the page's chart.
+const PRESSURE_HIST_HOURS = 48;
+const PAGE_HIST_HOURS = 14;
 const pacificHourFmt = new Intl.DateTimeFormat("en-CA", { timeZone: BC_TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" });
 function pacificHourKey(ms) {
   const p = Object.fromEntries(pacificHourFmt.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
@@ -404,17 +414,93 @@ function pressureRow(pressure, pam) {
     wsk_c: near(wsk) ? wsk.temp : null, was_c: near(was) ? was.temp : null,
   };
 }
-async function updatePressureHistory(env, pressure, pam, nowMs = Date.now()) {
-  const old = (await env.CHAT_KV.get("pressure_hist", "json")) || [];
-  const keep = old.filter((r) => r && isFinite(r.at) && r.at > nowMs - PRESSURE_HIST_HOURS * 3600000);
-  const row = pressureRow(pressure, pam);
-  if (!row || keep.some((r) => r.t === row.t && r.gap === row.gap && r.local === row.local)) {
-    if (keep.length !== old.length) await env.CHAT_KV.put("pressure_hist", JSON.stringify(keep));
-    return keep;
+// EC past 24 hour rows ("HH:MM", newest first, no date) -> { hourKey: row },
+// dated by walking back from now.
+function ecDated(rows, nowMs) {
+  const out = {};
+  const [y, mo, d] = pacificParts(new Date(nowMs)).date.split("-").map(Number);
+  let dayShift = 0, prev = Infinity;
+  for (const r of rows || []) {
+    const [H, M] = r.time.split(":").map(Number);
+    let at = pacificMs(y, mo, d, H, M) - dayShift * 86400000;
+    while (at > nowMs + 5 * 60000 || at >= prev) { dayShift++; at -= 86400000; }
+    prev = at;
+    // Buoys report off the hour (for example 06:40): file under the nearest hour, newest wins.
+    const hourAt = Math.round(at / 3600000) * 3600000;
+    const key = pacificHourKey(hourAt);
+    if (!out[key]) out[key] = { ...r, at: hourAt };
   }
-  const hist = keep.filter((r) => r.t !== row.t).concat(row).sort((a, b) => a.at - b.at);
-  await env.CHAT_KV.put("pressure_hist", JSON.stringify(hist));
+  return out;
+}
+const WIND_FIELDS = { was: ["pam_kt", "pam_dir", "pam_g"], wvf: ["sh_kt", "sh_dir", "sh_g"], "46304": ["eb_kt", "eb_dir", "eb_g"] };
+function ecHistRows(byCode, nowMs) {
+  const dated = Object.fromEntries(["was", "yvr", "wgp", "wsk", "wvf", "46304"].map((c) => [c, ecDated(byCode[c], nowMs)]));
+  const keys = new Set(Object.values(dated).flatMap((m) => Object.keys(m)));
+  const rows = {};
+  for (const t of keys) {
+    const g = (c) => dated[c][t];
+    const yvr = g("yvr")?.hpa ?? null, pem = g("wgp")?.hpa ?? null, wsk = g("wsk")?.hpa ?? null, was = g("was")?.hpa ?? null;
+    const row = {
+      t, at: Object.values(dated).map((m) => m[t]?.at).find((x) => x != null), coarse: true,
+      yvr, pem, wsk, was,
+      gap: yvr != null && pem != null ? r1(yvr - pem) : null,
+      local: wsk != null && was != null ? r1(was - wsk) : null,
+      wsk_c: g("wsk")?.temp ?? null, was_c: g("was")?.temp ?? null,
+    };
+    for (const [c, [kt, dir, gust]] of Object.entries(WIND_FIELDS)) {
+      const o = g(c);
+      row[kt] = o?.kt ?? null; row[dir] = o?.dir ?? null; row[gust] = o?.gust ?? null;
+    }
+    rows[t] = row;
+  }
+  return rows;
+}
+async function updatePressureHistory(env, pressure, pam, nowMs = Date.now(), byCode = {}) {
+  const old = (await env.CHAT_KV.get("pressure_hist", "json")) || [];
+  const map = {};
+  for (const r of old) if (r && isFinite(r.at) && r.at > nowMs - PRESSURE_HIST_HOURS * 3600000) map[r.t] = r;
+  const before = JSON.stringify(Object.values(map).sort((a, b) => a.at - b.at));
+  // Fill gaps and missing fields from EC's pages, never over a precise number.
+  for (const [t, e] of Object.entries(ecHistRows(byCode, nowMs))) {
+    if (!(e.at > nowMs - PRESSURE_HIST_HOURS * 3600000)) continue;
+    const cur = map[t];
+    if (!cur) { map[t] = e; continue; }
+    for (const [k, v] of Object.entries(e)) if (v != null && cur[k] == null && k !== "coarse") cur[k] = v;
+  }
+  const row = pressureRow(pressure, pam);
+  if (row) {
+    const cur = map[row.t] || {};
+    const merged = { ...cur, ...Object.fromEntries(Object.entries(row).filter(([, v]) => v != null)) };
+    delete merged.coarse;
+    map[row.t] = merged;
+  }
+  const hist = Object.values(map).sort((a, b) => a.at - b.at);
+  if (JSON.stringify(hist) !== before) await env.CHAT_KV.put("pressure_hist", JSON.stringify(hist));
   return hist;
+}
+// The last 14 precise hours, the shape the page's pressure chart expects.
+function pageHistory(hist, nowMs = Date.now()) {
+  return (hist || []).filter((r) => !r.coarse && r.at > nowMs - PAGE_HIST_HOURS * 3600000)
+    .map(({ sh_kt, sh_dir, sh_g, eb_kt, eb_dir, eb_g, pam_g, ...r }) => r);
+}
+// Dated two day history for the AI, one short line per hour, oldest first.
+// Column names are explained once in the header to keep each question cheap.
+function histText(hist) {
+  const rows = (hist || []).filter((r) => r && r.t);
+  if (!rows.length) return "";
+  const dayFmt = new Intl.DateTimeFormat("en-US", { timeZone: BC_TZ, weekday: "short", month: "short", day: "numeric" });
+  const wind = (dir, kt, g) => (kt == null ? null : dir === "calm" || kt === 0 ? "calm" : `${dir || ""} ${Math.round(kt)}${g ? "g" + Math.round(g) : ""}`.trim());
+  const lines = rows.map((r) => {
+    const parts = [];
+    const pam = wind(r.pam_dir, r.pam_kt, r.pam_g); if (pam) parts.push(`Pam ${pam}`);
+    if (r.gap != null) parts.push(`gap ${r.coarse ? signedHpa(r.gap).replace(/\.0$/, "") : signedHpa(r.gap)}`);
+    if (r.wsk_c != null && r.was_c != null) parts.push(`dT ${signedHpa(r1(r.wsk_c - r.was_c))}`);
+    const sh = wind(r.sh_dir, r.sh_kt, r.sh_g); if (sh) parts.push(`SH ${sh}`);
+    const eb = wind(r.eb_dir, r.eb_kt, r.eb_g); if (eb) parts.push(`buoy ${eb}`);
+    if (!parts.length) return null;
+    return `${dayFmt.format(new Date(r.at)).replace(",", "")} ${clock(r.t.slice(11, 16))}: ${parts.join(", ")}`;
+  }).filter(Boolean);
+  return `Last 48 hours, hourly, dated, oldest first. Pam = Pam Rocks wind (knots, g = gust); gap = Vancouver minus Pemberton pressure in hPa (negative = Pemberton higher, outflow push; positive = inflow pull; whole hPa where only EC's rounded page had the hour); dT = Squamish Airport minus Pam Rocks temperature in °C; SH = Sand Heads wind; buoy = English Bay buoy wind. When you quote these, use the full station names, not the short labels.\n${lines.join("\n")}`;
 }
 
 // Fetches every station at most once per 10 minutes (shared by the chat and
@@ -465,9 +551,10 @@ async function getObsData(env) {
   // Hourly rows for the Squamish go signal (email alerts).
   const rows = Object.fromEntries(["was", "wgp", "yvr", "wsk"].map((c) => [c, (byCode[c] || []).slice(0, 6)]));
   for (const k of Object.keys(pressure)) if (!pressure[k]) delete pressure[k];
-  let pressureHistory = [];
-  try { pressureHistory = await updatePressureHistory(env, pressure, swob.was); } catch { /* the page still has the run's hours */ }
-  const out = { at: Date.now(), text, stations, rows, pressure, pressure_history: pressureHistory };
+  let hist = [];
+  try { hist = await updatePressureHistory(env, pressure, swob.was, Date.now(), byCode); } catch { /* the page still has the run's hours */ }
+  const ht = histText(hist);
+  const out = { at: Date.now(), text: ht ? `${text}\n\n${ht}` : text, stations, rows, pressure, pressure_history: pageHistory(hist) };
   await env.CHAT_KV.put("obs", JSON.stringify(out), { expirationTtl: 3600 });
   return out;
 }
@@ -951,7 +1038,7 @@ async function runAlerts(env, nowMs = Date.now()) {
 
 export default {
   // Exposed only for tests; Cloudflare ignores extra keys on the default export.
-  _test: { parseEcPast24, obsText, validMessages, costUsd, jscaText, terminalText, validReport, newId, parseSwob, swobPressure, pressureRow, updatePressureHistory, validRules, squamishSignal, stationHit, daylightMs, runAlerts },
+  _test: { parseEcPast24, obsText, validMessages, costUsd, jscaText, terminalText, validReport, newId, parseSwob, swobPressure, pressureRow, updatePressureHistory, ecDated, ecHistRows, histText, pageHistory, validRules, squamishSignal, stationHit, daylightMs, runAlerts },
   async scheduled(event, env, ctx) {
     const t = event.scheduledTime || Date.now();
     ctx.waitUntil(runAlerts(env, t).then(async (r) => {
