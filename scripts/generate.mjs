@@ -14,7 +14,7 @@ import { fetchWaves, attachWaves } from "./waves.mjs";
 import { buildHowePressure, fetchObservedPressure, mergeObserved } from "./howe-pressure.mjs";
 import { fetchJscaRows, fetchKiteloopRows, halfHourly, latestObservation, appendHistory, JSCA_HISTORY_META, jscaRow, TERMINAL_HISTORY_META, terminalRow } from "./extra-stations.mjs";
 import { SPOTS, PRESSURE_REFERENCE, degToLabel, DEG_LABELS, WEBCAMS } from "../assets/spots.js";
-import { BC_TZ, MODELS, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, rowsToPressureMap, rowsToSpeedMap, currentPacificHourString, explainMismatch, parseMarineWindText, marineAnchorForHour, parseEcIssued, dropModels, tideForHour, flagEpicHours, buildMosUrl, reshapeMos, applyMos, swellForHours, thermalInputs, applyThermalModel, outflowHold, applyOutflowHold, parseMarineExtended } from "../assets/rules.js";
+import { BC_TZ, MODELS, buildForecastUrl, reshapeOpenMeteo, classifyHour, localHourAndMonth, rowsToPressureMap, rowsToSpeedMap, currentPacificHourString, explainMismatch, parseMarineWindText, marineAnchorForHour, parseEcIssued, dropModels, tideForHour, flagEpicHours, buildMosUrl, reshapeMos, applyMos, swellForHours, thermalInputs, applyThermalModel, outflowHold, applyOutflowHold, parseMarineExtended, addDaysToDateStr } from "../assets/rules.js";
 
 // Minutes between "now" and a Pacific-local "HH:MM" observation time, on the
 // (safe) assumption the observation is from earlier today — used to catch a
@@ -936,6 +936,72 @@ async function fetchDailyTakes() {
   return takes;
 }
 
+// Weed reports (Nov 7 2026, Guillermo: "we should display when riders report
+// weeds"). The report form has asked about weeds (none / some / lots) since
+// Oct 2026 but nothing used the answer. Per spot, the newest wind-report
+// from the last WEED_REPORT_DAYS days (today and the days before, BC time)
+// that answered Weeds decides: "some" or "lots" puts a line on the spot's
+// card; a newer "none" clears it. Output: { spotId: { level, date, time,
+// reports, issue_number } }, where reports counts the weedy reports since
+// the last "none".
+const WEED_REPORT_DAYS = 3;
+const WEED_LEVELS = ["none", "some", "lots"];
+async function fetchWeedReports(now = new Date()) {
+  const headers = { "User-Agent": "wind-guru-agent/1.0", "Accept": "application/vnd.github+json" };
+  if (process.env.GITHUB_TOKEN) headers["Authorization"] = `Bearer ${process.env.GITHUB_TOKEN}`;
+  const url = `https://api.github.com/repos/${DAILY_TAKE_OWNER}/${DAILY_TAKE_REPO}/issues?labels=wind-report&state=open&sort=created&direction=desc&per_page=100`;
+  let issues;
+  for (let attempt = 1; attempt <= 2 && !issues; attempt++) {
+    try {
+      const res = await fetch(url, { headers, signal: AbortSignal.timeout(30000) });
+      if (!res.ok) console.log(`[weeds] GitHub API fetch failed (try ${attempt}): ${res.status} ${res.statusText}`);
+      else issues = (await res.json()).filter((i) => !i.pull_request);
+    } catch (err) {
+      console.log(`[weeds] fetch failed (try ${attempt}): ${err.message}`);
+    }
+    if (!issues && attempt < 2) await new Promise((r) => setTimeout(r, 5000));
+  }
+  if (!issues) {
+    // Same as the daily take: a failed fetch keeps the last snapshot's
+    // reports rather than wiping them.
+    const prev = await readFile(OUT_PATH, "utf8").then(JSON.parse).catch(() => null);
+    return prev?.weed_reports && typeof prev.weed_reports === "object" ? prev.weed_reports : {};
+  }
+  return weedReportsFromIssues(issues, now);
+}
+
+function weedReportsFromIssues(issues, now = new Date()) {
+  const today = now.toLocaleDateString("en-CA", { timeZone: BC_TZ });
+  const oldest = addDaysToDateStr(today, -(WEED_REPORT_DAYS - 1));
+  const spotIds = new Set(SPOTS.map((s) => s.id));
+  const bySpot = {};
+  for (const issue of issues) {
+    if ((issue.labels || []).some((l) => /^test$/i.test(typeof l === "string" ? l : l?.name || ""))) continue;
+    const body = issue.body || "";
+    const spot = extractIssueField(body, "Spot");
+    const date = extractIssueField(body, "Date");
+    const level = (extractIssueField(body, "Weeds") || "").toLowerCase();
+    let time = extractIssueField(body, "Time (approx, local)");
+    if (!spot || !spotIds.has(spot) || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !WEED_LEVELS.includes(level)) continue;
+    if (date < oldest || date > today) continue;
+    time = time && /^\d{1,2}:\d{2}$/.test(time) ? time.padStart(5, "0") : null;
+    (bySpot[spot] ||= []).push({ level, date, time, created: issue.created_at, issue_number: issue.number });
+  }
+  const out = {};
+  for (const [spot, list] of Object.entries(bySpot)) {
+    // Newest first by the reported date and time, then by when it was filed.
+    list.sort((a, b) => `${b.date} ${b.time || "99:99"}`.localeCompare(`${a.date} ${a.time || "99:99"}`) || String(b.created).localeCompare(String(a.created)));
+    const lastNone = list.findIndex((r) => r.level === "none");
+    const weedy = (lastNone === -1 ? list : list.slice(0, lastNone)).filter((r) => r.level !== "none");
+    if (!weedy.length) continue;
+    const top = weedy[0];
+    out[spot] = { level: top.level, date: top.date, time: top.time, reports: weedy.length, issue_number: top.issue_number };
+  }
+  const n = Object.keys(out).length;
+  console.log(n ? `[weeds] rider weed reports: ${Object.entries(out).map(([s, w]) => `${s} ${w.level} (${w.date} ${w.time ?? ""})`).join(", ")}` : "[weeds] no recent rider weed reports.");
+  return out;
+}
+
 // Webcams that stream to YouTube through CamStreamer (White Rock, Oct
 // 2026): follow each CamStreamer embed's redirect to the stream's current
 // YouTube id, since it changes whenever the stream restarts. The page builds
@@ -1006,6 +1072,8 @@ async function main() {
 
   console.log("Fetching daily take...");
   const dailyTakes = await fetchDailyTakes();
+  console.log("Fetching rider weed reports...");
+  const weedReports = await fetchWeedReports(startedAt);
 
   console.log("Fetching Environment Canada marine bulletins...");
   const bulletins = {};
@@ -1436,6 +1504,7 @@ async function main() {
     calibration_overrides: overrides,
     rider_feedback: await loadRiderFeedbackSummary(),
     daily_takes: dailyTakes,
+    weed_reports: weedReports,
     live_verification_count: cappedEntries.length,
     mos_score: await readFile(path.join(__dirname, "..", "data", "mos-score.json"), "utf8").then(JSON.parse).catch(() => null),
     surface_observations: surfaceObservations,

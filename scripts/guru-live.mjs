@@ -64,6 +64,13 @@ export function buildGuruLive(forecast, spotConfigs, now = new Date()) {
     if (takes[d]?.text) out.push(`\nGuillermo's own take for ${dayLabel(d)} (his read, quote it as his, not yours): ${takes[d].text}`);
   }
 
+  // Rider weed reports, last 3 days (generate.mjs fetchWeedReports).
+  const weeds = Object.entries(forecast.weed_reports || {});
+  if (weeds.length) {
+    const names = new Map(spotConfigs.map((s) => [s.id, s.name]));
+    out.push("\nRider weed reports (floating weed or eelgrass, last 3 days; mention them when suggesting these spots): " + weeds.map(([id, w]) => `${names.get(id) || id}: ${w.level === "lots" ? "lots of weed" : "some weed"} (${dayLabel(w.date)}${w.time ? ` ${w.time}` : ""}${w.reports > 1 ? `, ${w.reports} reports` : ""})`).join("; ") + ".");
+  }
+
   const mb = forecast.marine_bulletins || {};
   for (const b of Object.values(mb)) {
     if (b?.text) out.push(`\nEC marine forecast, ${b.label} (issued ${b.issued})${b.warning ? ", WARNING IN EFFECT" : ""}: ${b.text}`);

@@ -249,7 +249,10 @@ export const SPOTS = [
     // fully include NW (per local knowledge below, strong NW/W synoptic
     // wind — not just the afternoon sea breeze — produces the best waves
     // here).
-    favorable_deg: [[230, 335]],
+    // NE to E added Nov 7 2026: Guillermo rode 2pm to 4pm on Nov 6 on a
+    // 5.5m wing in NE 15 to 20 (buoy ENE 20 to 22) with knee high waves,
+    // "quite good", not gusty; "it works clearly on a NE and East".
+    favorable_deg: [[230, 335], [30, 100]],
     // English Bay buoy (EC 46304) first: open water right off the beach.
     // Jericho Sailing Centre's own sensor (via wtfbc.ca's board) when the
     // buoy has nothing fresh. Per Guillermo, Sep 2026.

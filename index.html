@@ -101,6 +101,7 @@
   .spot-card .head .region{color:var(--muted);font-size:0.88rem;}
   .spot-card .sports{font-size:0.85rem;color:var(--muted);}
   .outflow-line{color:var(--red);}
+  .weed-line{background:#eaf5e6;border:1px solid #a9d39b;color:#2f5d22;border-radius:8px;padding:6px 10px;font-size:0.86rem;font-weight:600;margin:0 0 10px;}
   .caution-line{background:#fde8e8;border:1px solid #f5b5b5;color:#9b1c1c;border-radius:8px;padding:6px 10px;font-size:0.86rem;font-weight:600;margin:0 0 10px;}
   .outflow-tag{font-size:0.65rem;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:0.02em;}
   .track-line{font-size:0.82rem;color:var(--muted);margin:0 0 10px;line-height:1.45;}
@@ -1253,6 +1254,18 @@ function sideLineForDay(sp, hours) {
 // Spot safety warning (caution_note in spots.js), shown on every card for
 // that spot whatever the forecast: Steveston and Tsawwassen, per Guillermo
 // (Oct 2026).
+// Rider weed reports (Nov 7 2026): generate.mjs keeps, per spot, the newest
+// report from the last 3 days that answered Weeds; a newer "none" clears it.
+function weedLine(sp) {
+  const w = forecast?.weed_reports?.[sp.id];
+  if (!w || (w.level !== "some" && w.level !== "lots") || !/^\d{4}-\d{2}-\d{2}$/.test(w.date || "")) return "";
+  const [y, m, d] = w.date.split("-").map(Number);
+  const dayText = new Date(Date.UTC(y, m - 1, d, 12)).toLocaleDateString("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" });
+  const timeText = /^\d{2}:\d{2}$/.test(w.time || "") ? ` around ${hourLabel(Number(w.time.slice(0, 2)))}` : "";
+  const more = Number(w.reports) > 1 ? ` (${Number(w.reports)} reports)` : "";
+  return `<div class="weed-line">🌿 ${w.level === "lots" ? "Lots of weed" : "Some weed"} in the water, reported by a rider ${dayText}${timeText}${more}.</div>`;
+}
+
 function cautionLine(sp) {
   return sp?.caution_note ? `<div class="caution-line">⚠️ ${sp.caution_note}</div>` : "";
 }
@@ -1644,6 +1657,7 @@ function renderSpotCards() {
       </div>
       ${epicWindowsForDay(spot).map(w => `<div class="epic-line">🔥 Possible epic day: ${hourLabel(Number(w.start.slice(0, 2)))} to ${hourLabel(Number(w.end.slice(0, 2)))}, up to ${w.peak_kt}kt${tideRangeText(w)}</div>`).join("")}
       ${cautionLine(sp)}
+      ${weedLine(sp)}
       ${trackLine(sp)}
       ${tideLineForDay(spot)}
       ${foilMode ? waveLineForDay(hours) : swellLineForDay(hours)}
