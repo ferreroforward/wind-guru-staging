@@ -177,6 +177,25 @@ export const SPOTS = [
     // It replaces the borrowed Squamish thermal scaling here, since the rule
     // is Guillermo's own, specific to this spot.
     mos: { point: "pamrocks", overridesCalibration: true },
+    // The setup behind Guillermo's "amazing" session, Sat Nov 7 2026: a deep
+    // low coming in (Vancouver pressure fell 15 hPa from 4am to 4pm, about
+    // 2 hPa an hour by the afternoon; Pemberton 3 to 4 hPa above Vancouver
+    // all day), Pam Rocks N 22 to 29 from 7am, gusting 40 at 2pm, still 18
+    // at 4pm. Riders: 25 gusting 30 at 9am, 28 gusting 33 at 10am, great
+    // swell, getting better all day; 4.5m wing was too big, 3.5m right.
+    // The Oct 25 and Oct 29 outflows (22 to 30 at Pam Rocks) had steady
+    // pressure (under 2 hPa change in 12 hours). The evening run before
+    // showed Porteau 25 to 28 with 2.4 to 3.7ft of waves from 9am to 2pm,
+    // which this flags.
+    epicSignature: {
+      label: "Possible epic day",
+      summary: "Strong outflow, Porteau 24kt+ with waves for 3 hours or more: the Nov 7 2026 setup. Bring a small wing.",
+      dirSector: [320, 50],
+      minKt: 24,
+      swell: ["waves", "good swell"],
+      hourWindow: [7, 17],
+      minHours: 3
+    },
     calibrationSince: "2026-09-28",
     // Porteau sits further down-Sound, more open water than the Spit's
     // thermal/outflow convergence zone at the head of Howe Sound — Pam

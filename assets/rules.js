@@ -1696,7 +1696,10 @@ export function flagEpicHours(spot, hours) {
     const tideKnown = !!(h.tide && h.tide.trend);
     const tideOk = !sig.tide || !tideKnown || h.tide.trend === sig.tide;
     const light = spot.lat == null || isDaylightHour(h.time, spot.lat, spot.lon);
-    return light && inWin(hr) && dirOk && windOk && supported && tideOk ? { tideKnown } : null;
+    // Optional wave condition (sig.swell: swell index labels that count,
+    // e.g. Porteau's ["waves", "good swell"], Nov 2026).
+    const swellOk = !sig.swell || !!(h.swell && sig.swell.includes(h.swell.label));
+    return light && inWin(hr) && dirOk && windOk && supported && tideOk && swellOk ? { tideKnown } : null;
   });
 
   const windows = [];
