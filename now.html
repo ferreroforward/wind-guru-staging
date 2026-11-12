@@ -119,9 +119,9 @@
 const STAGING = location.pathname.includes("wind-guru-staging");
 const CHAT_URL = STAGING ? "https://wind-guru-chat-staging.guillermo-ferrero.workers.dev" : "https://wind-guru-chat.guillermo-ferrero.workers.dev";
 const REPORT_URL = STAGING ? "https://wind-guru-reports-staging.guillermo-ferrero.workers.dev" : "https://wind-guru-reports.guillermo-ferrero.workers.dev";
-const ASSET_VERSION = await fetch("data/version.json", { cache: "no-store" })
-  .then(r => (r.ok ? r.json() : null)).then(v => v?.version).catch(() => null)
-  ?? String(Math.floor(Date.now() / 600000));
+const LOADED_VERSION = await fetch("data/version.json", { cache: "no-store" })
+  .then(r => (r.ok ? r.json() : null)).then(v => v?.version).catch(() => null);
+const ASSET_VERSION = LOADED_VERSION ?? String(Math.floor(Date.now() / 600000));
 const { SPOTS, WEBCAMS, inSector } = await import(`./assets/spots.js?v=${ASSET_VERSION}`);
 const { BC_TZ, probabilityInRange, isDaylightHour, daylightWindow, liveOutflowHours, currentPacificHourString } = await import(`./assets/rules.js?v=${ASSET_VERSION}`);
 
@@ -479,6 +479,18 @@ function renderCams() {
 }
 
 // ---------- Loading and refresh ----------
+// A page left open for days (a TV, Guillermo Nov 12 2026) reloads itself when
+// a new version of the site is live: data/version.json is stamped on every
+// code push to production. Never while the report form is open.
+async function checkForNewVersion() {
+  if (!LOADED_VERSION) return;
+  try {
+    const v = await fetch(`data/version.json?t=${Date.now()}`, { cache: "no-store" }).then(r => (r.ok ? r.json() : null));
+    if (!v?.version || v.version === LOADED_VERSION) return;
+    if (document.querySelector(".sheet.open")) return; // try again next time
+    location.reload();
+  } catch { /* try again next time */ }
+}
 function renderClock() {
   const p = bcParts();
   const wd = new Date().toLocaleDateString("en-CA", { timeZone: BC_TZ, weekday: "short" });
@@ -503,7 +515,7 @@ renderAll();
 await Promise.all([loadForecast(), loadObs(), loadReports()]);
 // Live readings every 2 minutes, reports every 2, the forecast every 10, the clock every minute.
 setInterval(() => { if (!document.hidden) { loadObs(); loadReports(); document.querySelectorAll(".cam img[data-src]").forEach(i => { i.src = camSrc(i.dataset.src); }); } }, 120000);
-setInterval(() => { if (!document.hidden) loadForecast(); }, 600000);
+setInterval(() => { if (!document.hidden) { loadForecast(); checkForNewVersion(); } }, 600000);
 setInterval(renderClock, 60000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { loadObs(); loadReports(); } });
 </script>
