@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-12T19:03:56.708Z",
+  "updated_at": "2026-11-12T19:08:54.926Z",
   "entries": [
     {
       "spot": "boundary-bay",
@@ -108,7 +108,7 @@
       "regime": "outflow",
       "mismatch": true,
       "reasoning": "Forecast called outflow that came in weaker than shown — outflow events can relax faster than models show once the synoptic pattern eases.",
-      "checked_at": "2026-11-12T19:03:56.708Z"
+      "checked_at": "2026-11-12T19:08:54.926Z"
     },
     {
       "spot": "erwin-park",
@@ -2158,7 +2158,7 @@
       "regime": "mixed",
       "mismatch": true,
       "reasoning": "Forecast showed calm/mixed and live wind came in lighter still — models were on the right track, just a bit high. This hour already had a rider-feedback adjustment applied.",
-      "checked_at": "2026-11-12T19:03:56.708Z"
+      "checked_at": "2026-11-12T19:08:54.926Z"
     },
     {
       "spot": "jericho-spanish-banks",
@@ -2307,14 +2307,14 @@
       "spot": "squamish-spit",
       "time": "2026-11-12T12:00",
       "forecasted": 10,
-      "actual": 3.4,
-      "ratio": 0.33999999999999997,
+      "actual": 3.8,
+      "ratio": 0.38,
       "source": "live-station",
       "station": "Squamish terminal sensor (Kiteloop)",
       "regime": "mixed",
       "mismatch": true,
       "reasoning": "Forecast showed calm/mixed and live wind came in lighter still — models were on the right track, just a bit high.",
-      "checked_at": "2026-11-12T19:03:56.708Z"
+      "checked_at": "2026-11-12T19:08:54.926Z"
     },
     {
       "spot": "squamish-spit",
