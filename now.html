@@ -50,6 +50,9 @@
   .osr .l{font-size:14px}.osr .l .m{color:var(--muted);font-size:12.5px}
   .linkbtn{background:none;border:0;padding:0;color:var(--accent);font-weight:600;font-size:12.5px;cursor:pointer;font-family:inherit}
   .take{font-size:15px}.take .more{color:var(--accent);font-weight:600;cursor:pointer}
+  .ecb + .ecb{border-top:1px solid var(--border);margin-top:6px;padding-top:6px}
+  .ecb .t{font-weight:700;font-size:13px}.ecb .t span{font-weight:500;color:var(--muted);font-size:12px}
+  .ecb .wn{color:var(--red);font-weight:700;font-size:12.5px}
   .cams{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:5px}
   .cam{position:relative;aspect-ratio:4/3;border-radius:8px;overflow:hidden;background:linear-gradient(160deg,#9db7d8,#5d7fa8);display:block}
   .cam img{width:100%;height:100%;object-fit:cover;display:block}
@@ -84,6 +87,7 @@
   <div class="row pbest"><div class="card press" id="press"></div><div class="card best" id="best"></div></div>
   <div class="card osr"><button class="btn" id="osrBtn" type="button">📍 Report<br>OSR</button><div class="l" id="osrLatest">Loading on site reports…</div></div>
   <div class="card take" id="take" style="display:none"></div>
+  <div class="card take" id="ecfc" style="display:none"></div>
   <div class="card" id="camCard" style="display:none"><div class="h"><span>📷 Webcams</span><span>tap for live</span></div><div class="cams" id="cams"></div></div>
   <div class="card coffee">
     <div class="s">Wind Guru is free and always will be. If it saved you a wasted trip, you're welcome to</div>
@@ -434,6 +438,32 @@ function renderTake() {
   if (short) $("takeMore").onclick = () => { $("takeBody").innerHTML = full; };
 }
 
+// ---------- Environment Canada marine forecasts ----------
+// Howe Sound and the Strait of Georgia, today, tonight and tomorrow (not the
+// extended outlook), from the last forecast run (Guillermo, Nov 12 2026).
+// Shortened with "more", like the take.
+const EC_AREAS = [["howe_sound", "Howe Sound"], ["strait_of_georgia_south", "Strait of Georgia (south)"]];
+function ecIssued(s) {
+  const m = String(s || "").match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  return m ? `${Number(m[1])}${m[2] === "00" ? "" : ":" + m[2]}${m[3].toLowerCase()}` : "";
+}
+function renderEc() {
+  const mb = forecast?.marine_bulletins || {};
+  const blocks = EC_AREAS.map(([id, name]) => {
+    const b = mb[id];
+    if (!b?.text) return "";
+    const plain = String(b.text).replace(/\s+/g, " ").trim();
+    const cut = plain.length > 120 ? plain.lastIndexOf(" ", 120) : -1;
+    const head = b.warning_headline ? `<div class="wn">⚠️ ${esc(b.warning_headline.toLowerCase().replace(/^./, c => c.toUpperCase()))}</div>` : "";
+    const full = `${esc(plain)}${b.url ? ` <a href="${esc(b.url)}" target="_blank" rel="noopener">EC page ↗</a>` : ""}`;
+    return `<div class="ecb">${head}<div class="t">${esc(name)} <span>· issued ${esc(ecIssued(b.issued))}</span></div>`
+      + `<div data-full="${encodeURIComponent(full)}">${cut > 0 ? `${esc(plain.slice(0, cut))}… <span class="more">more</span>` : full}</div></div>`;
+  }).filter(Boolean);
+  $("ecfc").style.display = blocks.length ? "" : "none";
+  $("ecfc").innerHTML = `<div class="h"><span>📻 Environment Canada marine forecast</span></div>${blocks.join("")}`;
+  $("ecfc").querySelectorAll(".more").forEach(m => m.onclick = () => { const d = m.parentElement; d.innerHTML = decodeURIComponent(d.dataset.full); });
+}
+
 // ---------- Webcams ----------
 const CAM_SHORT = { jericho: "Jericho", "whiterock-east": "White Rock East", "whiterock-west": "White Rock pier", gondola: "Sea to Sky Gondola", "copper-cove": "Copper Cove", "boundary-bay": "Boundary Bay" };
 const camSrc = (url) => `${url}${url.includes("?") ? "&" : "?"}t=${Math.floor(Date.now() / 60000)}`;
@@ -454,7 +484,7 @@ function renderClock() {
   const wd = new Date().toLocaleDateString("en-CA", { timeZone: BC_TZ, weekday: "short" });
   $("clock").textContent = `${wd} ${clock(`${p.hour}:${p.minute}`)}${obs?.at ? " · live" : ""}`;
 }
-function renderAll() { renderClock(); renderDials(); renderTides(); renderPressure(); renderBest(); renderTake(); }
+function renderAll() { renderClock(); renderDials(); renderTides(); renderPressure(); renderBest(); renderTake(); renderEc(); }
 async function loadForecast() {
   try {
     const r = await fetch("data/forecast.json", { cache: "no-store" });

@@ -375,7 +375,9 @@ function checkMinute(minute, hourly) {
   if (!hourly || !isFinite(hourly.at)) return minute;
   if (!minute) return Date.now() - hourly.at < 3 * 3600000 ? { ...hourly, source: "hourly" } : null;
   const recent = minute.at - hourly.at < 90 * 60000;
-  if (minute.kt < 1 && hourly.kt >= 3 && recent) return { ...hourly, source: "hourly", minute_stuck: true };
+  // Any wind in the hourly average beats a calm minute reading (Nov 12: the
+  // stuck file read 0.0 while the hourly file had 2kt, which still showed calm).
+  if (minute.kt < 1 && hourly.kt >= 1 && recent) return { ...hourly, source: "hourly", minute_stuck: true };
   return minute;
 }
 function parseSwob(xml) {
