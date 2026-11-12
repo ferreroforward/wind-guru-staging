@@ -365,6 +365,19 @@ function hourAgo(list, at) {
 // reading around 9:10am). "minute" files are a reading every minute (1 minute
 // average); the others are hourly with a 10 minute average. Oct 22 2026.
 const SWOB = { was: "CWAS-AUTO", wsk: "CWSK-AUTO-minute", wgp: "CWGP-AUTO", wsb: "CWSB-AUTO-minute", wvf: "CWVF-AUTO", vtf: "CVTF-AUTO-minute", yvr: "CYVR-MAN" };
+// Nov 12 2026: the Tsawwassen Ferry Terminal minute file read 0.0 km/h from
+// the north all day while the station's hourly file had 3 to 17kt, and EC's
+// past conditions page has no table for that station. So each minute
+// station's hourly file is read too, and a minute reading of calm that the
+// hourly 10 minute average contradicts is replaced by the hourly reading.
+const SWOB_HOURLY = { wsk: "CWSK-AUTO", wsb: "CWSB-AUTO", vtf: "CVTF-AUTO" };
+function checkMinute(minute, hourly) {
+  if (!hourly || !isFinite(hourly.at)) return minute;
+  if (!minute) return Date.now() - hourly.at < 3 * 3600000 ? { ...hourly, source: "hourly" } : null;
+  const recent = minute.at - hourly.at < 90 * 60000;
+  if (minute.kt < 1 && hourly.kt >= 3 && recent) return { ...hourly, source: "hourly", minute_stuck: true };
+  return minute;
+}
 function parseSwob(xml) {
   const v = (n) => {
     const m = xml.match(new RegExp(`<element name="${n}" uom="[^"]*" value="([^"]*)"`));
@@ -538,6 +551,7 @@ async function getObsData(env) {
   const extra = [];
   const latest = {};
   const swob = {};
+  const hourlySwob = {};
   const series = {};
   const pressure = {};
   const swobKey = Object.fromEntries(Object.entries(PRESSURE_SWOB).map(([k, c]) => [c, k]));
@@ -560,8 +574,11 @@ async function getObsData(env) {
       } catch { /* the past conditions page still covers it */ }
     }),
     (async () => {
-      try { const r = await fetch("https://dd.weather.gc.ca/today/observations/swob-ml/latest/CWSK-AUTO-swob.xml", UA); if (r.ok) pressure.wsk = swobPressure(await r.text()); } catch {}
+      try { const r = await fetch("https://dd.weather.gc.ca/today/observations/swob-ml/latest/CWSK-AUTO-swob.xml", UA); if (r.ok) { const xml = await r.text(); pressure.wsk = swobPressure(xml); hourlySwob.wsk = parseSwob(xml); } } catch {}
     })(),
+    ...Object.entries(SWOB_HOURLY).filter(([code]) => code !== "wsk").map(async ([code, file]) => {
+      try { const r = await fetch(`https://dd.weather.gc.ca/today/observations/swob-ml/latest/${file}-swob.xml`, UA); if (r.ok) hourlySwob[code] = parseSwob(await r.text()); } catch {}
+    }),
     (async () => {
       try { const r = await fetch("https://jsca.bc.ca/main/downld02.txt", UA); if (r.ok) { const t = await r.text(); extra[0] = jscaText(t); latest.jsca = jscaLatest(t); series.jsca = jscaSeries(t); } } catch {}
     })(),
@@ -570,6 +587,7 @@ async function getObsData(env) {
     })(),
   ]);
   // The newer of the two EC sources wins for the latest reading.
+  for (const code of Object.keys(SWOB_HOURLY)) { const v = checkMinute(swob[code], hourlySwob[code]); if (v) swob[code] = v; else delete swob[code]; }
   for (const [code, x] of Object.entries(swob)) if (x && (!latest[code] || x.at > latest[code].at)) latest[code] = x;
   const text = [obsText(byCode), extra[0] || "Jericho Sailing Centre beach station: no reading available", extra[1] || "Squamish shipping terminal sensor: no reading available"].join("\n");
   // The reading about an hour before the latest one, for the Now page's
@@ -1070,7 +1088,7 @@ async function runAlerts(env, nowMs = Date.now()) {
 
 export default {
   // Exposed only for tests; Cloudflare ignores extra keys on the default export.
-  _test: { parseEcPast24, obsText, validMessages, costUsd, jscaText, terminalText, validReport, newId, parseSwob, swobPressure, pressureRow, updatePressureHistory, ecDated, ecHistRows, histText, pageHistory, jscaSeries, terminalSeries, hourAgo, validRules, squamishSignal, stationHit, daylightMs, runAlerts },
+  _test: { parseEcPast24, obsText, validMessages, costUsd, jscaText, terminalText, validReport, newId, parseSwob, swobPressure, pressureRow, updatePressureHistory, ecDated, ecHistRows, histText, pageHistory, jscaSeries, terminalSeries, hourAgo, checkMinute, validRules, squamishSignal, stationHit, daylightMs, runAlerts },
   async scheduled(event, env, ctx) {
     const t = event.scheduledTime || Date.now();
     ctx.waitUntil(runAlerts(env, t).then(async (r) => {
