@@ -896,6 +896,8 @@ export const WEBCAMS = [
   { id: "gondola", name: "Sea to Sky Gondola", area: "Squamish and Howe Sound", url: "https://www.seatoskygondola.com/weather-and-cams/", spotId: "squamish-spit" },
   // Nov 4 2026 (Guillermo): Elliot Funt's camera near Copper Cove, West Vancouver, looking north up Howe Sound. The stream only plays on his own page (camsecure.co refuses other sites), so it's a link card.
   { id: "copper-cove", name: "Howe Sound camera (Copper Cove)", area: "Lower Howe Sound, looking north from West Vancouver", url: "https://www.howe-sound.ca/", credit: "Elliot Funt" },
+  // Nov 12 2026 (Guillermo): Boundary Bay Weather's camera looks over Boundary Bay. The site is up and down, and we couldn't reach it to look for a snapshot yet, so it's a link card for now.
+  { id: "boundary-bay", name: "Boundary Bay camera", area: "Boundary Bay", url: "https://www.boundarybayweather.com/", credit: "Boundary Bay Weather", spotId: "boundary-bay" },
 ];
 
 export const DEG_LABELS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];

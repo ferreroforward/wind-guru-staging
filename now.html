@@ -14,51 +14,51 @@
      at a glance on one phone screen. Same colours as index.html. */
   :root{--bg:#f4f6fb;--panel:#fff;--panel2:#eef1f8;--border:#dbe1ee;--text:#1b2438;--muted:#5c6685;--accent:#2f7fe0;--green:#189863;--green-bg:#e4f7ee;--yellow:#b3790e;--yellow-bg:#fbf0da;--red:#c93b56;--out:#2f6fd6;--in:#e0782f}
   *{box-sizing:border-box}
-  html,body{margin:0;background:var(--bg);color:var(--text);font:13px/1.25 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+  html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.25 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
   a{color:var(--accent)}
-  .wrap{padding:8px 10px calc(14px + env(safe-area-inset-bottom));max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:7px}
+  .wrap{padding:8px 8px calc(14px + env(safe-area-inset-bottom));max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:7px}
   .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
-  .top b{font-size:15px;white-space:nowrap}.top .t{color:var(--muted);font-size:11px}
-  .top a{text-decoration:none;font-weight:600;font-size:12px;white-space:nowrap}
-  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:6px 7px}
-  .h{font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--muted);text-transform:uppercase;margin-bottom:3px;display:flex;justify-content:space-between;gap:6px}
+  .top b{font-size:17px;white-space:nowrap}.top .t{color:var(--muted);font-size:12.5px}
+  .top a{text-decoration:none;font-weight:600;font-size:13.5px;white-space:nowrap}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:7px 8px}
+  .h{font-size:11.5px;font-weight:700;letter-spacing:.04em;color:var(--muted);text-transform:uppercase;margin-bottom:3px;display:flex;justify-content:space-between;gap:6px}
   .dials{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 2px}
   .dial{text-align:center;text-decoration:none;color:inherit}
-  .dial svg{width:100%;max-width:86px;display:block;margin:0 auto}
-  .dial .n{font-size:10.5px;font-weight:600;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .dial .a{font-size:9.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dial svg{width:100%;max-width:100px;display:block;margin:0 auto}
+  .dial .n{font-size:12.5px;font-weight:600;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dial .a{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .dial.stale svg{opacity:.45}
   .row{display:grid;gap:7px}
   .r2{grid-template-columns:1fr 1fr}
-  .tide .lvl{font-size:20px;font-weight:700}.tide .tr{font-size:12px;font-weight:600}
-  .tide .nx{font-size:11px;color:var(--muted);margin-top:1px}
+  .tide .lvl{font-size:25px;font-weight:700}.tide .tr{font-size:14px;font-weight:600}
+  .tide .nx{font-size:13px;color:var(--muted);margin-top:1px}
   .up{color:var(--green)}.dn{color:var(--out)}.flat{color:var(--muted)}
-  .pbest{grid-template-columns:118px 1fr}
+  .pbest{grid-template-columns:128px 1fr}
   .press{text-align:center}.press svg{width:100%;max-width:104px;display:block;margin:0 auto}
-  .press .v{font-size:17px;font-weight:700;margin-top:-2px}.press .v span{font-size:10px;color:var(--muted);font-weight:600}
-  .press .w{font-size:11px;font-weight:700}.press .c{font-size:9.5px;color:var(--muted)}
-  .best .sp{font-size:15px;font-weight:700}.best .sub{font-size:10.5px;color:var(--muted)}
-  .best .none{font-size:12px;color:var(--muted);margin-top:4px}
+  .press .v{font-size:21px;font-weight:700;margin-top:-2px}.press .v span{font-size:12px;color:var(--muted);font-weight:600}
+  .press .w{font-size:13.5px;font-weight:700}.press .c{font-size:11.5px;color:var(--muted)}
+  .best .sp{font-size:18px;font-weight:700}.best .sub{font-size:12.5px;color:var(--muted)}
+  .best .none{font-size:14px;color:var(--muted);margin-top:4px}
   .hrs{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-top:5px}
   .hr{background:var(--panel2);border-radius:8px;padding:3px 2px;text-align:center}
-  .hr .tm{font-size:10px;color:var(--muted)}.hr .kt{font-size:14px;font-weight:700}.hr .d{font-size:10px}
-  .hr .p{font-size:10px;font-weight:700;border-radius:6px;margin-top:1px}
+  .hr .tm{font-size:12px;color:var(--muted)}.hr .kt{font-size:18px;font-weight:700}.hr .d{font-size:12px}
+  .hr .p{font-size:12.5px;font-weight:700;border-radius:6px;margin-top:1px}
   .g{background:var(--green-bg);color:var(--green)}.y{background:var(--yellow-bg);color:var(--yellow)}.n0{background:#e6e9f1;color:var(--muted)}
   .osr{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center}
-  .btn{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:9px 11px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit}
+  .btn{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:10px 12px;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit}
   .btn:disabled{opacity:.5}
-  .osr .l{font-size:11.5px}.osr .l .m{color:var(--muted);font-size:10.5px}
-  .linkbtn{background:none;border:0;padding:0;color:var(--accent);font-weight:600;font-size:11px;cursor:pointer;font-family:inherit}
-  .take{font-size:12px}.take .more{color:var(--accent);font-weight:600;cursor:pointer}
+  .osr .l{font-size:14px}.osr .l .m{color:var(--muted);font-size:12.5px}
+  .linkbtn{background:none;border:0;padding:0;color:var(--accent);font-weight:600;font-size:12.5px;cursor:pointer;font-family:inherit}
+  .take{font-size:15px}.take .more{color:var(--accent);font-weight:600;cursor:pointer}
   .cams{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:5px}
   .cam{position:relative;aspect-ratio:4/3;border-radius:8px;overflow:hidden;background:linear-gradient(160deg,#9db7d8,#5d7fa8);display:block}
   .cam img{width:100%;height:100%;object-fit:cover;display:block}
-  .cam span{position:absolute;left:0;right:0;bottom:0;padding:3px 5px;font-size:10px;font-weight:600;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.55));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cam span{position:absolute;left:0;right:0;bottom:0;padding:3px 5px;font-size:12px;font-weight:600;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.55));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .cam .nopic{position:absolute;inset:0 0 18px 0;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;font-size:10px;padding:6px}
   .coffee{text-align:center}
   .coffee .btn{display:inline-block;text-decoration:none;background:#ffdd00;color:#1b2438;margin:4px 0}
-  .coffee .s{font-size:10.5px;color:var(--muted)}
-  .foot{font-size:10px;color:var(--muted);text-align:center}
+  .coffee .s{font-size:12.5px;color:var(--muted)}
+  .foot{font-size:11.5px;color:var(--muted);text-align:center}
   /* Pop ups */
   .sheet{position:fixed;inset:0;background:rgba(20,28,45,.45);display:none;align-items:flex-end;justify-content:center;z-index:20}
   .sheet.open{display:flex}
@@ -79,7 +79,7 @@
 <body>
 <div class="wrap" id="app">
   <div class="top"><div><b>🌬️ Wind Guru · Now</b> <span class="t" id="clock"></span></div><a href="./">Full forecast ›</a></div>
-  <div class="card"><div class="h"><span>Gusts now (knots)</span><span>wind to gust · ▲▼ vs an hour ago</span></div><div class="dials" id="dials"></div></div>
+  <div class="card"><div class="h"><span>Gusts now (kt)</span><span>▲▼ vs 1 hour ago</span></div><div class="dials" id="dials"></div></div>
   <div class="row r2" id="tides"></div>
   <div class="row pbest"><div class="card press" id="press"></div><div class="card best" id="best"></div></div>
   <div class="card osr"><button class="btn" id="osrBtn" type="button">📍 Report<br>OSR</button><div class="l" id="osrLatest">Loading on site reports…</div></div>
@@ -143,14 +143,14 @@ let forecast = null, obs = null, reports = null;
 // ---------- Wind dials ----------
 // Eight stations (Guillermo, Nov 12 2026), each with the spots it tells you about.
 const STATIONS = [
-  { code: "was", name: "Pam Rocks", area: "Porteau, Howe Sound" },
-  { code: "kiteloop", name: "Squamish terminal", area: "Squamish" },
-  { code: "jsca", name: "Jericho beach", area: "Jericho" },
-  { code: "46304", name: "English Bay buoy", area: "English Bay" },
-  { code: "wsb", name: "Point Atkinson", area: "Erwin Park, N Shore" },
-  { code: "vtf", name: "Ferry Terminal", area: "Tsawwassen" },
-  { code: "wvf", name: "Sand Heads", area: "Strait, Delta" },
-  { code: "46146", name: "Halibut Bank", area: "Open Strait" },
+  { code: "was", name: "Pam Rocks", full: "Pam Rocks, Howe Sound (Porteau)" },
+  { code: "kiteloop", name: "Squamish", full: "Squamish terminal sensor" },
+  { code: "jsca", name: "Jericho", full: "Jericho Sailing Centre beach station" },
+  { code: "46304", name: "English Bay", full: "English Bay buoy" },
+  { code: "wsb", name: "Pt Atkinson", full: "Point Atkinson (Erwin Park, North Shore)" },
+  { code: "vtf", name: "Tsawwassen", full: "Tsawwassen Ferry Terminal" },
+  { code: "wvf", name: "Sand Heads", full: "Sand Heads (Strait, Delta)" },
+  { code: "46146", name: "Halibut Bank", full: "Halibut Bank buoy (open Strait)" },
 ];
 const MAX_KT = 35;
 const A0 = Math.PI * 0.75, A1 = Math.PI * 2.25;
@@ -164,7 +164,7 @@ const ZONES = [[0, 8, "#cfd6e4"], [8, 12, "#9fd6b9"], [12, 25, "#189863"], [25, 
 const zonePaths = ZONES.map(([a, b, c]) => `<path d="${arc(50, 50, 40, ang(a), ang(b))}" stroke="${c}" stroke-width="8" fill="none"/>`).join("");
 function dialSvg(st) {
   if (!st || st.kt == null) {
-    return `<svg viewBox="0 0 100 96">${zonePaths}<circle cx="50" cy="50" r="22" fill="#fff" stroke="#dbe1ee"/><text x="50" y="54" font-size="11" text-anchor="middle" fill="#5c6685">no data</text></svg>`;
+    return `<svg viewBox="0 0 100 100">${zonePaths}<circle cx="50" cy="50" r="22" fill="#fff" stroke="#dbe1ee"/><text x="50" y="54" font-size="11" text-anchor="middle" fill="#5c6685">no data</text></svg>`;
   }
   // Guillermo, Nov 12 2026: two black markers show the range from the wind
   // to the gust on the dial, and the gust (the most important number) sits
@@ -181,11 +181,11 @@ function dialSvg(st) {
     if (d >= 2) { tr = "▲"; tc = "#189863"; } else if (d <= -2) { tr = "▼"; tc = "#2f6fd6"; } else { tr = "▬"; }
   }
   const dir = st.dir === "calm" ? "calm" : (st.dir || "");
-  return `<svg viewBox="0 0 100 96">${zonePaths}${band}${tick(st.kt)}${gust != null ? tick(gust) : ""}`
-    + `<circle cx="50" cy="50" r="23" fill="#fff" stroke="#dbe1ee"/>`
-    + `<text x="50" y="52" font-size="20" font-weight="800" text-anchor="middle" fill="#1b2438">${gust ?? kt}</text>`
-    + `<text x="50" y="65" font-size="10.5" font-weight="700" text-anchor="middle"><tspan fill="${tc}" font-size="12">${tr}</tspan>${tr ? " " : ""}<tspan fill="#5c6685">${esc(dir)}</tspan></text>`
-    + `<text x="50" y="94" font-size="10.5" font-weight="600" fill="#5c6685" text-anchor="middle">${gust != null ? `${kt} to ${gust}` : `${kt}, no gust`}</text>`
+  return `<svg viewBox="0 0 100 100">${zonePaths}${band}${tick(st.kt)}${gust != null ? tick(gust) : ""}`
+    + `<circle cx="50" cy="50" r="26" fill="#fff" stroke="#dbe1ee"/>`
+    + `<text x="50" y="54" font-size="25" font-weight="800" text-anchor="middle" fill="#1b2438">${gust ?? kt}</text>`
+    + `<text x="50" y="68" font-size="12.5" font-weight="700" text-anchor="middle"><tspan fill="${tc}" font-size="14">${tr}</tspan>${tr ? " " : ""}<tspan fill="#5c6685">${esc(dir)}</tspan></text>`
+    + `<text x="50" y="97" font-size="13" font-weight="700" fill="#5c6685" text-anchor="middle">${gust != null ? `${kt} to ${gust}` : kt === 0 ? "calm" : `${kt}, no gust`}</text>`
     + `</svg>`;
 }
 function renderDials() {
@@ -194,8 +194,8 @@ function renderDials() {
     const st = by[def.code];
     const stale = !st || !isFinite(st.at) || Date.now() - st.at > 100 * 60000;
     const when = st && isFinite(st.at) ? `${clock(bcHM(st.at))}` : "";
-    return `<div class="dial${stale ? " stale" : ""}" title="${esc(def.name)}${when ? ", " + when : ""}">${dialSvg(stale && st && Date.now() - st.at > 6 * 3600000 ? null : st)}`
-      + `<div class="n">${esc(def.name)}</div><div class="a">${stale && when ? "old: " + when : esc(def.area)}</div></div>`;
+    return `<div class="dial${stale ? " stale" : ""}" title="${esc(def.full)}${when ? ", " + when : ""}">${dialSvg(stale && st && Date.now() - st.at > 6 * 3600000 ? null : st)}`
+      + `<div class="n">${esc(def.name)}</div>${stale && when ? `<div class="a">old: ${when}</div>` : ""}</div>`;
   }).join("");
 }
 
@@ -223,7 +223,7 @@ function renderTides() {
     const sd = forecast?.spots?.find(s => s.id === area.spot);
     const t = tideNow(sd, now);
     if (!t) return `<div class="card tide"><div class="h"><span>${area.title}</span></div><div class="nx">No tide times right now</div></div>`;
-    const nx = t.next.map(x => `${x.type === "high" ? "High" : "Low"} ${x.height_ft}ft ${clock(x.time)}`).join(" · ");
+    const nx = t.next.map(x => `${x.type === "high" ? "High" : "Low"} ${x.height_ft}ft ${clock(x.time)}`).join("<br>");
     return `<div class="card tide"><div class="h"><span>${area.title}</span></div>`
       + `<div><span class="lvl">${t.ft.toFixed(1)}ft</span> <span class="tr ${t.rising ? "up" : "dn"}">${t.rising ? "▲ rising" : "▼ falling"}</span></div>`
       + `<div class="nx">${nx}</div></div>`;
@@ -271,7 +271,7 @@ function renderPressure() {
     + `<line x1="60" y1="52" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="#1b2438" stroke-width="3" stroke-linecap="round"/><circle cx="60" cy="52" r="4" fill="#1b2438"/>`
     + `<text x="10" y="63" font-size="8" fill="#2f6fd6">OUT</text><text x="98" y="63" font-size="8" fill="#e0782f">IN</text></svg>`
     + `<div class="v">${signed(gap)} <span>hPa</span></div><div class="w" style="color:${col}">${word}</div>`
-    + `<div class="c">${chg != null ? `${signed(chg)} in 3 hours · ` : ""}${clock(bcHM(last.at))}</div>`;
+    + `<div class="c" title="Reading at ${clock(bcHM(last.at))}">${chg != null ? `${signed(chg)} in 3 hours` : `at ${clock(bcHM(last.at))}`}</div>`;
 }
 
 // ---------- Best spot, 12kt and up ----------
@@ -332,7 +332,8 @@ function renderBest() {
 const DIRS8 = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 function reportLine(r) {
   const at = r.time ? bcMs(r.date, r.time) : Date.parse(r.posted_at);
-  const wind = `${r.dir ? r.dir + " " : ""}${r.speed}${r.gust ? "g" + r.gust : ""}kt`;
+  const sp = Math.round(r.speed), g = r.gust != null ? Math.round(r.gust) : null;
+  const wind = sp === 0 ? `calm${g ? `, gusts ${g}kt` : ""}` : `${r.dir ? r.dir + " " : ""}${sp}${g && g > sp ? " gusting " + g : ""}kt`;
   const extra = [r.waves && r.waves !== "flat" ? r.waves : r.waves === "flat" ? "flat water" : null, r.weeds && r.weeds !== "none" ? `${r.weeds} weeds` : null].filter(Boolean).join(", ");
   return { at, html: `<b>${esc(spotName(r.spot))}</b>, ${r.time ? clock(r.time) : ""} · ${esc(wind)}${extra ? " · " + esc(extra) : ""}` };
 }
@@ -434,7 +435,7 @@ function renderTake() {
 }
 
 // ---------- Webcams ----------
-const CAM_SHORT = { jericho: "Jericho", "whiterock-east": "White Rock East", "whiterock-west": "White Rock pier", gondola: "Sea to Sky Gondola", "copper-cove": "Copper Cove" };
+const CAM_SHORT = { jericho: "Jericho", "whiterock-east": "White Rock East", "whiterock-west": "White Rock pier", gondola: "Sea to Sky Gondola", "copper-cove": "Copper Cove", "boundary-bay": "Boundary Bay" };
 const camSrc = (url) => `${url}${url.includes("?") ? "&" : "?"}t=${Math.floor(Date.now() / 60000)}`;
 function renderCams() {
   const cams = WEBCAMS || [];
