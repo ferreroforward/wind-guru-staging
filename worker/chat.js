@@ -334,6 +334,32 @@ function terminalLatest(json) {
   return { at: Number(x.t) || Date.parse(x.time), dir: isFinite(d) ? DIR16[Math.round(((d % 360) + 360) % 360 / 22.5) % 16] : null, kt: kt(x.avgKph), gust: kt(x.gustKph), temp: null };
 }
 
+// Readings over time for the trend arrows: [{ at, kt }], any order.
+function jscaSeries(txt) {
+  const out = [];
+  for (const line of txt.split(/\r?\n/)) {
+    const c = line.trim().split(/\s+/);
+    const dm = c[0]?.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/), tm = c[1]?.match(/^(\d{1,2}):(\d{2})([ap])$/);
+    if (c.length < 16 || !dm || !tm) continue;
+    const kt = parseFloat(c[7]);
+    if (!isFinite(kt)) continue;
+    const H = (Number(tm[1]) % 12) + (tm[3] === "p" ? 12 : 0);
+    out.push({ at: pacificMs(2000 + Number(dm[3]), Number(dm[1]), Number(dm[2]), H, Number(tm[2])), kt });
+  }
+  return out.slice(-12);
+}
+function terminalSeries(json) {
+  return (json?.series || []).filter((x) => Number.isFinite(x.avgKph)).map((x) => ({ at: Number(x.t) || Date.parse(x.time), kt: Math.round(x.avgKph * 0.539957 * 10) / 10 }));
+}
+// The reading closest to an hour before `at` (within 25 minutes), or null.
+function hourAgo(list, at) {
+  if (!list?.length || !isFinite(at)) return null;
+  const target = at - 3600000;
+  let best = null;
+  for (const r of list) if (isFinite(r.at) && Math.abs(r.at - target) <= 25 * 60000 && (!best || Math.abs(r.at - target) < Math.abs(best.at - target))) best = r;
+  return best ? { at: best.at, kt: best.kt } : null;
+}
+
 // EC SWOB files (dd.weather.gc.ca): the same stations, posted within about a
 // minute of the reading (the past conditions page above shows the 8am
 // reading around 9:10am). "minute" files are a reading every minute (1 minute
@@ -512,6 +538,7 @@ async function getObsData(env) {
   const extra = [];
   const latest = {};
   const swob = {};
+  const series = {};
   const pressure = {};
   const swobKey = Object.fromEntries(Object.entries(PRESSURE_SWOB).map(([k, c]) => [c, k]));
   const UA = { headers: { "User-Agent": "wind-guru-chat/1.0" } };
@@ -536,16 +563,21 @@ async function getObsData(env) {
       try { const r = await fetch("https://dd.weather.gc.ca/today/observations/swob-ml/latest/CWSK-AUTO-swob.xml", UA); if (r.ok) pressure.wsk = swobPressure(await r.text()); } catch {}
     })(),
     (async () => {
-      try { const r = await fetch("https://jsca.bc.ca/main/downld02.txt", UA); if (r.ok) { const t = await r.text(); extra[0] = jscaText(t); latest.jsca = jscaLatest(t); } } catch {}
+      try { const r = await fetch("https://jsca.bc.ca/main/downld02.txt", UA); if (r.ok) { const t = await r.text(); extra[0] = jscaText(t); latest.jsca = jscaLatest(t); series.jsca = jscaSeries(t); } } catch {}
     })(),
     (async () => {
-      try { const r = await fetch("https://kiteloop.vercel.app/api/spit-wind-nowcast", UA); if (r.ok) { const j = await r.json(); extra[1] = terminalText(j); latest.kiteloop = terminalLatest(j); } } catch {}
+      try { const r = await fetch("https://kiteloop.vercel.app/api/spit-wind-nowcast", UA); if (r.ok) { const j = await r.json(); extra[1] = terminalText(j); latest.kiteloop = terminalLatest(j); series.kiteloop = terminalSeries(j); } } catch {}
     })(),
   ]);
   // The newer of the two EC sources wins for the latest reading.
   for (const [code, x] of Object.entries(swob)) if (x && (!latest[code] || x.at > latest[code].at)) latest[code] = x;
   const text = [obsText(byCode), extra[0] || "Jericho Sailing Centre beach station: no reading available", extra[1] || "Squamish shipping terminal sensor: no reading available"].join("\n");
-  const stations = Object.entries(latest).filter(([, v]) => v && isFinite(v.at)).map(([code, v]) => ({ code, name: STATION_NAMES[code], ...v }));
+  // The reading about an hour before the latest one, for the Now page's
+  // trend arrows (Nov 12 2026): EC's hourly rows, Jericho's half hour file
+  // and the terminal's 5 minute samples.
+  const nowMs = Date.now();
+  for (const [c, rowsC] of Object.entries(byCode)) series[c] = Object.values(ecDated(rowsC, nowMs)).filter((x) => isFinite(x.kt)).map((x) => ({ at: x.at, kt: x.kt }));
+  const stations = Object.entries(latest).filter(([, v]) => v && isFinite(v.at)).map(([code, v]) => ({ code, name: STATION_NAMES[code], ...v, hour_ago: hourAgo(series[code], v.at) }));
   const fetched = Object.keys(byCode).length + (extra[0] ? 1 : 0) + (extra[1] ? 1 : 0) + Object.values(swob).filter(Boolean).length;
   if (!fetched) return cached?.text ? cached : { at: Date.now(), text: "Live station readings are not available right now.", stations: [] };
   // Hourly rows for the Squamish go signal (email alerts).
@@ -1038,7 +1070,7 @@ async function runAlerts(env, nowMs = Date.now()) {
 
 export default {
   // Exposed only for tests; Cloudflare ignores extra keys on the default export.
-  _test: { parseEcPast24, obsText, validMessages, costUsd, jscaText, terminalText, validReport, newId, parseSwob, swobPressure, pressureRow, updatePressureHistory, ecDated, ecHistRows, histText, pageHistory, validRules, squamishSignal, stationHit, daylightMs, runAlerts },
+  _test: { parseEcPast24, obsText, validMessages, costUsd, jscaText, terminalText, validReport, newId, parseSwob, swobPressure, pressureRow, updatePressureHistory, ecDated, ecHistRows, histText, pageHistory, jscaSeries, terminalSeries, hourAgo, validRules, squamishSignal, stationHit, daylightMs, runAlerts },
   async scheduled(event, env, ctx) {
     const t = event.scheduledTime || Date.now();
     ctx.waitUntil(runAlerts(env, t).then(async (r) => {

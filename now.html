@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Wind Guru Now</title>
+<meta name="description" content="Wind, tides, Howe Sound pressure and the best spot right now, on one phone screen.">
+<meta name="theme-color" content="#f4f6fb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Wind Guru Now">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%AC%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<style>
+  /* Wind Guru Now (Nov 12 2026, Guillermo's sketch): the important things
+     at a glance on one phone screen. Same colours as index.html. */
+  :root{--bg:#f4f6fb;--panel:#fff;--panel2:#eef1f8;--border:#dbe1ee;--text:#1b2438;--muted:#5c6685;--accent:#2f7fe0;--green:#189863;--green-bg:#e4f7ee;--yellow:#b3790e;--yellow-bg:#fbf0da;--red:#c93b56;--out:#2f6fd6;--in:#e0782f}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font:13px/1.25 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+  a{color:var(--accent)}
+  .wrap{padding:8px 10px calc(14px + env(safe-area-inset-bottom));max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:7px}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .top b{font-size:15px;white-space:nowrap}.top .t{color:var(--muted);font-size:11px}
+  .top a{text-decoration:none;font-weight:600;font-size:12px;white-space:nowrap}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:6px 7px}
+  .h{font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--muted);text-transform:uppercase;margin-bottom:3px;display:flex;justify-content:space-between;gap:6px}
+  .dials{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 2px}
+  .dial{text-align:center;text-decoration:none;color:inherit}
+  .dial svg{width:100%;max-width:86px;display:block;margin:0 auto}
+  .dial .n{font-size:10.5px;font-weight:600;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dial .a{font-size:9.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dial.stale svg{opacity:.45}
+  .row{display:grid;gap:7px}
+  .r2{grid-template-columns:1fr 1fr}
+  .tide .lvl{font-size:20px;font-weight:700}.tide .tr{font-size:12px;font-weight:600}
+  .tide .nx{font-size:11px;color:var(--muted);margin-top:1px}
+  .up{color:var(--green)}.dn{color:var(--out)}.flat{color:var(--muted)}
+  .pbest{grid-template-columns:118px 1fr}
+  .press{text-align:center}.press svg{width:100%;max-width:104px;display:block;margin:0 auto}
+  .press .v{font-size:17px;font-weight:700;margin-top:-2px}.press .v span{font-size:10px;color:var(--muted);font-weight:600}
+  .press .w{font-size:11px;font-weight:700}.press .c{font-size:9.5px;color:var(--muted)}
+  .best .sp{font-size:15px;font-weight:700}.best .sub{font-size:10.5px;color:var(--muted)}
+  .best .none{font-size:12px;color:var(--muted);margin-top:4px}
+  .hrs{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-top:5px}
+  .hr{background:var(--panel2);border-radius:8px;padding:3px 2px;text-align:center}
+  .hr .tm{font-size:10px;color:var(--muted)}.hr .kt{font-size:14px;font-weight:700}.hr .d{font-size:10px}
+  .hr .p{font-size:10px;font-weight:700;border-radius:6px;margin-top:1px}
+  .g{background:var(--green-bg);color:var(--green)}.y{background:var(--yellow-bg);color:var(--yellow)}.n0{background:#e6e9f1;color:var(--muted)}
+  .osr{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center}
+  .btn{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:9px 11px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit}
+  .btn:disabled{opacity:.5}
+  .osr .l{font-size:11.5px}.osr .l .m{color:var(--muted);font-size:10.5px}
+  .linkbtn{background:none;border:0;padding:0;color:var(--accent);font-weight:600;font-size:11px;cursor:pointer;font-family:inherit}
+  .take{font-size:12px}.take .more{color:var(--accent);font-weight:600;cursor:pointer}
+  .cams{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:5px}
+  .cam{position:relative;aspect-ratio:4/3;border-radius:8px;overflow:hidden;background:linear-gradient(160deg,#9db7d8,#5d7fa8);display:block}
+  .cam img{width:100%;height:100%;object-fit:cover;display:block}
+  .cam span{position:absolute;left:0;right:0;bottom:0;padding:3px 5px;font-size:10px;font-weight:600;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.55));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cam .nopic{position:absolute;inset:0 0 18px 0;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;font-size:10px;padding:6px}
+  .coffee{text-align:center}
+  .coffee .btn{display:inline-block;text-decoration:none;background:#ffdd00;color:#1b2438;margin:4px 0}
+  .coffee .s{font-size:10.5px;color:var(--muted)}
+  .foot{font-size:10px;color:var(--muted);text-align:center}
+  /* Pop ups */
+  .sheet{position:fixed;inset:0;background:rgba(20,28,45,.45);display:none;align-items:flex-end;justify-content:center;z-index:20}
+  .sheet.open{display:flex}
+  .sheet .box{background:var(--panel);width:100%;max-width:520px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:12px 12px calc(14px + env(safe-area-inset-bottom))}
+  .sheet .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .sheet .hd b{font-size:15px}
+  .x{background:var(--panel2);border:0;border-radius:50%;width:30px;height:30px;font-size:16px;cursor:pointer}
+  .lab{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:9px 0 4px}
+  .chips{display:flex;flex-wrap:wrap;gap:5px}
+  .chip{border:1px solid var(--border);background:var(--panel2);border-radius:9px;padding:8px 9px;font-size:13px;font-weight:600;cursor:pointer;min-width:42px;font-family:inherit;color:var(--text)}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .chips.big .chip{min-width:52px;padding:10px 6px;font-size:15px}
+  .msg{font-size:12px;margin-top:8px}
+  .rep{border-top:1px solid var(--border);padding:7px 0;font-size:12.5px}
+  .rep .m{color:var(--muted);font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="top"><div><b>🌬️ Wind Guru · Now</b> <span class="t" id="clock"></span></div><a href="./">Full forecast ›</a></div>
+  <div class="card"><div class="h"><span>Gusts now (knots)</span><span>wind to gust · ▲▼ vs an hour ago</span></div><div class="dials" id="dials"></div></div>
+  <div class="row r2" id="tides"></div>
+  <div class="row pbest"><div class="card press" id="press"></div><div class="card best" id="best"></div></div>
+  <div class="card osr"><button class="btn" id="osrBtn" type="button">📍 Report<br>OSR</button><div class="l" id="osrLatest">Loading on site reports…</div></div>
+  <div class="card take" id="take" style="display:none"></div>
+  <div class="card" id="camCard" style="display:none"><div class="h"><span>📷 Webcams</span><span>tap for live</span></div><div class="cams" id="cams"></div></div>
+  <div class="card coffee">
+    <div class="s">Wind Guru is free and always will be. If it saved you a wasted trip, you're welcome to</div>
+    <a class="btn" href="https://buy.stripe.com/00wfZg2P27G82ry10k1wY00" target="_blank" rel="noopener">☕ Buy me a coffee</a>
+    <div class="s">Card, Apple Pay or Google Pay, no account needed · or <a href="https://paypal.me/ferreroforward" target="_blank" rel="noopener">PayPal</a></div>
+  </div>
+  <div class="foot">Live readings from Environment Canada, Jericho Sailing Centre and the Squamish terminal sensor. Forecasts can be wrong and conditions change fast: you ride at your own risk. <a href="./#disclaimerFull">Disclaimer</a></div>
+</div>
+
+<div class="sheet" id="osrSheet"><div class="box">
+  <div class="hd"><b>📍 On site report</b><button class="x" type="button" data-close>✕</button></div>
+  <div style="font-size:11.5px;color:var(--muted)">What is the wind doing where you are? It shows here for other riders and helps tune the forecast.</div>
+  <div class="lab">Spot</div><div class="chips" id="fSpot"></div>
+  <div class="lab">When</div><div class="chips" id="fWhen"></div>
+  <div class="lab">Wind (knots)</div><div class="chips big" id="fSpeed"></div>
+  <div class="lab">Gusts (knots, optional)</div><div class="chips big" id="fGust"></div>
+  <div class="lab">From (optional)</div><div class="chips" id="fDir"></div>
+  <div class="lab">Water (optional)</div><div class="chips" id="fWaves"></div>
+  <div style="margin-top:12px"><button class="btn" id="fSend" type="button" style="width:100%;padding:12px">Send report</button></div>
+  <div class="msg" id="fMsg"></div>
+</div></div>
+
+<div class="sheet" id="repSheet"><div class="box">
+  <div class="hd"><b>Recent on site reports</b><button class="x" type="button" data-close>✕</button></div>
+  <div id="repList"></div>
+</div></div>
+
+<script type="module">
+const STAGING = location.pathname.includes("wind-guru-staging");
+const CHAT_URL = STAGING ? "https://wind-guru-chat-staging.guillermo-ferrero.workers.dev" : "https://wind-guru-chat.guillermo-ferrero.workers.dev";
+const REPORT_URL = STAGING ? "https://wind-guru-reports-staging.guillermo-ferrero.workers.dev" : "https://wind-guru-reports.guillermo-ferrero.workers.dev";
+const ASSET_VERSION = await fetch("data/version.json", { cache: "no-store" })
+  .then(r => (r.ok ? r.json() : null)).then(v => v?.version).catch(() => null)
+  ?? String(Math.floor(Date.now() / 600000));
+const { SPOTS, WEBCAMS, inSector } = await import(`./assets/spots.js?v=${ASSET_VERSION}`);
+const { BC_TZ, probabilityInRange, isDaylightHour, daylightWindow, liveOutflowHours, currentPacificHourString } = await import(`./assets/rules.js?v=${ASSET_VERSION}`);
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const MINUS = "−";
+const signed = (x, d = 1) => `${x > 0 ? "+" : x < 0 ? MINUS : ""}${Math.abs(x).toFixed(d)}`;
+const bcParts = (ms = Date.now()) => Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: BC_TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(ms)).map(p => [p.type, p.value]));
+const bcDate = (ms) => { const p = bcParts(ms); return `${p.year}-${p.month}-${p.day}`; };
+const bcHM = (ms) => { const p = bcParts(ms); return `${p.hour}:${p.minute}`; };
+// "13:05" -> "1:05pm", "14:00" -> "2pm"
+const clock = (hm) => { const [H, M] = hm.split(":").map(Number); return `${((H + 11) % 12) + 1}${M ? ":" + String(M).padStart(2, "0") : ""}${H < 12 ? "am" : "pm"}`; };
+// BC wall clock (fixed UTC-7) to epoch ms.
+const bcMs = (date, hm) => Date.parse(`${date}T${hm}:00-07:00`);
+const ago = (ms) => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`; };
+const spotById = (id) => SPOTS.find(s => s.id === id);
+// Short names so the buttons and lines fit a phone.
+const SHORT = { "squamish-spit": "Squamish", "porteau-cove": "Porteau", "jericho-spanish-banks": "Jericho", "garry-point": "Steveston", "boundary-bay": "Boundary Bay", "white-rock-east": "White Rock", "crescent-beach": "Crescent Beach", "tsawwassen-south": "Tsawwassen causeway", "erwin-park": "Erwin Park", "dundarave-pier": "Dundarave", "ambleside": "Ambleside", "cates-park": "Cates Park" };
+const spotName = (id) => SHORT[id] || spotById(id)?.name || id;
+
+let forecast = null, obs = null, reports = null;
+
+// ---------- Wind dials ----------
+// Eight stations (Guillermo, Nov 12 2026), each with the spots it tells you about.
+const STATIONS = [
+  { code: "was", name: "Pam Rocks", area: "Porteau, Howe Sound" },
+  { code: "kiteloop", name: "Squamish terminal", area: "Squamish" },
+  { code: "jsca", name: "Jericho beach", area: "Jericho" },
+  { code: "46304", name: "English Bay buoy", area: "English Bay" },
+  { code: "wsb", name: "Point Atkinson", area: "Erwin Park, N Shore" },
+  { code: "vtf", name: "Ferry Terminal", area: "Tsawwassen" },
+  { code: "wvf", name: "Sand Heads", area: "Strait, Delta" },
+  { code: "46146", name: "Halibut Bank", area: "Open Strait" },
+];
+const MAX_KT = 35;
+const A0 = Math.PI * 0.75, A1 = Math.PI * 2.25;
+const ang = (v) => A0 + (A1 - A0) * Math.max(0, Math.min(v, MAX_KT)) / MAX_KT;
+function arc(cx, cy, r, a0, a1) {
+  const p = (a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  const [x0, y0] = p(a0), [x1, y1] = p(a1);
+  return `M${x0.toFixed(1)} ${y0.toFixed(1)}A${r} ${r} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+}
+const ZONES = [[0, 8, "#cfd6e4"], [8, 12, "#9fd6b9"], [12, 25, "#189863"], [25, 30, "#e3a33a"], [30, 35, "#c93b56"]];
+const zonePaths = ZONES.map(([a, b, c]) => `<path d="${arc(50, 50, 40, ang(a), ang(b))}" stroke="${c}" stroke-width="8" fill="none"/>`).join("");
+function dialSvg(st) {
+  if (!st || st.kt == null) {
+    return `<svg viewBox="0 0 100 96">${zonePaths}<circle cx="50" cy="50" r="22" fill="#fff" stroke="#dbe1ee"/><text x="50" y="54" font-size="11" text-anchor="middle" fill="#5c6685">no data</text></svg>`;
+  }
+  // Guillermo, Nov 12 2026: two black markers show the range from the wind
+  // to the gust on the dial, and the gust (the most important number) sits
+  // in the middle. With no gust reported, one marker and the wind speed.
+  const kt = Math.round(st.kt);
+  const gust = st.gust != null && st.gust > st.kt ? Math.round(st.gust) : null;
+  // A black marker across the coloured band at the wind and at the gust, joined by a black stripe along the band.
+  const tick = (v) => { const a = ang(v); return `<line x1="${(50 + 33 * Math.cos(a)).toFixed(1)}" y1="${(50 + 33 * Math.sin(a)).toFixed(1)}" x2="${(50 + 47 * Math.cos(a)).toFixed(1)}" y2="${(50 + 47 * Math.sin(a)).toFixed(1)}" stroke="#1b2438" stroke-width="4" stroke-linecap="round"/>`; };
+  const band = gust != null ? `<path d="${arc(50, 50, 40, ang(st.kt), ang(gust))}" stroke="#1b2438" stroke-width="4" fill="none"/>` : "";
+  // Trend under the number (Guillermo: easier to see there): wind 2kt or more up or down versus about an hour ago.
+  let tr = "", tc = "#5c6685";
+  if (st.hour_ago && st.hour_ago.kt != null) {
+    const d = st.kt - st.hour_ago.kt;
+    if (d >= 2) { tr = "▲"; tc = "#189863"; } else if (d <= -2) { tr = "▼"; tc = "#2f6fd6"; } else { tr = "▬"; }
+  }
+  const dir = st.dir === "calm" ? "calm" : (st.dir || "");
+  return `<svg viewBox="0 0 100 96">${zonePaths}${band}${tick(st.kt)}${gust != null ? tick(gust) : ""}`
+    + `<circle cx="50" cy="50" r="23" fill="#fff" stroke="#dbe1ee"/>`
+    + `<text x="50" y="52" font-size="20" font-weight="800" text-anchor="middle" fill="#1b2438">${gust ?? kt}</text>`
+    + `<text x="50" y="65" font-size="10.5" font-weight="700" text-anchor="middle"><tspan fill="${tc}" font-size="12">${tr}</tspan>${tr ? " " : ""}<tspan fill="#5c6685">${esc(dir)}</tspan></text>`
+    + `<text x="50" y="94" font-size="10.5" font-weight="600" fill="#5c6685" text-anchor="middle">${gust != null ? `${kt} to ${gust}` : `${kt}, no gust`}</text>`
+    + `</svg>`;
+}
+function renderDials() {
+  const by = Object.fromEntries((obs?.stations || []).map(s => [s.code, s]));
+  $("dials").innerHTML = STATIONS.map(def => {
+    const st = by[def.code];
+    const stale = !st || !isFinite(st.at) || Date.now() - st.at > 100 * 60000;
+    const when = st && isFinite(st.at) ? `${clock(bcHM(st.at))}` : "";
+    return `<div class="dial${stale ? " stale" : ""}" title="${esc(def.name)}${when ? ", " + when : ""}">${dialSvg(stale && st && Date.now() - st.at > 6 * 3600000 ? null : st)}`
+      + `<div class="n">${esc(def.name)}</div><div class="a">${stale && when ? "old: " + when : esc(def.area)}</div></div>`;
+  }).join("");
+}
+
+// ---------- Tides ----------
+// Two areas (Guillermo, Nov 12 2026): the North Shore and Howe Sound read from
+// Point Atkinson (Jericho's tide), the south from Tsawwassen.
+const TIDE_AREAS = [
+  { spot: "jericho-spanish-banks", title: "Tide · N Shore, Howe Sd" },
+  { spot: "tsawwassen-south", title: "Tide · Delta, White Rock" },
+];
+function tideNow(sd, nowMs) {
+  const ex = (sd?.tide_extremes || []).map(t => ({ ...t, at: bcMs(t.date, t.time) })).filter(t => isFinite(t.at)).sort((a, b) => a.at - b.at);
+  const i = ex.findIndex(t => t.at > nowMs);
+  if (i <= 0) return null;
+  const a = ex[i - 1], b = ex[i];
+  // Smooth (cosine) curve between the last and the next turn of the tide.
+  const f = (nowMs - a.at) / (b.at - a.at);
+  const ft = a.height_ft + (b.height_ft - a.height_ft) * (1 - Math.cos(Math.PI * f)) / 2;
+  const next = ex.slice(i, i + 2);
+  return { ft, rising: b.height_ft > a.height_ft, next, station: sd.tide_station };
+}
+function renderTides() {
+  const now = Date.now();
+  $("tides").innerHTML = TIDE_AREAS.map(area => {
+    const sd = forecast?.spots?.find(s => s.id === area.spot);
+    const t = tideNow(sd, now);
+    if (!t) return `<div class="card tide"><div class="h"><span>${area.title}</span></div><div class="nx">No tide times right now</div></div>`;
+    const nx = t.next.map(x => `${x.type === "high" ? "High" : "Low"} ${x.height_ft}ft ${clock(x.time)}`).join(" · ");
+    return `<div class="card tide"><div class="h"><span>${area.title}</span></div>`
+      + `<div><span class="lvl">${t.ft.toFixed(1)}ft</span> <span class="tr ${t.rising ? "up" : "dn"}">${t.rising ? "▲ rising" : "▼ falling"}</span></div>`
+      + `<div class="nx">${nx}</div></div>`;
+  }).join("");
+}
+
+// ---------- Howe Sound pressure ----------
+// The run's hourly rows plus the hours the chat worker kept since (same as index.html).
+function pressureRows() {
+  const run = (forecast?.howe_sound_pressure?.observed || []).filter(r => isFinite(r.at));
+  const have = new Set(run.map(r => r.t));
+  const rows = run.map(r => ({ ...r }));
+  for (const r of obs?.pressure_history || []) if (r && isFinite(r.at) && r.gap != null && !have.has(r.t)) { rows.push({ ...r }); have.add(r.t); }
+  const p = obs?.pressure;
+  if (p?.pem && p?.yvr && Math.abs(p.pem.at - p.yvr.at) <= 90 * 60000) {
+    const at = Math.max(p.pem.at, p.yvr.at);
+    const last = rows.sort((a, b) => a.at - b.at)[rows.length - 1];
+    if (!last || at > last.at + 30 * 60000) {
+      const pam = (obs?.stations || []).find(s => s.code === "was");
+      rows.push({ t: currentPacificHourString(new Date(at)), at, gap: Math.round((p.yvr.mslp - p.pem.mslp) * 10) / 10, pam_kt: pam?.kt ?? null, pam_dir: pam?.dir ?? null });
+    }
+  }
+  return rows.sort((a, b) => a.at - b.at);
+}
+function renderPressure() {
+  const rows = pressureRows().filter(r => r.gap != null);
+  const last = rows[rows.length - 1];
+  if (!last || Date.now() - last.at > 4 * 3600000) { $("press").innerHTML = `<div class="h"><span>Howe pressure</span></div><div class="c">No pressure readings right now</div>`; return; }
+  const gap = last.gap;
+  const before = rows.filter(r => r.at <= last.at - 2.5 * 3600000).pop();
+  const chg = before ? Math.round((gap - before.gap) * 10) / 10 : null;
+  const lo = -8, hi = 4;
+  const a = (v) => Math.PI + Math.PI * (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo);
+  const an = a(gap), nx = 60 + 36 * Math.cos(an), ny = 52 + 36 * Math.sin(an);
+  const flow = gap <= -0.5 ? "out" : gap >= 0.5 ? "in" : "none";
+  let word = flow === "out" ? "Outflow" : flow === "in" ? "Inflow" : "Neutral";
+  if (chg != null && flow !== "none") {
+    const stronger = flow === "out" ? chg <= -0.5 : chg >= 0.5;
+    const weaker = flow === "out" ? chg >= 0.5 : chg <= -0.5;
+    word += stronger ? " · building" : weaker ? " · easing" : " · steady";
+  }
+  const col = flow === "out" ? "var(--out)" : flow === "in" ? "var(--in)" : "var(--muted)";
+  $("press").innerHTML = `<div class="h"><span>Howe pressure</span></div>`
+    + `<svg viewBox="0 0 120 64"><path d="${arc(60, 52, 42, a(lo), a(0))}" stroke="#2f6fd6" stroke-width="9" fill="none"/><path d="${arc(60, 52, 42, a(0), a(hi))}" stroke="#e0782f" stroke-width="9" fill="none"/>`
+    + `<line x1="60" y1="52" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="#1b2438" stroke-width="3" stroke-linecap="round"/><circle cx="60" cy="52" r="4" fill="#1b2438"/>`
+    + `<text x="10" y="63" font-size="8" fill="#2f6fd6">OUT</text><text x="98" y="63" font-size="8" fill="#e0782f">IN</text></svg>`
+    + `<div class="v">${signed(gap)} <span>hPa</span></div><div class="w" style="color:${col}">${word}</div>`
+    + `<div class="c">${chg != null ? `${signed(chg)} in 3 hours · ` : ""}${clock(bcHM(last.at))}</div>`;
+}
+
+// ---------- Best spot, 12kt and up ----------
+// Today only: now and the next three daylight hours (Guillermo, Nov 12 2026).
+// Never Steveston, and outflow hours at Squamish don't count (same rules as
+// the main page: favorable_direction and outflow_not_ridden).
+function spotHours(sd, sp) {
+  if (sd.id === "porteau-cove" && sp) {
+    const r = liveOutflowHours(sp, sd.hours, pressureRows(), Date.now());
+    if (r) return r.hours;
+  }
+  return sd.hours;
+}
+function oddsOf(h) {
+  if (!h || h.favorable_direction === false || h.outflow_not_ridden) return 0;
+  return probabilityInRange(h, 12)?.probability ?? 0;
+}
+function sideText(sp, h) {
+  const sd = sp?.sides;
+  if (!sd || h?.direction_deg == null) return "";
+  const sec = sd.sectors.find(x => inSector(h.direction_deg, x.dir));
+  return sec ? sec.text : sd.otherText;
+}
+function renderBest() {
+  const box = $("best");
+  const head = `<div class="h"><span>Best spot 12kt+</span><span>next 3 hours</span></div>`;
+  if (!forecast?.spots) { box.innerHTML = head + `<div class="none">Loading the forecast…</div>`; return; }
+  const nowKey = currentPacificHourString();
+  const today = nowKey.slice(0, 10);
+  let best = null;
+  for (const sd of forecast.spots) {
+    if (sd.id === "garry-point") continue;
+    const sp = spotById(sd.id);
+    const hours = spotHours(sd, sp);
+    const i = hours.findIndex(h => h.time === nowKey);
+    if (i < 0) continue;
+    const win = hours.slice(i, i + 4).filter(h => h.time.startsWith(today) && isDaylightHour(h.time, sd.lat, sd.lon));
+    if (!win.length) continue;
+    const odds = win.map(oddsOf);
+    const score = odds.reduce((a, b) => a + b, 0) / odds.length + Math.max(...odds) / 10;
+    if (!best || score > best.score) best = { sd, sp, win, odds, score };
+  }
+  if (!best || Math.max(...best.odds) < 40) {
+    const light = daylightWindow(today, 49.28, -123.12);
+    const dark = !isDaylightHour(nowKey, 49.28, -123.12);
+    box.innerHTML = head + `<div class="sp">${dark ? "After dark" : "Nothing at 12kt+"}</div><div class="none">${dark ? `Riding hours today: ${light?.firstLabel || ""} to ${light?.lastLabel || ""}. See tomorrow on the full forecast.` : "No spot has good odds of 12kt or more in the next 3 hours. Try the full forecast for a lighter range or later today."}</div>`;
+    return;
+  }
+  const { sd, sp, win, odds } = best;
+  const h0 = win[odds.indexOf(Math.max(...odds))];
+  const bits = [sp?.level, sideText(sp, h0) || h0.direction_label].filter(Boolean);
+  const cls = (p) => p >= 60 ? "g" : p >= 40 ? "y" : "n0";
+  box.innerHTML = head + `<div class="sp" data-spot="${esc(sd.id)}">${esc(spotName(sd.id))}</div><div class="sub">${esc(bits.join(" · "))}</div>`
+    + `<div class="hrs">${win.map((h, k) => `<div class="hr"><div class="tm">${k === 0 && h.time === nowKey ? "Now" : clock(h.time.slice(11, 16))}</div><div class="kt">${Math.round(h.speed_kt ?? 0)}</div><div class="d">${esc(h.direction_label || "")}</div><div class="p ${cls(odds[k])}">${odds[k]}%</div></div>`).join("")}</div>`;
+}
+
+// ---------- On site reports (OSR) ----------
+const DIRS8 = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+function reportLine(r) {
+  const at = r.time ? bcMs(r.date, r.time) : Date.parse(r.posted_at);
+  const wind = `${r.dir ? r.dir + " " : ""}${r.speed}${r.gust ? "g" + r.gust : ""}kt`;
+  const extra = [r.waves && r.waves !== "flat" ? r.waves : r.waves === "flat" ? "flat water" : null, r.weeds && r.weeds !== "none" ? `${r.weeds} weeds` : null].filter(Boolean).join(", ");
+  return { at, html: `<b>${esc(spotName(r.spot))}</b>, ${r.time ? clock(r.time) : ""} · ${esc(wind)}${extra ? " · " + esc(extra) : ""}` };
+}
+function renderOsr() {
+  const list = reports?.reports || [];
+  if (!reports) { $("osrLatest").innerHTML = `On site reports aren't loading right now.`; return; }
+  if (!list.length) { $("osrLatest").innerHTML = `No on site reports yet. Be the first today.`; return; }
+  const r = list[0], l = reportLine(r);
+  $("osrLatest").innerHTML = `<b>Latest OSR:</b> ${l.html}<div class="m">${ago(l.at)} · <button class="linkbtn" type="button" id="viewAll">View all reports ›</button></div>`;
+  $("viewAll").onclick = openReports;
+}
+function openReports() {
+  const list = reports?.reports || [];
+  let day = "", html = "";
+  for (const r of list) {
+    if (r.date !== day) { day = r.date; html += `<div class="lab">${new Date(bcMs(r.date, "12:00")).toLocaleDateString("en-CA", { timeZone: BC_TZ, weekday: "long", month: "short", day: "numeric" })}</div>`; }
+    const l = reportLine(r);
+    html += `<div class="rep">${l.html}<div class="m">${ago(l.at)}</div></div>`;
+  }
+  $("repList").innerHTML = html || `<div class="msg">No reports yet.</div>`;
+  $("repSheet").classList.add("open");
+}
+async function loadReports() {
+  try {
+    const r = await fetch(`${REPORT_URL}/reports`);
+    if (r.ok) reports = await r.json();
+  } catch { /* keep the last list */ }
+  renderOsr();
+}
+
+// The quick form: big buttons, knots only (Guillermo, Nov 12 2026).
+const form = { spot: null, when: 0, speed: null, gust: null, dir: null, waves: null };
+function chips(el, items, key, fmt = (x) => x) {
+  el.innerHTML = items.map(v => `<button type="button" class="chip${form[key] === v ? " on" : ""}" data-v="${esc(String(v))}">${esc(fmt(v))}</button>`).join("");
+  el.querySelectorAll(".chip").forEach((b, i) => b.onclick = () => { form[key] = form[key] === items[i] && key !== "spot" && key !== "when" ? null : items[i]; buildForm(); });
+}
+const OSR_SPOTS = SPOTS.filter(s => s.id !== "garry-point");
+function buildForm() {
+  chips($("fSpot"), OSR_SPOTS.map(s => s.id), "spot", spotName);
+  chips($("fWhen"), [0, 30, 60, 120], "when", (m) => m === 0 ? "Now" : m < 60 ? `${m} min ago` : `${m / 60}h ago`);
+  chips($("fSpeed"), [0, 6, 8, 10, 12, 14, 16, 18, 20, 22, 25, 28, 30, 35], "speed", (k) => k === 0 ? "calm" : k === 35 ? "35+" : k);
+  chips($("fGust"), [10, 12, 14, 16, 18, 20, 22, 25, 28, 30, 35, 40], "gust", (k) => k === 40 ? "40+" : k);
+  chips($("fDir"), DIRS8, "dir");
+  chips($("fWaves"), ["flat", "chop", "waves", "good swell"], "waves");
+  $("fSend").disabled = !form.spot || form.speed == null;
+}
+function openForm() {
+  if (!form.spot) {
+    // Start on the best spot, if there is one.
+    form.spot = $("best").querySelector(".sp[data-spot]")?.dataset.spot || null;
+  }
+  form.when = 0; form.speed = null; form.gust = null; form.dir = null; form.waves = null;
+  $("fMsg").textContent = "";
+  buildForm();
+  $("osrSheet").classList.add("open");
+}
+async function sendReport() {
+  const at = Date.now() - form.when * 60000;
+  const date = bcDate(at), time = bcHM(at);
+  const sd = forecast?.spots?.find(s => s.id === form.spot);
+  const h = sd?.hours?.find(x => x.time === currentPacificHourString(new Date(at)));
+  const body = {
+    spot: form.spot, date, time,
+    forecast_speed: h?.speed_kt != null ? Math.round(h.speed_kt) : "",
+    forecast_dir: h?.direction_label || null,
+    actual_speed: form.speed,
+    actual_gust: form.gust != null && form.gust > form.speed ? form.gust : null,
+    wind_dir: form.dir, wave_size: form.waves,
+  };
+  $("fSend").disabled = true; $("fMsg").textContent = "Sending…";
+  try {
+    const r = await fetch(REPORT_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error(String(r.status));
+    $("fMsg").innerHTML = "✅ Thanks! Your report is in.";
+    // Show it straight away; the list refreshes from GitHub within a couple of minutes.
+    reports = { reports: [{ spot: body.spot, date, time, speed: body.actual_speed, gust: body.actual_gust, dir: body.wind_dir, waves: body.wave_size, posted_at: new Date().toISOString() }, ...(reports?.reports || [])] };
+    renderOsr();
+    setTimeout(() => $("osrSheet").classList.remove("open"), 1200);
+  } catch {
+    $("fMsg").textContent = "Couldn't send it right now. Please try again in a minute.";
+    $("fSend").disabled = false;
+  }
+}
+$("osrBtn").onclick = openForm;
+$("fSend").onclick = sendReport;
+document.querySelectorAll("[data-close]").forEach(b => b.onclick = () => b.closest(".sheet").classList.remove("open"));
+document.querySelectorAll(".sheet").forEach(s => s.onclick = (e) => { if (e.target === s) s.classList.remove("open"); });
+
+// ---------- Guillermo's take ----------
+function renderTake() {
+  const t = forecast?.daily_takes?.[bcDate(Date.now())];
+  if (!t?.text) { $("take").style.display = "none"; return; }
+  const full = esc(t.text).replace(/\n+/g, "<br>");
+  const plain = t.text.replace(/\s+/g, " ");
+  const short = plain.length > 150 ? esc(plain.slice(0, plain.lastIndexOf(" ", 150))) + "…" : null;
+  $("take").style.display = "";
+  $("take").innerHTML = `<div class="h"><span>🎯 Guillermo's take</span></div><div id="takeBody">${short ? `${short} <span class="more" id="takeMore">more</span>` : full}</div>`;
+  if (short) $("takeMore").onclick = () => { $("takeBody").innerHTML = full; };
+}
+
+// ---------- Webcams ----------
+const CAM_SHORT = { jericho: "Jericho", "whiterock-east": "White Rock East", "whiterock-west": "White Rock pier", gondola: "Sea to Sky Gondola", "copper-cove": "Copper Cove" };
+const camSrc = (url) => `${url}${url.includes("?") ? "&" : "?"}t=${Math.floor(Date.now() / 60000)}`;
+function renderCams() {
+  const cams = WEBCAMS || [];
+  $("camCard").style.display = cams.length ? "" : "none";
+  $("cams").innerHTML = cams.map(c => {
+    const yt = c.camstreamer ? (forecast?.webcams?.[c.id]?.youtube || c.youtube) : null;
+    const image = c.image || (yt ? `https://i.ytimg.com/vi/${yt}/maxresdefault_live.jpg` : null);
+    const pic = image ? `<img data-src="${esc(image)}" src="${esc(camSrc(image))}" alt="${esc(c.name)}" loading="lazy" onerror="this.remove()">` : `<div class="nopic">Live picture on the owner's page ↗</div>`;
+    return `<a class="cam" href="${esc(c.url)}" target="_blank" rel="noopener" title="${esc(c.name)}">${pic}<span>${esc(CAM_SHORT[c.id] || c.area || c.name)}</span></a>`;
+  }).join("");
+}
+
+// ---------- Loading and refresh ----------
+function renderClock() {
+  const p = bcParts();
+  const wd = new Date().toLocaleDateString("en-CA", { timeZone: BC_TZ, weekday: "short" });
+  $("clock").textContent = `${wd} ${clock(`${p.hour}:${p.minute}`)}${obs?.at ? " · live" : ""}`;
+}
+function renderAll() { renderClock(); renderDials(); renderTides(); renderPressure(); renderBest(); renderTake(); }
+async function loadForecast() {
+  try {
+    const r = await fetch("data/forecast.json", { cache: "no-store" });
+    if (r.ok) forecast = await r.json();
+  } catch { /* keep the last one */ }
+  renderAll(); renderCams();
+}
+async function loadObs() {
+  try {
+    const r = await fetch(`${CHAT_URL}/obs`);
+    if (r.ok) obs = await r.json();
+  } catch { /* keep the last readings */ }
+  renderAll();
+}
+renderAll();
+await Promise.all([loadForecast(), loadObs(), loadReports()]);
+// Live readings every 2 minutes, reports every 2, the forecast every 10, the clock every minute.
+setInterval(() => { if (!document.hidden) { loadObs(); loadReports(); document.querySelectorAll(".cam img[data-src]").forEach(i => { i.src = camSrc(i.dataset.src); }); } }, 120000);
+setInterval(() => { if (!document.hidden) loadForecast(); }, 600000);
+setInterval(renderClock, 60000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { loadObs(); loadReports(); } });
+</script>
+</body>
+</html>

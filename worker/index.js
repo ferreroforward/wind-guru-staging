@@ -24,7 +24,7 @@ const VALID_SPOTS = [
 function corsHeaders(env) {
   return {
     "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN || "https://ferreroforward.github.io",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
   };
 }
@@ -36,14 +36,70 @@ function jsonResponse(body, status, env) {
   });
 }
 
+// GET /reports (Nov 12 2026, the Now page's "latest on site report" and
+// "view all"): the newest rider reports as plain fields, read with this
+// Worker's token so riders on a shared phone network never hit GitHub's
+// anonymous limit. Only checked fields are passed on (spot ids, numbers,
+// known words): never names, notes or anything else from an issue.
+// Cached for 2 minutes at the edge.
+const REPORT_FIELDS = {
+  "Spot": "spot", "Date": "date", "Time (approx, local)": "time",
+  "Actual speed (kt)": "speed", "Actual gust (kt)": "gust", "Waves": "waves",
+  "Weeds": "weeds", "Actual direction (optional)": "dir",
+};
+function parseReport(body) {
+  const out = {};
+  for (const m of String(body || "").matchAll(/###\s*([^\n]+?)\s*\n+([\s\S]*?)(?=\n###|$)/g)) {
+    const key = REPORT_FIELDS[m[1].trim()];
+    const val = m[2].trim();
+    if (key && val && !/^_no response_$/i.test(val)) out[key] = val;
+  }
+  const num = (v, max) => { const x = Number(v); return isFinite(x) && x >= 0 && x <= max ? x : null; };
+  const DIRS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+  if (!VALID_SPOTS.includes(out.spot) || !/^\d{4}-\d{2}-\d{2}$/.test(out.date || "")) return null;
+  const speed = num(out.speed, 80);
+  if (speed == null) return null;
+  return {
+    spot: out.spot, date: out.date,
+    time: /^\d{2}:\d{2}$/.test(out.time || "") ? out.time : null,
+    speed, gust: num(out.gust, 90),
+    dir: DIRS.includes(out.dir) ? out.dir : null,
+    waves: ["flat", "chop", "waves", "good swell"].includes(out.waves) ? out.waves : null,
+    weeds: ["none", "some", "lots"].includes(out.weeds) ? out.weeds : null,
+  };
+}
+async function listReports(request, env, ctx) {
+  const cache = caches.default;
+  const key = new Request(new URL("/reports", request.url).toString());
+  const hit = await cache.match(key);
+  if (hit) return new Response(hit.body, { headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=60", ...corsHeaders(env) } });
+  const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/issues?labels=wind-report&state=all&sort=created&direction=desc&per_page=30`, {
+    headers: { "Authorization": `Bearer ${env.GITHUB_TOKEN}`, "Accept": "application/vnd.github+json", "User-Agent": "wind-guru-report-worker" },
+  });
+  if (!res.ok) return jsonResponse({ error: "Could not load reports" }, 502, env);
+  const issues = await res.json();
+  const reports = (Array.isArray(issues) ? issues : []).filter((i) => !i.pull_request).map((i) => {
+    const r = parseReport(i.body);
+    return r ? { ...r, posted_at: i.created_at } : null;
+  }).filter(Boolean).slice(0, 25);
+  const body = JSON.stringify({ updated_at: new Date().toISOString(), reports });
+  const out = new Response(body, { headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=120" } });
+  ctx?.waitUntil?.(cache.put(key, out.clone()));
+  return new Response(body, { headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=60", ...corsHeaders(env) } });
+}
+
 function isNum(v, min, max) {
   return typeof v === "number" && isFinite(v) && v >= min && v <= max;
 }
 
 export default {
-  async fetch(request, env) {
+  _test: { parseReport },
+  async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(env) });
+    }
+    if (request.method === "GET" && new URL(request.url).pathname.replace(/\/+$/, "") === "/reports") {
+      return listReports(request, env, ctx);
     }
     if (request.method !== "POST") {
       return jsonResponse({ error: "POST only" }, 405, env);
