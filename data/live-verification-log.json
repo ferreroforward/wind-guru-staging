@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-07T23:17:56.546Z",
+  "updated_at": "2026-11-12T19:03:56.708Z",
   "entries": [
     {
       "spot": "boundary-bay",
@@ -96,6 +96,19 @@
       "station": "White Rock, BC",
       "reasoning": "Forecast showed calm/mixed and live wind came in lighter still — models were on the right track, just a bit high.",
       "checked_at": "2026-08-15T03:05:00.396Z"
+    },
+    {
+      "spot": "erwin-park",
+      "time": "2026-11-12T12:00",
+      "forecasted": 8,
+      "actual": 2.9,
+      "ratio": 0.3625,
+      "source": "live-station",
+      "station": "Point Atkinson",
+      "regime": "outflow",
+      "mismatch": true,
+      "reasoning": "Forecast called outflow that came in weaker than shown — outflow events can relax faster than models show once the synoptic pattern eases.",
+      "checked_at": "2026-11-12T19:03:56.708Z"
     },
     {
       "spot": "erwin-park",
@@ -2136,6 +2149,19 @@
     },
     {
       "spot": "jericho-spanish-banks",
+      "time": "2026-11-12T12:00",
+      "forecasted": 9.3,
+      "actual": 1.7,
+      "ratio": 0.18279569892473116,
+      "source": "live-station",
+      "station": "Jericho Sailing Centre (beach)",
+      "regime": "mixed",
+      "mismatch": true,
+      "reasoning": "Forecast showed calm/mixed and live wind came in lighter still — models were on the right track, just a bit high. This hour already had a rider-feedback adjustment applied.",
+      "checked_at": "2026-11-12T19:03:56.708Z"
+    },
+    {
+      "spot": "jericho-spanish-banks",
       "time": "2026-11-07T16:00",
       "forecasted": 13,
       "actual": 10.4,
@@ -2276,6 +2302,19 @@
       "mismatch": false,
       "reasoning": null,
       "checked_at": "2026-09-27T23:33:54.618Z"
+    },
+    {
+      "spot": "squamish-spit",
+      "time": "2026-11-12T12:00",
+      "forecasted": 10,
+      "actual": 3.4,
+      "ratio": 0.33999999999999997,
+      "source": "live-station",
+      "station": "Squamish terminal sensor (Kiteloop)",
+      "regime": "mixed",
+      "mismatch": true,
+      "reasoning": "Forecast showed calm/mixed and live wind came in lighter still — models were on the right track, just a bit high.",
+      "checked_at": "2026-11-12T19:03:56.708Z"
     },
     {
       "spot": "squamish-spit",
