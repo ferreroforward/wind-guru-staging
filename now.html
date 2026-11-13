@@ -43,7 +43,7 @@
   .hr{background:var(--panel2);border-radius:8px;padding:3px 2px;text-align:center}
   .hr .tm{font-size:12px;color:var(--muted)}.hr .kt{font-size:18px;font-weight:700}.hr .d{font-size:12px}
   .hr .p{font-size:12.5px;font-weight:700;border-radius:6px;margin-top:1px}
-  .g{background:var(--green-bg);color:var(--green)}.y{background:var(--yellow-bg);color:var(--yellow)}.n0{background:#e6e9f1;color:var(--muted)}
+  .g{background:var(--green-bg);color:var(--green)}.y{background:var(--yellow-bg);color:var(--yellow)}.n0{background:var(--red-bg,#fbe6ea);color:var(--red)}
   .osr{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center}
   .btn{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:10px 12px;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit}
   .btn:disabled{opacity:.5}
@@ -289,10 +289,16 @@ function spotHours(sd, sp) {
   }
   return sd.hours;
 }
-function oddsOf(h) {
-  if (!h || h.favorable_direction === false || h.outflow_not_ridden) return 0;
-  return probabilityInRange(h, 12)?.probability ?? 0;
+// Same odds and the same hour ranking as the full page (index.html
+// hourOdds / scoreHour / bestWindowForSpot), so both pages always agree
+// (Guillermo, Nov 13 2026: "it cannot be two different forecasts").
+const QUALIFY_PCT = 65, MIN_LIST_PROBABILITY = 40;
+function scoreHour(probability, confidence, speedKt) {
+  if (probability >= QUALIFY_PCT) return 1000 + (speedKt ?? 0) * (0.5 + confidence / 200);
+  return probability * (0.5 + confidence / 200);
 }
+const oddsOf = (h) => probabilityInRange(h, 12) || { probability: 0, confidence: 0 };
+const rideable = (h) => h.favorable_direction !== false && !h.outflow_not_ridden;
 function sideText(sp, h) {
   const sd = sp?.sides;
   if (!sd || h?.direction_deg == null) return "";
@@ -306,41 +312,51 @@ function renderBest() {
   const today = nowKey.slice(0, 10);
   // Riding hours from now on, today. Before sunrise that means the first
   // hours after first light (Guillermo, Nov 13 2026: riders check early in
-  // the morning to decide where to go).
-  let best = null, windiest = null, startsLater = false;
+  // the morning to decide where to go). Hours, odds and the ranking are the
+  // full page's, only limited to these four hours.
+  let best = null, windiest = null, startsLater = false, any = false;
   for (const sd of forecast.spots) {
-    if (sd.id === "garry-point") continue;
     const sp = spotById(sd.id);
+    if (!sp || sp.neverRecommend) continue;
     const win = spotHours(sd, sp).filter(h => h.time.startsWith(today) && h.time >= nowKey && isDaylightHour(h.time, sd.lat, sd.lon)).slice(0, 4);
     if (!win.length) continue;
+    any = true;
     if (win[0].time !== nowKey) startsLater = true;
-    const odds = win.map(oddsOf);
-    const score = odds.reduce((a, b) => a + b, 0) / odds.length + Math.max(...odds) / 10;
-    if (!best || score > best.score) best = { sd, sp, win, odds, score };
-    for (const h of win) if (h.favorable_direction !== false && !h.outflow_not_ridden && h.speed_kt != null && (!windiest || h.speed_kt > windiest.h.speed_kt)) windiest = { sd, h };
+    for (const h of win) {
+      if (!rideable(h)) continue;
+      const { probability, confidence } = oddsOf(h);
+      const score = scoreHour(probability, confidence, h.speed_kt);
+      if (!best || score > best.score) best = { sd, sp, win, hour: h, probability, score };
+      if (h.speed_kt != null && (!windiest || h.speed_kt > windiest.h.speed_kt)) windiest = { sd, h };
+    }
   }
-  // Before first light (BC clock minutes vs Vancouver's first light).
   const lt = daylightWindow(today, 49.28, -123.12);
   const p = bcParts();
   const fromLight = startsLater && lt && Number(p.hour) * 60 + Number(p.minute) < lt.firstMin;
   const head = `<div class="h"><span>Best spot 12kt+</span><span>${fromLight ? "from first light" : "next 3 hours"}</span></div>`;
-  if (!best) {
-    const tomorrow = bcDate(Date.now() + 86400000);
-    const light = daylightWindow(tomorrow, 49.28, -123.12);
+  if (!any) {
+    const light = daylightWindow(bcDate(Date.now() + 86400000), 49.28, -123.12);
     box.innerHTML = head + `<div class="sp">After dark</div><div class="none">Tomorrow's riding hours start at ${light?.firstLabel || "first light"}. Check back in the morning, or see tomorrow on the full forecast.</div>`;
     return;
   }
-  if (Math.max(...best.odds) < 40) {
+  if (!best || best.probability < MIN_LIST_PROBABILITY) {
     const w = windiest ? `<div class="none" style="margin-top:6px">Windiest: <b>${esc(spotName(windiest.sd.id))}</b>, ${esc(windiest.h.direction_label || "")} ${Math.round(windiest.h.speed_kt)}kt at ${clock(windiest.h.time.slice(11, 16))}</div>` : "";
     box.innerHTML = head + `<div class="sp">Nothing at 12kt+</div><div class="none">No spot has good odds of 12kt or more ${fromLight ? "in the first hours after first light" : "in the next 3 hours"}.</div>${w}`;
     return;
   }
-  const { sd, sp, win, odds } = best;
-  const h0 = win[odds.indexOf(Math.max(...odds))];
-  const bits = [sp?.level, sideText(sp, h0) || h0.direction_label].filter(Boolean);
-  const cls = (p) => p >= 60 ? "g" : p >= 40 ? "y" : "n0";
+  const { sd, sp, win, hour } = best;
+  const bits = [sp?.level, sideText(sp, hour) || hour.direction_label].filter(Boolean);
+  // Colours as the full page's hour strip (65%+ green, 35%+ yellow).
+  const cls = (pc) => pc >= 65 ? "g" : pc >= 35 ? "y" : "n0";
+  const cell = (h) => {
+    const { probability } = oddsOf(h);
+    const kt = h.speed_kt != null ? Math.round(h.speed_kt) : "–";
+    const g = h.gust_kt != null && Math.round(h.gust_kt) > kt ? `<span style="font-size:12px;font-weight:600">–${Math.round(h.gust_kt)}</span>` : "";
+    const flag = h.outflow_not_ridden ? " ⬇️" : h.favorable_direction === false ? " ⚠️" : "";
+    return `<div class="hr" title="${h.outflow_not_ridden ? "Outflow, not ridden here" : h.favorable_direction === false ? "Offshore or unfavorable direction" : ""}"><div class="tm">${h.time === nowKey ? "Now" : clock(h.time.slice(11, 16))}</div><div class="kt">${kt}${g}</div><div class="d">${esc(h.direction_label || "")}${flag}</div><div class="p ${cls(probability)}">${probability}%</div></div>`;
+  };
   box.innerHTML = head + `<div class="sp" data-spot="${esc(sd.id)}">${esc(spotName(sd.id))}</div><div class="sub">${esc(bits.join(" · "))}</div>`
-    + `<div class="hrs">${win.map((h, k) => `<div class="hr"><div class="tm">${h.time === nowKey ? "Now" : clock(h.time.slice(11, 16))}</div><div class="kt">${Math.round(h.speed_kt ?? 0)}</div><div class="d">${esc(h.direction_label || "")}</div><div class="p ${cls(odds[k])}">${odds[k]}%</div></div>`).join("")}</div>`;
+    + `<div class="hrs">${win.map(cell).join("")}</div>`;
 }
 
 // ---------- On site reports (OSR) ----------
