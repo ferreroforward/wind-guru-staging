@@ -301,27 +301,38 @@ function sideText(sp, h) {
 }
 function renderBest() {
   const box = $("best");
-  const head = `<div class="h"><span>Best spot 12kt+</span><span>next 3 hours</span></div>`;
-  if (!forecast?.spots) { box.innerHTML = head + `<div class="none">Loading the forecast…</div>`; return; }
+  if (!forecast?.spots) { box.innerHTML = `<div class="h"><span>Best spot 12kt+</span></div><div class="none">Loading the forecast…</div>`; return; }
   const nowKey = currentPacificHourString();
   const today = nowKey.slice(0, 10);
-  let best = null;
+  // Riding hours from now on, today. Before sunrise that means the first
+  // hours after first light (Guillermo, Nov 13 2026: riders check early in
+  // the morning to decide where to go).
+  let best = null, windiest = null, startsLater = false;
   for (const sd of forecast.spots) {
     if (sd.id === "garry-point") continue;
     const sp = spotById(sd.id);
-    const hours = spotHours(sd, sp);
-    const i = hours.findIndex(h => h.time === nowKey);
-    if (i < 0) continue;
-    const win = hours.slice(i, i + 4).filter(h => h.time.startsWith(today) && isDaylightHour(h.time, sd.lat, sd.lon));
+    const win = spotHours(sd, sp).filter(h => h.time.startsWith(today) && h.time >= nowKey && isDaylightHour(h.time, sd.lat, sd.lon)).slice(0, 4);
     if (!win.length) continue;
+    if (win[0].time !== nowKey) startsLater = true;
     const odds = win.map(oddsOf);
     const score = odds.reduce((a, b) => a + b, 0) / odds.length + Math.max(...odds) / 10;
     if (!best || score > best.score) best = { sd, sp, win, odds, score };
+    for (const h of win) if (h.favorable_direction !== false && !h.outflow_not_ridden && h.speed_kt != null && (!windiest || h.speed_kt > windiest.h.speed_kt)) windiest = { sd, h };
   }
-  if (!best || Math.max(...best.odds) < 40) {
-    const light = daylightWindow(today, 49.28, -123.12);
-    const dark = !isDaylightHour(nowKey, 49.28, -123.12);
-    box.innerHTML = head + `<div class="sp">${dark ? "After dark" : "Nothing at 12kt+"}</div><div class="none">${dark ? `Riding hours today: ${light?.firstLabel || ""} to ${light?.lastLabel || ""}. See tomorrow on the full forecast.` : "No spot has good odds of 12kt or more in the next 3 hours. Try the full forecast for a lighter range or later today."}</div>`;
+  // Before first light (BC clock minutes vs Vancouver's first light).
+  const lt = daylightWindow(today, 49.28, -123.12);
+  const p = bcParts();
+  const fromLight = startsLater && lt && Number(p.hour) * 60 + Number(p.minute) < lt.firstMin;
+  const head = `<div class="h"><span>Best spot 12kt+</span><span>${fromLight ? "from first light" : "next 3 hours"}</span></div>`;
+  if (!best) {
+    const tomorrow = bcDate(Date.now() + 86400000);
+    const light = daylightWindow(tomorrow, 49.28, -123.12);
+    box.innerHTML = head + `<div class="sp">After dark</div><div class="none">Tomorrow's riding hours start at ${light?.firstLabel || "first light"}. Check back in the morning, or see tomorrow on the full forecast.</div>`;
+    return;
+  }
+  if (Math.max(...best.odds) < 40) {
+    const w = windiest ? `<div class="none" style="margin-top:6px">Windiest: <b>${esc(spotName(windiest.sd.id))}</b>, ${esc(windiest.h.direction_label || "")} ${Math.round(windiest.h.speed_kt)}kt at ${clock(windiest.h.time.slice(11, 16))}</div>` : "";
+    box.innerHTML = head + `<div class="sp">Nothing at 12kt+</div><div class="none">No spot has good odds of 12kt or more ${fromLight ? "in the first hours after first light" : "in the next 3 hours"}.</div>${w}`;
     return;
   }
   const { sd, sp, win, odds } = best;
@@ -329,7 +340,7 @@ function renderBest() {
   const bits = [sp?.level, sideText(sp, h0) || h0.direction_label].filter(Boolean);
   const cls = (p) => p >= 60 ? "g" : p >= 40 ? "y" : "n0";
   box.innerHTML = head + `<div class="sp" data-spot="${esc(sd.id)}">${esc(spotName(sd.id))}</div><div class="sub">${esc(bits.join(" · "))}</div>`
-    + `<div class="hrs">${win.map((h, k) => `<div class="hr"><div class="tm">${k === 0 && h.time === nowKey ? "Now" : clock(h.time.slice(11, 16))}</div><div class="kt">${Math.round(h.speed_kt ?? 0)}</div><div class="d">${esc(h.direction_label || "")}</div><div class="p ${cls(odds[k])}">${odds[k]}%</div></div>`).join("")}</div>`;
+    + `<div class="hrs">${win.map((h, k) => `<div class="hr"><div class="tm">${h.time === nowKey ? "Now" : clock(h.time.slice(11, 16))}</div><div class="kt">${Math.round(h.speed_kt ?? 0)}</div><div class="d">${esc(h.direction_label || "")}</div><div class="p ${cls(odds[k])}">${odds[k]}%</div></div>`).join("")}</div>`;
 }
 
 // ---------- On site reports (OSR) ----------
@@ -401,7 +412,7 @@ async function sendReport() {
   const h = sd?.hours?.find(x => x.time === currentPacificHourString(new Date(at)));
   const body = {
     spot: form.spot, date, time,
-    forecast_speed: h?.speed_kt != null ? Math.round(h.speed_kt) : "",
+    forecast_speed: h?.speed_kt != null ? Math.round(h.speed_kt * 10) / 10 : "", // not rounded to a whole knot: a 0.4kt forecast must not become 0 (skipped by calibration)
     forecast_dir: h?.direction_label || null,
     actual_speed: form.speed,
     actual_gust: form.gust != null && form.gust > form.speed ? form.gust : null,
